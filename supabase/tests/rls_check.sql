@@ -1,0 +1,46 @@
+-- Verifica della Row Level Security (da eseguire nel SQL editor o via MCP).
+-- Crea due utenti fittizi dentro una transazione e fa rollback alla fine: non lascia tracce.
+-- Risultato atteso: A vede 1 attività e 1/2/6/6; tutte le altre righe 0 o "bloccato: 42501".
+begin;
+insert into auth.users (id, email, aud, role, instance_id, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values
+ ('11111111-1111-1111-1111-111111111111', 'rls-a@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', '{}', '{}', now(), now()),
+ ('22222222-2222-2222-2222-222222222222', 'rls-b@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', '{}', '{}', now(), now());
+
+create temp table r (test text, result text);
+grant all on r to public;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+insert into public.tasks (title) values ('Attività di A');
+insert into r select 'A vede le proprie attività', (select count(*) from public.tasks)::text;
+insert into r select 'A: profilo/liste/categorie/aree', (select count(*) from public.profiles)||'/'||(select count(*) from public.lists)||'/'||(select count(*) from public.log_categories)||'/'||(select count(*) from public.areas);
+
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+insert into r select 'B vede attività di A', (select count(*) from public.tasks)::text;
+insert into r select 'B vede profili altrui', (select count(*) from public.profiles where owner_id <> '22222222-2222-2222-2222-222222222222')::text;
+with u as (update public.tasks set title = 'manomessa' returning 1) insert into r select 'B modifica attività di A', (select count(*) from u)::text;
+with d as (delete from public.tasks returning 1) insert into r select 'B cancella attività di A', (select count(*) from d)::text;
+do $$ begin
+  begin
+    insert into public.tasks (owner_id, title) values ('11111111-1111-1111-1111-111111111111', 'intrusione');
+    insert into r values ('B inserisce a nome di A', 'RIUSCITO (errore)');
+  exception when others then
+    insert into r values ('B inserisce a nome di A', 'bloccato: ' || sqlstate);
+  end;
+end $$;
+
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+insert into r select 'anon vede attività', (select count(*) from public.tasks)::text;
+do $$ begin
+  begin
+    perform public.get_dispatch_config();
+    insert into r values ('anon legge config notifiche', 'RIUSCITO (errore)');
+  exception when others then
+    insert into r values ('anon legge config notifiche', 'bloccato: ' || sqlstate);
+  end;
+end $$;
+reset role;
+select * from r;
+rollback;

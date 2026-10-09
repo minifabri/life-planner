@@ -1,0 +1,25 @@
+"use client";
+
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
+import { AppShell } from "@/components/shell/app-shell";
+
+export default function AppLayout({ children }: { children: ReactNode }) {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) router.replace("/login");
+  }, [loading, session, router]);
+
+  if (loading || !session) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center" aria-busy="true" aria-label="Caricamento">
+        <span className="size-3.5 animate-pulse rounded-[4px] bg-accent-fill" />
+      </div>
+    );
+  }
+
+  return <AppShell>{children}</AppShell>;
+}

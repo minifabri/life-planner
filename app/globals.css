@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   Design system v0.1 — token (vedi docs/product-definition.md, D29)
+   Tema scuro di default; il chiaro si attiva con data-theme="light".
+   ------------------------------------------------------------------ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0a0f;
+  --surface: #131118;
+  --surface2: #1b1822;
+  --line: #26222f;
+  --line2: #352f42;
+  --text: #edeaf3;
+  --text2: #a9a3b8;
+  --text3: #8a839c;
+  --accent: #b9a4ff;
+  --accent-fill: #5b3fd1;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(185, 164, 255, 0.1);
+  --gold: #d4b47a;
+  --scrim: rgba(5, 4, 8, 0.62);
+  --area-work: #82a8ec;
+  --area-teach: #b9a4ff;
+  --area-practice: #79c7b5;
+  --area-train: #e9a873;
+  --area-home: #a3a9b8;
+  --area-care: #e7a2c6;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f5f8;
+  --surface: #ffffff;
+  --surface2: #eeecf2;
+  --line: #e4e0ea;
+  --line2: #cfc9d9;
+  --text: #16141c;
+  --text2: #55506a;
+  --text3: #6b6580;
+  --accent: #5b3fd1;
+  --accent-fill: #5b3fd1;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(91, 63, 209, 0.07);
+  --gold: #8a6a2c;
+  --scrim: rgba(22, 20, 28, 0.35);
+  --area-work: #3f6fc4;
+  --area-teach: #6b4fd8;
+  --area-practice: #2e8c76;
+  --area-train: #b86a2a;
+  --area-home: #6f7687;
+  --area-care: #b8508a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface2);
+  --color-line: var(--line);
+  --color-line-2: var(--line2);
+  --color-text: var(--text);
+  --color-text-2: var(--text2);
+  --color-text-3: var(--text3);
+  --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-scrim: var(--scrim);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Etichetta di sezione: mono, maiuscolo, spaziato */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
