@@ -551,6 +551,8 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).
 - **Codice**: nuovo **repository privato su GitHub**; il backup va in un secondo repository privato.
 - **Indirizzo**: sottodominio gratuito `*.vercel.app`; il nome si sceglie con il nome dell'app (A9 della Product Definition).
+- **Esito spike (9 ottobre 2026)**: **S3 superato**, pg_cron gira ogni minuto sul piano Free. **S1 lato server superato**: la Edge Function con `npm:web-push` gira su Deno e consegna richieste firmate al servizio push di Apple; resta da confermare la ricezione sul tuo iPhone. S2 e S4 da provare sul dispositivo.
+- **Deploy**: Vercel `life-planner`, produzione su `life-planner-theta-mocha.vercel.app` (alias `life-planner-blastafb-5752.vercel.app`). Supabase `life-planner`, id `hvliluilwazzcphukyjn`; `game-night` messo in pausa.
 - **Browser desktop**: **Chrome**. I test e2e coprono Chromium (desktop) e WebKit (iPhone); notifiche e WebAuthn si verificano anche a mano su Chrome e sulla PWA installata.
 
 ---
