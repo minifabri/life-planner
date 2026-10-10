@@ -11,6 +11,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { useProfile } from "@/lib/data/hooks";
+import { DEFAULT_PREFS } from "@/lib/reminders/defaults";
+import type { NotificationPrefs } from "@/lib/supabase/types";
 import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
@@ -185,7 +187,93 @@ function DaySection() {
   );
 }
 
-/* ---------------- Notifiche (spike S1) ---------------- */
+/* ---------------- Notifiche ---------------- */
+const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof NotificationPrefs)[];
+type TimeKey = "morning_overview_time" | "quiet_start" | "quiet_end" | "meal_prep_reminder_time";
+type ToggleKey = Exclude<keyof NotificationPrefs, TimeKey>;
+
+function Toggle({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-5 shrink-0 accent-(--accent-fill)" />
+      <span className="flex flex-col">
+        <span>{label}</span>
+        {hint ? <span className="text-xs text-text-3">{hint}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+/** Cosa notificare e quando: vale per tutti i dispositivi, si salva solo con la rete. */
+function NotificationPrefsForm() {
+  const profile = useProfile();
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<Partial<NotificationPrefs>>({});
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  // Un profilo rimasto in cache da prima di questo incremento non ha ancora questi campi.
+  const value = <K extends keyof NotificationPrefs>(key: K): NotificationPrefs[K] => draft[key] ?? profile?.[key] ?? DEFAULT_PREFS[key];
+  const time = (key: TimeKey) => value(key).slice(0, 5);
+  const set = (patch: Partial<NotificationPrefs>) => {
+    setDraft({ ...draft, ...patch });
+    setStatus(null);
+  };
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const row = Object.fromEntries(PREF_KEYS.map((k) => [k, value(k)]));
+    const { error } = await getSupabase().from("profiles").update(row).eq("owner_id", profile!.owner_id);
+    if (error) return setStatus({ text: "Non salvato: serve la connessione.", tone: "warn" });
+    await qc.invalidateQueries({ queryKey: ["profile"] });
+    setDraft({});
+    setStatus({ text: "Salvato.", tone: "ok" });
+  }
+
+  const toggle = (key: ToggleKey, label: string, hint?: string) => (
+    <Toggle id={`pref-${key}`} label={label} hint={hint} checked={value(key)} onChange={(v) => set({ [key]: v })} />
+  );
+  const timeField = (key: TimeKey, label: string) => (
+    <Field label={label} htmlFor={`pref-${key}`}>
+      <input id={`pref-${key}`} type="time" required value={time(key)} onChange={(e) => set({ [key]: e.target.value })} className={inputClass} />
+    </Field>
+  );
+
+  return (
+    <form onSubmit={save} className="flex flex-col gap-5 border-t border-line pt-4">
+      <fieldset className="flex flex-col gap-1">
+        <legend className="mb-1 text-xs text-text-2">Cosa ti avvisa</legend>
+        {toggle("notify_medium", "Attenzione media", "Un avviso all'orario; al mattino se non c'è un orario.")}
+        {toggle("notify_high", "Attenzione alta", "Come sopra, più un richiamo il giorno prima.")}
+        {toggle("notify_meal_prep", "Pasti da preparare", "La sera prima, se l'attività è ancora aperta.")}
+        {toggle("notify_morning", "Panoramica del mattino")}
+        {toggle("notify_evening", "Revisione della sera", "Solo se resta qualcosa di aperto.")}
+      </fieldset>
+      <div className="flex flex-wrap gap-3">
+        {timeField("morning_overview_time", "Avvisi del mattino alle")}
+        {timeField("meal_prep_reminder_time", "Avviso dei pasti alle")}
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-xs text-text-2">Silenzio</legend>
+        <div className="flex flex-wrap gap-3">
+          {timeField("quiet_start", "Dalle")}
+          {timeField("quiet_end", "Alle")}
+        </div>
+        {toggle("quiet_allow_high", "L'attenzione alta arriva comunque")}
+        <p className="text-xs leading-relaxed text-text-3">
+          Gli avvisi che cadono in questa fascia arrivano quando finisce. Con lo stesso orario di inizio e di fine il silenzio è spento.
+        </p>
+      </fieldset>
+      <button
+        type="submit"
+        disabled={!profile}
+        className="min-h-11 self-start rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2 disabled:opacity-40"
+      >
+        Salva
+      </button>
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </form>
+  );
+}
+
 function NotificationsSection() {
   const [support] = useState<PushSupport | null>(() => (typeof window === "undefined" ? null : checkPushSupport()));
   const [subscribed, setSubscribed] = useState(false);
@@ -228,7 +316,7 @@ function NotificationsSection() {
   return (
     <Section
       title="Notifiche"
-      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì."
+      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
     >
       {support && !support.ok && support.reason === "ios-not-installed" ? (
         <div className="flex flex-col gap-2 rounded-[14px] bg-accent-soft p-4 text-sm leading-relaxed">
@@ -265,6 +353,7 @@ function NotificationsSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+      <NotificationPrefsForm />
     </Section>
   );
 }
