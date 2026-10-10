@@ -127,7 +127,7 @@ function DaySection() {
   const [draft, setDraft] = useState<{ name?: string; evening?: string }>({});
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
   const name = draft.name ?? profile?.display_name ?? "";
-  const evening = draft.evening ?? profile?.evening_review_time.slice(0, 5) ?? DEFAULT_EVENING_TIME;
+  const evening = draft.evening ?? profile?.evening_review_time?.slice(0, 5) ?? DEFAULT_EVENING_TIME;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
