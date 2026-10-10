@@ -16,6 +16,7 @@ const PAGES = [
   "/capture",
   "/settings",
   "/settings/import",
+  "/settings/icloud",
   "/login",
 ];
 
