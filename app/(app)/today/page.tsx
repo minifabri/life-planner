@@ -63,20 +63,16 @@ export default function TodayPage() {
     goRef.current = go;
   });
 
-  // Desktop: frecce per cambiare giorno, N per aggiungere.
+  // Desktop: frecce per cambiare giorno (N apre il Quick Capture, da qualsiasi schermata).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target) || document.querySelector("[role=dialog]")) return;
       if (e.key === "ArrowLeft") goRef.current(-1);
       else if (e.key === "ArrowRight") goRef.current(1);
-      else if (e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        setEditor({ kind: "new", day });
-      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [day]);
+  }, []);
 
   // Mobile: swipe orizzontale per cambiare giorno (le frecce restano l'alternativa visibile).
   const touch = useRef<{ x: number; y: number } | null>(null);

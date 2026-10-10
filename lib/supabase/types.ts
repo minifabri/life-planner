@@ -91,3 +91,19 @@ export type Recurrence = {
   active: boolean;
   until: string | null;
 };
+
+export type LogCategory = {
+  id: string;
+  name: string;
+  color: string;
+  is_sensitive: boolean;
+  track_last: boolean;
+  keywords: string[];
+  sort_order: number;
+};
+
+export type List = {
+  id: string;
+  kind: "shopping" | "wishlist";
+  name: string;
+};

@@ -19,6 +19,13 @@ export function addDays(d: LocalDate, n: number): LocalDate {
   return fromUtc(toUtc(d) + n * DAY_MS);
 }
 
+/** Somma mesi restando nello stesso giorno; se il mese è più corto si ferma all'ultimo (31 gen + 1 mese = 28 feb). */
+export function addMonths(d: LocalDate, n: number): LocalDate {
+  const [y, m, day] = d.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate();
+  return fromUtc(Date.UTC(y, m - 1 + n, Math.min(day, lastDay)));
+}
+
 /** Giorni da `b` ad `a` (positivo se `a` viene dopo). */
 export function diffDays(a: LocalDate, b: LocalDate): number {
   return Math.round((toUtc(a) - toUtc(b)) / DAY_MS);

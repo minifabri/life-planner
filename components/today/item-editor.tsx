@@ -41,8 +41,25 @@ import {
 } from "@/lib/recurrence/rule";
 import type { Attention, Task } from "@/lib/supabase/types";
 
+/** Valori iniziali di un nuovo elemento, ad esempio quelli letti dal Quick Capture. */
+export type EditorDraft = Partial<{
+  type: "task" | "event";
+  title: string;
+  attention: Attention;
+  when: When;
+  date: LocalDate;
+  time: string;
+  duration: string;
+  due: LocalDate;
+  repeat: Repeat;
+  weekDays: number[];
+  allDay: boolean;
+  startTime: string;
+  endTime: string;
+}>;
+
 export type EditorTarget =
-  | { kind: "new"; day: LocalDate }
+  | { kind: "new"; day: LocalDate; draft?: EditorDraft }
   | { kind: "task"; task: Task }
   | { kind: "event"; occurrence: Occurrence };
 
@@ -73,7 +90,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
   };
 
   if (target.kind === "new") {
-    return { ...base, date: target.day, weekDays: [isoWeekday(target.day)] };
+    return { ...base, date: target.day, weekDays: [isoWeekday(target.day)], ...target.draft };
   }
 
   if (target.kind === "task") {
@@ -164,7 +181,7 @@ export function ItemEditor({
     return { kind: "fixed", rrule: fixedRule() };
   }
 
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<unknown>) {
     setBusy(true);
     setError(null);
     try {

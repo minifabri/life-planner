@@ -4,7 +4,17 @@ import { deterministicId, uuidv7 } from "../ids";
 import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
 import { getSupabase } from "../supabase/client";
-import type { Area, EventException, EventRow, Profile, Recurrence, RecurrenceTemplate, Task } from "../supabase/types";
+import type {
+  Area,
+  EventException,
+  EventRow,
+  List,
+  LogCategory,
+  Profile,
+  Recurrence,
+  RecurrenceTemplate,
+  Task,
+} from "../supabase/types";
 
 function check<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
@@ -100,8 +110,8 @@ async function createRecurrence(input: TaskInput, repeat: Exclude<RepeatInput, {
   return id;
 }
 
-/** Crea un'attività; con una ripetizione crea anche la ricorrenza di cui è la prima occorrenza. */
-export async function createTask(input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<void> {
+/** Crea un'attività e ne restituisce l'id; con una ripetizione crea anche la ricorrenza di cui è la prima occorrenza. */
+export async function createTask(input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<string> {
   const row: Partial<Task> = { id: uuidv7(), ...input };
   if (repeat.kind !== "none") {
     row.date = input.date ?? today;
@@ -110,6 +120,7 @@ export async function createTask(input: TaskInput, repeat: RepeatInput, today: L
   }
   check(await getSupabase().from("tasks").insert(row).select("id"));
   if (repeat.kind === "fixed") await materializeRecurrences(today);
+  return row.id!;
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<void> {
@@ -206,8 +217,10 @@ export type EventInput = Pick<
   "title" | "notes" | "location" | "start_at" | "end_at" | "all_day" | "start_date" | "end_date" | "tz" | "rrule" | "area_id" | "attention"
 >;
 
-export async function createEvent(input: EventInput): Promise<void> {
-  check(await getSupabase().from("events").insert({ id: uuidv7(), ...input }).select("id"));
+export async function createEvent(input: EventInput): Promise<string> {
+  const id = uuidv7();
+  check(await getSupabase().from("events").insert({ id, ...input }).select("id"));
+  return id;
 }
 
 export async function updateEvent(id: string, patch: Partial<EventRow>): Promise<void> {
@@ -225,6 +238,63 @@ export async function cancelOccurrence(eventId: string, originalStart: Date): Pr
       )
       .select("id"),
   );
+}
+
+export async function fetchLogCategories(): Promise<LogCategory[]> {
+  return check(
+    await getSupabase()
+      .from("log_categories")
+      .select("id, name, color, is_sensitive, track_last, keywords, sort_order")
+      .order("sort_order"),
+  );
+}
+
+export async function fetchLists(): Promise<List[]> {
+  return check(await getSupabase().from("lists").select("id, kind, name").order("created_at"));
+}
+
+async function listId(kind: List["kind"]): Promise<string> {
+  const list = (await fetchLists()).find((l) => l.kind === kind);
+  if (!list) throw new Error(`Lista mancante: ${kind}`);
+  return list.id;
+}
+
+export async function createShoppingItem(name: string): Promise<string> {
+  const id = uuidv7();
+  check(await getSupabase().from("shopping_items").insert({ id, list_id: await listId("shopping"), name }).select("id"));
+  return id;
+}
+
+/** Con un link l'articolo nasce con `source = 'link'`: i metadati si recuperano dopo (incremento 8). */
+export async function createWishlistItem(name: string, url: string | null): Promise<string> {
+  const id = uuidv7();
+  check(
+    await getSupabase()
+      .from("wishlist_items")
+      .insert({ id, list_id: await listId("wishlist"), name, url, source: url ? "link" : "manual" })
+      .select("id"),
+  );
+  return id;
+}
+
+export async function createLogEntry(entry: {
+  title: string;
+  date: LocalDate;
+  time: string | null;
+  category_id: string | null;
+  is_sensitive: boolean;
+}): Promise<string> {
+  const id = uuidv7();
+  check(await getSupabase().from("log_entries").insert({ id, ...entry }).select("id"));
+  return id;
+}
+
+/** Eliminazione reversibile (soft delete), usata dall'annullamento. */
+export async function softDelete(
+  table: "tasks" | "events" | "shopping_items" | "wishlist_items" | "log_entries",
+  id: string,
+): Promise<void> {
+  check(await getSupabase().from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"));
 }
 
 export type ImportResult = { created: number; existing: number };
