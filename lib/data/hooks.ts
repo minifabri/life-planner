@@ -42,6 +42,11 @@ export function useTimezone(): string {
   return data?.timezone ?? DEFAULT_TZ;
 }
 
+/** Profilo (nome, ora della Evening review): dalla stessa cache del fuso. */
+export function useProfile() {
+  return useQuery({ queryKey: ["profile"], queryFn: fetchProfile, staleTime: Infinity }).data ?? null;
+}
+
 export function useToday(tz: string): { today: LocalDate; now: Date } {
   const now = useNow();
   return { today: localDateString(now, tz), now };

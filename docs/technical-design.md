@@ -640,6 +640,13 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 10 — Ricerca globale e command palette**
 
 **Incremento 11 — Morning overview, Evening review, Templates**
+- Morning overview ed Evening review anticipate il 10 ottobre 2026 (i Templates restano da fare):
+  - Logica pura con test in `lib/today/overview.ts` (quale card mostrare, saluto, frase di sintesi, prossima scadenza); card in `components/today/overview-card.tsx`.
+  - **Mattino**: frase del prototipo ("Buongiorno, Bibi. Oggi 3 appuntamenti e 8 attività; una scade oggi.") con carico, rimaste indietro e, a parte, la scadenza più vicina dei prossimi sei giorni. Resta fino all'ora della review o alla chiusura.
+  - **Sera**: dall'ora di `profiles.evening_review_time` (20:30), le attività di oggi ancora aperte con Completa · Domani · Scegli data; ciò che si lascia finisce tra le rimaste indietro.
+  - La chiusura vale per il giorno e per il dispositivo (`localStorage`), non è sincronizzata.
+  - Impostazioni → "Mattino e sera": nome usato nel saluto (`display_name`) e ora della review, solo con la rete.
+  - Non incluso: notifica facoltativa che accompagna le card (incremento 9); `morning_overview_time` resta inutilizzato fino ad allora.
 
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 

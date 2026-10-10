@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EventBlock } from "@/components/today/event-block";
+import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
@@ -12,6 +13,7 @@ import {
   useAreas,
   useEvents,
   useOffline,
+  useProfile,
   useTaskActions,
   useTasks,
   useTimezone,
@@ -32,6 +34,7 @@ import { takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { LOAD_LABEL, dayLoad } from "@/lib/tasks/load";
+import { eveningHeading, morningOverview, overviewMode } from "@/lib/today/overview";
 import type { Task } from "@/lib/supabase/types";
 
 type AgendaItem = { key: string; time: string | null; task?: Task; occurrence?: Occurrence };
@@ -57,6 +60,9 @@ export default function TodayPage() {
   const [rescheduling, setRescheduling] = useState<Task | null>(null);
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [windowOpen, setWindowOpen] = useState(false);
+  const profile = useProfile();
+  const [morningClosed, closeMorning] = useDismissedToday("planner-overview-closed", today);
+  const [eveningClosed, closeEvening] = useDismissedToday("planner-review-closed", today);
 
   const go = (delta: number) => setSelected(addDays(day, delta));
   const goRef = useRef(go);
@@ -114,6 +120,25 @@ export default function TodayPage() {
   const failed = missing && (offline || tasksQuery.isError || eventsQuery.isError);
   const loading = missing && !failed;
   const openTask = (task: Task) => setEditor({ kind: "task", task });
+
+  // Panoramica del mattino e revisione della sera: solo guardando oggi, con i dati già arrivati.
+  const openToday = [...sections.agenda, ...sections.todo].filter((t) => t.status === "open");
+  const mode = overviewMode(nowTime, profile?.evening_review_time);
+  const card = !isToday || missing ? null : mode === "morning" ? (morningClosed ? null : "morning") : eveningClosed ? null : "evening";
+  const morning =
+    card === "morning"
+      ? morningOverview({
+          name: profile?.display_name,
+          nowTime,
+          eveningTime: profile?.evening_review_time,
+          events: occurrences.length,
+          openTasks: openToday,
+          overdue: sections.overdue.length,
+          loadLabel: LOAD_LABEL[load.level],
+          allTasks: tasksQuery.data ?? [],
+          today,
+        })
+      : null;
 
   const nowLine = (
     <li aria-label={`Adesso, ${nowTime}`} className="flex items-center gap-2 py-1">
@@ -184,6 +209,18 @@ export default function TodayPage() {
             Riprova
           </button>
         </div>
+      ) : null}
+
+      {morning ? <MorningOverview text={morning.text} note={morning.note} onClose={closeMorning} /> : null}
+      {card === "evening" ? (
+        <EveningReview
+          heading={eveningHeading(profile?.display_name, openToday.length)}
+          tasks={openToday}
+          onComplete={actions.complete}
+          onTomorrow={(t) => actions.moveTo(t, addDays(today, 1))}
+          onPickDate={setRescheduling}
+          onClose={closeEvening}
+        />
       ) : null}
 
       {isToday && sections.overdue.length > 0 ? (
