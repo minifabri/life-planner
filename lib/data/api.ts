@@ -259,12 +259,6 @@ async function listId(kind: List["kind"]): Promise<string> {
   return list.id;
 }
 
-export async function createShoppingItem(name: string): Promise<string> {
-  const id = uuidv7();
-  check(await getSupabase().from("shopping_items").insert({ id, list_id: await listId("shopping"), name }).select("id"));
-  return id;
-}
-
 /** Con un link l'articolo nasce con `source = 'link'`: i metadati si recuperano dopo (incremento 8). */
 export async function createWishlistItem(name: string, url: string | null): Promise<string> {
   const id = uuidv7();

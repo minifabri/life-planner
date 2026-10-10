@@ -5,7 +5,9 @@ import { CaptureSheet } from "@/components/capture/capture-sheet";
 import { ItemEditor, type EditorDraft } from "@/components/today/item-editor";
 import { useToast } from "@/components/ui/toast";
 import { describeDraft, planCapture, type CaptureDraft, type CapturePlan } from "@/lib/capture/plan";
-import { createEvent, createLogEntry, createShoppingItem, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
+import { createEvent, createLogEntry, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
+import { createShoppingItem } from "@/lib/data/shopping";
+import { useInvalidateShopping } from "@/lib/data/shopping-hooks";
 import { useInvalidateDay, useLogCategories, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
 import { endOfWeek, isoWeekday, localTimeString, type LocalDate } from "@/lib/dates/local";
 
@@ -82,7 +84,12 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   const { today, now } = useToday(tz);
   const categories = useLogCategories().data ?? [];
   const actions = useTaskActions(today, tz);
-  const invalidate = useInvalidateDay();
+  const invalidateDay = useInvalidateDay();
+  const invalidateShopping = useInvalidateShopping();
+  const invalidate = () => {
+    invalidateDay();
+    invalidateShopping();
+  };
   const toast = useToast();
 
   const [text, setText] = useState<string | null>(null);
