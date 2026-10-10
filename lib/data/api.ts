@@ -35,10 +35,10 @@ export async function fetchAreas(): Promise<Area[]> {
 }
 
 /**
- * Attività utili alla vista del giorno: tutte quelle aperte (per rimaste indietro e nel periodo),
- * quelle del giorno in qualsiasi stato e quelle completate dal giorno in poi.
+ * Attività utili alle viste da `day` a `to` (un giorno, una settimana, un mese): tutte quelle aperte
+ * (per rimaste indietro e nel periodo), quelle dei giorni richiesti in qualsiasi stato e quelle completate dal primo giorno in poi.
  */
-export async function fetchTasks(day: LocalDate, tz: string): Promise<Task[]> {
+export async function fetchTasks(day: LocalDate, tz: string, to: LocalDate = day): Promise<Task[]> {
   const dayStart = startOfLocalDay(day, tz).toISOString();
   return withPendingTasks(
     check(
@@ -46,32 +46,32 @@ export async function fetchTasks(day: LocalDate, tz: string): Promise<Task[]> {
         .from("tasks")
         .select("*")
         .is("deleted_at", null)
-        .or(`status.eq.open,date.eq.${day},completed_at.gte."${dayStart}"`),
+        .or(`status.eq.open,and(date.gte.${day},date.lte.${to}),completed_at.gte."${dayStart}"`),
     ),
   );
 }
 
 export type { DayEvents };
 
-/** Eventi che possono toccare il giorno: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
-export async function fetchEvents(day: LocalDate, tz: string): Promise<DayEvents> {
+/** Eventi che possono toccare i giorni da `day` a `to`: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
+export async function fetchEvents(day: LocalDate, tz: string, to: LocalDate = day): Promise<DayEvents> {
   const supabase = getSupabase();
   const from = startOfLocalDay(addDays(day, -7), tz).toISOString();
-  const to = startOfLocalDay(addDays(day, 1), tz).toISOString();
+  const until = startOfLocalDay(addDays(to, 1), tz).toISOString();
   const events: EventRow[] = check(
     await supabase
       .from("events")
       .select("*")
       .is("deleted_at", null)
       .or(
-        `rrule.not.is.null,and(start_at.gte."${from}",start_at.lt."${to}"),and(all_day.is.true,start_date.lte.${day},start_date.gte.${addDays(day, -60)})`,
+        `rrule.not.is.null,and(start_at.gte."${from}",start_at.lt."${until}"),and(all_day.is.true,start_date.lte.${to},start_date.gte.${addDays(day, -60)})`,
       ),
   );
   const recurring = events.filter((e) => e.rrule).map((e) => e.id);
   const exceptions: EventException[] = recurring.length
     ? check(await supabase.from("event_exceptions").select("*").in("event_id", recurring))
     : [];
-  return withPendingEvents({ events, exceptions }, day, tz);
+  return withPendingEvents({ events, exceptions }, day, tz, to);
 }
 
 /** Tutte le ricorrenze: sono poche e servono anche senza rete, per creare la prossima attività. */

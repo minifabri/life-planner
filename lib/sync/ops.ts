@@ -132,25 +132,25 @@ export function applyToTasks(tasks: Task[], op: Op, at: string): Task[] {
   return applyToRows(tasks, op, completeTask(at)).filter((t) => !t.deleted_at);
 }
 
-/** Stesso criterio della query `fetchEvents`: l'evento può toccare il giorno. */
-export function eventTouchesDay(event: EventRow, day: LocalDate, tz: string): boolean {
+/** Stesso criterio della query `fetchEvents`: l'evento può toccare i giorni da `day` a `to` (di norma un giorno solo). */
+export function eventTouchesDay(event: EventRow, day: LocalDate, tz: string, to: LocalDate = day): boolean {
   if (event.rrule) return true;
   if (event.start_at) {
-    const from = startOfLocalDay(addDays(day, -7), tz).toISOString();
-    const to = startOfLocalDay(addDays(day, 1), tz).toISOString();
+    const first = startOfLocalDay(addDays(day, -7), tz).toISOString();
+    const end = startOfLocalDay(addDays(to, 1), tz).toISOString();
     const start = new Date(event.start_at).toISOString();
-    if (start >= from && start < to) return true;
+    if (start >= first && start < end) return true;
   }
-  return event.all_day && !!event.start_date && event.start_date <= day && event.start_date >= addDays(day, -60);
+  return event.all_day && !!event.start_date && event.start_date <= to && event.start_date >= addDays(day, -60);
 }
 
 export type DayEvents = { events: EventRow[]; exceptions: EventException[] };
 
-/** Gli eventi di una vista del giorno dopo una modifica in attesa. */
-export function applyToDayEvents(data: DayEvents, op: Op, at: string, day: LocalDate, tz: string): DayEvents {
+/** Gli eventi di una vista (un giorno, oppure i giorni da `day` a `to`) dopo una modifica in attesa. */
+export function applyToDayEvents(data: DayEvents, op: Op, at: string, day: LocalDate, tz: string, to: LocalDate = day): DayEvents {
   if (op.table === "events") {
-    const events = applyToRows(data.events, op, completeEvent(at), (e) => eventTouchesDay(e, day, tz)).filter(
-      (e) => !e.deleted_at && eventTouchesDay(e, day, tz),
+    const events = applyToRows(data.events, op, completeEvent(at), (e) => eventTouchesDay(e, day, tz, to)).filter(
+      (e) => !e.deleted_at && eventTouchesDay(e, day, tz, to),
     );
     return { events, exceptions: data.exceptions };
   }

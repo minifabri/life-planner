@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LocalDate } from "../dates/local";
-import { weekStart } from "../meals/rules";
+import { weekStart, type LocalDate } from "../dates/local";
 import { mealMemoryQuery, mealsQuery } from "./meals";
 
 export function useMeals(from: LocalDate) {

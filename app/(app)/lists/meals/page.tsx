@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/toast";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { addMeal, removeMeal, renameMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
 import { useMealMemory, useMeals } from "@/lib/data/meals-hooks";
-import { addDays, relativeDay, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
-import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, weekStart, type MealDot } from "@/lib/meals/rules";
+import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import type { MealPlan, MealSlot, PrepMode } from "@/lib/supabase/types";
 
 const MODES: { value: PrepMode; label: string }[] = [

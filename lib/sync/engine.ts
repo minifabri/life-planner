@@ -37,7 +37,9 @@ function applyToCache(op: Op, at: string) {
   } else if (op.table === "events" || op.table === "event_exceptions") {
     const tz = timezone();
     for (const [key, data] of queryClient.getQueriesData<DayEvents>({ queryKey: ["events"] })) {
-      if (data) queryClient.setQueryData(key, applyToDayEvents(data, op, at, key[1] as LocalDate, tz));
+      // Chiave di un giorno: ["events", giorno]; di un intervallo (settimana, mese): ["events", dal, al].
+      const from = key[1] as LocalDate;
+      if (data) queryClient.setQueryData(key, applyToDayEvents(data, op, at, from, tz, (key[2] as LocalDate | undefined) ?? from));
     }
   } else if (op.table === "recurrences") {
     queryClient.setQueryData<Recurrence[]>(["recurrences"], (old) => old && applyToRecurrences(old, op));
@@ -80,8 +82,8 @@ export async function withPendingTasks(tasks: Task[]): Promise<Task[]> {
   return (await pending()).reduce((acc, e) => applyToTasks(acc, e.op, e.at), tasks);
 }
 
-export async function withPendingEvents(data: DayEvents, day: LocalDate, tz: string): Promise<DayEvents> {
-  return (await pending()).reduce((acc, e) => applyToDayEvents(acc, e.op, e.at, day, tz), data);
+export async function withPendingEvents(data: DayEvents, day: LocalDate, tz: string, to: LocalDate = day): Promise<DayEvents> {
+  return (await pending()).reduce((acc, e) => applyToDayEvents(acc, e.op, e.at, day, tz, to), data);
 }
 
 export async function withPendingRecurrences(recurrences: Recurrence[]): Promise<Recurrence[]> {

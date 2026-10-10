@@ -28,6 +28,7 @@ import {
   type LocalDate,
 } from "@/lib/dates/local";
 import { todayHeading } from "@/lib/dates/today";
+import { takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { LOAD_LABEL, dayLoad } from "@/lib/tasks/load";
@@ -42,7 +43,8 @@ function isTyping(target: EventTarget | null) {
 export default function TodayPage() {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
-  const [selected, setSelected] = useState<LocalDate | null>(null);
+  // Arrivando da Settimana o Mese si apre il giorno scelto lì.
+  const [selected, setSelected] = useState<LocalDate | null>(takeRequestedDay);
   const day = selected ?? today;
   const isToday = day === today;
 

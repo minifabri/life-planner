@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { weekStart } from "../dates/local";
 import type { MealMemory, MealPlan, PrepMode, Task } from "../supabase/types";
 import { applyToMealMemory, applyToMeals, applyToTasks, type Op } from "../sync/ops";
 import {
@@ -15,7 +16,6 @@ import {
   setModeOps,
   setPreparedOps,
   suggestionsFor,
-  weekStart,
 } from "./rules";
 
 const TODAY = "2026-10-10"; // sabato
