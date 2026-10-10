@@ -99,6 +99,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D36 | Pasto da preparare e non preparato → **attività normale il giorno prima** in Today ("Preparare il pranzo di domani"), che si spunta o si elimina. Spuntarla segna il pasto come preparato; eliminarla toglie solo il promemoria | [APPROVATO] |
 | D37 | Navigazione mobile: la voce **Liste** raggruppa **Spesa · Pasti · Wishlist** | [APPROVATO] |
 | D38 | Ingredienti dei pasti verso la lista della spesa | [FUTURO] |
+| D39 | Calendario dell'iPhone (iCloud): **sola lettura**, in aggiunta a Google Calendar. Gli eventi si modificano nel Calendario dell'iPhone | [APPROVATO il 10 ottobre 2026] |
+| D40 | Attività ed eventi ricavati dalle **mail**, sempre come proposte da confermare | [PROPOSTA] |
 
 ---
 
@@ -448,6 +450,11 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Eventi creati nell'app copiati su GCal; marcati con un identificativo dell'app per evitare duplicati alla rilettura.
 - Sincronizzazione incrementale; conflitti e dettagli tecnici in `technical-design.md`.
 - **Import una tantum da file `.ics`** [APPROVATO il 10 ottobre 2026] da Impostazioni → Dati: eventi e promemoria da Google Calendar, Calendario Apple o Outlook, con anteprima da confermare. Dettagli in `technical-design.md` 9.5.
+
+### 7.12b Calendario iCloud [APPROVATO, D39]
+- Collegamento da Impostazioni con Apple ID e password per app; scelta dei calendari da seguire.
+- Eventi iCloud visibili in Today/Week/Month con un segno di provenienza; modificabili solo nel Calendario dell'iPhone.
+- Una web app non può leggere il calendario del telefono: la lettura avviene dal server su iCloud. Dettagli in `technical-design.md` 9.6.
 
 ### 7.13 Planner pasti [APPROVATO, D34–D37]
 - Raggiungibile da Liste → Pasti (mobile) e dalla sidebar (desktop).
