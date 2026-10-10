@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Button, Field, inputClass } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
-import { DEPARTMENTS, NO_DEPARTMENT } from "@/lib/shopping/list";
+import { departmentStyle } from "@/components/shopping/product-icon";
+import { DEPARTMENTS, NO_DEPARTMENT, departmentOf } from "@/lib/shopping/list";
 import type { ShoppingItem } from "@/lib/supabase/types";
 
 type Change = Pick<ShoppingItem, "name" | "quantity" | "department">;
@@ -21,7 +22,8 @@ export function ItemEditor({
 }) {
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity ?? "");
-  const [department, setDepartment] = useState(item.department);
+  // Senza un reparto scelto si parte da quello riconosciuto dal nome.
+  const [department, setDepartment] = useState(() => departmentOf(item.name, item.department));
 
   // Un reparto arrivato da fuori (non tra quelli proposti) resta selezionabile.
   const known = (DEPARTMENTS as readonly string[]).includes(item.department ?? "");
@@ -77,10 +79,12 @@ export function ItemEditor({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setDepartment(option)}
-                  className={`min-h-11 rounded-xl border px-3 text-sm ${
-                    on ? "border-accent bg-accent-soft text-text" : "border-line-2 text-text-2"
+                  style={departmentStyle(option)}
+                  className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm ${
+                    on ? "dept-tint text-text" : "border-line-2 text-text-2"
                   }`}
                 >
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-(--dept)" />
                   {option ?? NO_DEPARTMENT}
                 </button>
               );
