@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generato da scripts/build-functions.mjs.
+    "supabase/functions/**/*.gen.js",
   ]),
 ]);
 

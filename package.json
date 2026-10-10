@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "build:functions": "node scripts/build-functions.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
