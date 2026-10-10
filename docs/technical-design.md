@@ -151,7 +151,7 @@ all_day boolean default false, start_date date null, end_date date null,
 tz text not null default 'Europe/Rome',
 rrule text null,                                          -- ricorrenza RFC 5545
 area_id uuid null, attention text check in ('low','medium','high') default 'low',
-source text check in ('app','gcal','icloud') default 'app',
+source text check in ('app','gcal','icloud','imayoga') default 'app',
 gcal_calendar_id text null, gcal_event_id text null, gcal_etag text null,
 icloud_calendar_id uuid null, icloud_href text null, icloud_etag text null,
 deleted_at
@@ -428,8 +428,24 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **Proprietà unica**: gli eventi `source = 'gcal'` non si modificano nell'app (pulsante "Apri in Google Calendar"). Gli eventi nati nell'app si modificano nell'app e l'app aggiorna GCal; se vengono modificati in GCal, alla sync successiva vince GCal e l'app mostra le modifiche.
 - Notifiche push di Google (canali watch): [FUTURO], la sync su apertura basta per un uso personale.
 
-### 9.2 imayoga [FUTURO]
-Da definire quando sapremo quali dati espone. Nel frattempo le lezioni sono eventi ricorrenti (`rrule`).
+### 9.2 imayoga [APPROVATO il 10 ottobre 2026: sola lettura, solo lezioni pubblicate, accesso con token]
+- **Cosa espone** il progetto Supabase `ima-yoga` (id `fmlndlnpooyrvnzhmota`): `classes` (data, ora di inizio, tipo, livello, `published`, `is_individual`, `personal_client_id`), `bookings` (stato `booked` o `waitlist`), `events` (nome, data, ora, luogo, `published`, `archived`). Le lezioni non hanno né durata né luogo.
+- **Regole (D11)**:
+  - solo lezioni con `published = true`; le bozze non entrano;
+  - durata **60 minuti** (`end_at = start_at + 60 min`); gli orari sono sempre italiani (`Europe/Rome`), qualunque sia il fuso del profilo;
+  - lezioni individuali solo se prenotate (almeno un `booked`) o assegnate a un'allieva (`personal_client_id`); gli slot vuoti restano fuori;
+  - entrano anche gli eventi pubblicati e non archiviati, con il loro luogo e la stessa durata;
+  - sola lettura: nessuna scrittura verso imayoga.
+- **Su ima-yoga**: funzione `planner_feed(p_token, p_from, p_to)` (security definer, eseguibile da `anon`) che restituisce lezioni ed eventi pubblicati con `is_individual`, numero di prenotati e `assigned`. Il token si confronta con l'impronta SHA-256 conservata in `planner_feed_tokens` (RLS, solo admin); un token sbagliato dà errore (403), non un elenco vuoto. La funzione pubblica `public_calendar_preview` non bastava: non dice se una lezione è individuale né se è prenotata. Copia della migrazione in `supabase/external/ima-yoga_planner_feed.sql` (il repository di imayoga non ha una cartella di migrazioni).
+- **Segreto**: `imayoga:<owner_id>` in Vault del planner, con indirizzo, chiave publishable di imayoga e token. È **per utente**: solo l'account che ha il segreto riceve le lezioni; gli altri account del planner ottengono `not_configured`. Creato a mano via SQL per l'account di Bibi; il token è stato generato dentro il database e non compare in nessun file. Per revocarlo basta eliminare la riga di `planner_feed_tokens`.
+- **Edge Function `imayoga-feed`** (JWT verificato nel codice, come `icloud-caldav`): autentica l'utente, legge il segreto con `imayoga_get_feed_config` (solo service role) e fa una sola chiamata https a `planner_feed` su `*.supabase.co`, senza seguire redirect. Risponde `{ ok, items }` oppure `not_configured`, `invalid_token`, `imayoga_unreachable`.
+- **Logica nel client**, in `lib/imayoga/`: `map.ts` (puro, con test: riga del feed → evento, filtro degli slot individuali vuoti, titoli, durata e fuso, piano di sync) e `sync.ts` (orchestrazione), più `hooks.ts`.
+- **Dati**: `events.source = 'imayoga'`; l'id dell'evento deriva da quello della lezione (`imayoga:class:<id>`, `imayoga:event:<id>`), quindi non servono colonne in più e una seconda sync non duplica. Tabella `imayoga_accounts` (RLS e quattro policy): la riga dice che le lezioni sono seguite e tiene `last_synced_at` e `last_error`.
+- **Titoli**: "Tipo · Livello" (es. "Ashtanga · Intermedio"); per le individuali "Lezione individuale", senza il nome dell'allieva. Area "Insegnamento yoga" alla creazione; area e attenzione non vengono poi toccate dalla sync.
+- **Sync**: periodo da 30 giorni fa a 12 mesi avanti; all'apertura dell'app e al ritorno in primo piano (al massimo ogni 10 minuti), più "Aggiorna ora" in Impostazioni → Lezioni imayoga. Si scrive solo ciò che è cambiato. Una lezione che il feed non elenca più (eliminata, tolta dalla pubblicazione, individuale rimasta senza prenotazioni) viene segnata `deleted_at`, tranne quando è solo uscita dal periodo perché passata; se torna nel feed, torna anche nell'app.
+- **Scollega**: gli eventi `source = 'imayoga'` vengono segnati `deleted_at` e la riga di `imayoga_accounts` eliminata; il segreto resta, quindi si può ricollegare.
+- **Proprietà unica**: gli eventi `source = 'imayoga'` non si modificano nell'app.
+- **[FUTURO]** numero di prenotati nel dettaglio dell'evento; sync lato server, se servirà per le notifiche.
 
 ### 9.3 Recupero dati dai link (wishlist)
 - Route handler `/api/link-preview?url=` eseguito su Vercel.
@@ -565,6 +581,10 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Sync in sola lettura via CalDAV come da sezione 9.6. Richiede prima la password per app creata da Bibi.
 - Criteri: test dei moduli puri (lettura delle risposte CalDAV, confronto etag); un evento creato, spostato ed eliminato sull'iPhone compare, si sposta e sparisce nell'app; nessun duplicato con gli eventi già importati da file.
 
+**Incremento 1e — Lezioni da imayoga** *(aggiunto il 10 ottobre 2026)*
+- Sync in sola lettura come da sezione 9.2. Realizzato il 10 ottobre 2026: migrazione su `ima-yoga`, migrazione `imayoga_feed`, Edge Function `imayoga-feed`, `lib/imayoga/`, sezione in Impostazioni.
+- Criteri: test dei moduli puri (mappatura, filtro degli slot individuali vuoti, durata e fuso, eliminazioni); le lezioni pubblicate compaiono nell'app con l'orario giusto; una bozza non compare e compare dopo la pubblicazione; uno slot individuale compare solo dopo una prenotazione; seconda sync senza duplicati.
+
 **Incremento 2 — Quick Capture**
 - Parser con suite di test, foglio di cattura con chip correggibili, prefissi.
 - Criteri: tutte le frasi della suite interpretate correttamente; cattura sotto i 3 secondi per frasi semplici.
@@ -623,6 +643,7 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T7 | Notifica dell'attività di preparazione pasti alle 20:00 del giorno prima, configurabile | [APPROVATO] |
 | T8 | Ordine degli incrementi come nella sezione 13 | [APPROVATO] |
 | T9 | Import una tantum da `.ics` (1b) e Google Calendar (1c) subito dopo l'incremento 1, prima di Quick Capture | [APPROVATO il 10 ottobre 2026] |
+| T10 | imayoga (1e): sola lettura, solo lezioni pubblicate, 60 minuti, individuali solo se prenotate; accesso con funzione protetta da token su `ima-yoga` (sezione 9.2) | [APPROVATO il 10 ottobre 2026] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

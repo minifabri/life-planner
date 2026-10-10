@@ -151,7 +151,7 @@ export function ItemEditor({
   const task = target.kind === "task" ? target.task : null;
   const occurrence = target.kind === "event" ? target.occurrence : null;
   const event = occurrence?.event ?? null;
-  const readOnly = event?.source === "gcal" || event?.source === "icloud";
+  const readOnly = !!event && event.source !== "app";
   // Una serie con una regola che l'interfaccia non sa mostrare si lascia com'è.
   const lockedRule = event?.rrule && !parseRRule(event.rrule) ? event.rrule : null;
 
@@ -249,7 +249,9 @@ export function ItemEditor({
         <p className="text-xs text-text-3">
           {event.source === "icloud"
             ? "Questo evento arriva dal calendario dell’iPhone (iCloud) e si modifica lì."
-            : "Questo evento arriva da Google Calendar e si modifica lì."}
+            : event.source === "imayoga"
+              ? "Questa lezione arriva da imayoga e si modifica lì."
+              : "Questo evento arriva da Google Calendar e si modifica lì."}
         </p>
       </Sheet>
     );
