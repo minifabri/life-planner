@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
+import { QuickAdd } from "@/components/today/quick-add";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
@@ -268,7 +269,7 @@ export default function TodayPage() {
             {loading ? (
               <Skeleton />
             ) : sections.todo.length === 0 ? (
-              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Tocca + per aggiungere qualcosa." />
+              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Scrivi qui sotto e premi Invio per aggiungere." />
             ) : (
               <ul className="flex flex-col">
                 {sections.todo.map((t) => (
@@ -284,14 +285,7 @@ export default function TodayPage() {
                 ))}
               </ul>
             )}
-            <button
-              type="button"
-              onClick={() => setEditor({ kind: "new", day })}
-              className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
-            >
-              <Icon name="plus" size={16} />
-              Aggiungi
-            </button>
+            <QuickAdd day={day} today={today} onDetails={(title) => setEditor({ kind: "new", day, draft: { title } })} />
           </Section>
         </>
       )}
