@@ -1,10 +1,25 @@
-import { EmptyState, PageHeader } from "@/components/ui/page-header";
+"use client";
 
+import { useRouter } from "next/navigation";
+import { ItemEditor } from "@/components/today/item-editor";
+import { useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
+
+/**
+ * Aggiunta di attività ed eventi con il modulo completo.
+ * L'inserimento rapido in linguaggio naturale arriva con l'incremento 2.
+ */
 export default function CapturePage() {
+  const router = useRouter();
+  const tz = useTimezone();
+  const { today } = useToday(tz);
+  const actions = useTaskActions(today, tz);
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 md:px-10 md:py-7">
-      <PageHeader eyebrow="Aggiungi" title="Quick Capture" />
-      <EmptyState title="L'inserimento rapido arriva con l'incremento 2." hint="Scriverai in italiano e l'app riconoscerà tipo, data e ora." />
-    </div>
+    <ItemEditor
+      target={{ kind: "new", day: today }}
+      today={today}
+      tz={tz}
+      onClose={() => router.replace("/today")}
+      onDeleteTask={actions.remove}
+    />
   );
 }
