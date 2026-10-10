@@ -42,6 +42,11 @@ export function nextWeekday(d: LocalDate, weekday: number): LocalDate {
   return addDays(d, delta);
 }
 
+/** Il lunedì della settimana di `d` (lo stesso giorno se è lunedì). */
+export function weekStart(d: LocalDate): LocalDate {
+  return addDays(d, 1 - isoWeekday(d));
+}
+
 /** La domenica della settimana di `d` (lo stesso giorno se è domenica). */
 export function endOfWeek(d: LocalDate): LocalDate {
   return addDays(d, 7 - isoWeekday(d));

@@ -71,6 +71,16 @@ export function useEvents(day: LocalDate, tz: string) {
   return useQuery(eventsQuery(day, tz));
 }
 
+/** Attività di un intervallo di giorni (settimana, mese). */
+export function useRangeTasks(from: LocalDate, to: LocalDate, tz: string) {
+  return useQuery({ queryKey: ["tasks", from, to], queryFn: () => fetchTasks(from, tz, to) });
+}
+
+/** Eventi di un intervallo di giorni (settimana, mese). */
+export function useRangeEvents(from: LocalDate, to: LocalDate, tz: string) {
+  return useQuery({ queryKey: ["events", from, to], queryFn: () => fetchEvents(from, tz, to) });
+}
+
 /** Tiene in cache ieri, oggi e domani, anche se l'app è stata aperta su un'altra schermata (technical-design.md, 6.2). */
 export function usePrefetchAround(today: LocalDate, tz: string) {
   const qc = useQueryClient();

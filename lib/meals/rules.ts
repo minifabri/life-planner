@@ -1,4 +1,4 @@
-import { addDays, isoWeekday, type LocalDate } from "../dates/local";
+import { addDays, type LocalDate } from "../dates/local";
 import type { MealMemory, MealPlan, MealSlot, PrepMode, Task } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
 
@@ -26,11 +26,6 @@ const SLOT_WITH_ARTICLE: Record<MealSlot, string> = {
 
 export function reminderTitle(slot: MealSlot): string {
   return `Preparare ${SLOT_WITH_ARTICLE[slot]} di domani`;
-}
-
-/** Il lunedì della settimana di `d`. */
-export function weekStart(d: LocalDate): LocalDate {
-  return addDays(d, 1 - isoWeekday(d));
 }
 
 /** Nome senza maiuscole, accenti e spazi doppi: "Pasta  al Ragù" e "pasta al ragu" sono lo stesso pasto. */

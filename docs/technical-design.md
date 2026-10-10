@@ -586,6 +586,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 
 **Incremento 6 — Calendario Week e Month**
 - Viste mobile e desktop, drag & drop su desktop, fascia "Periodo".
+- Come è stato realizzato (10 ottobre 2026):
+  - Logica pura in `lib/calendar/view.ts` (griglia del mese, contenuto e carico di ogni giorno, elementi principali, segni del mese, fascia Periodo, spostamento di un evento, corsie dei blocchi sovrapposti), con test.
+  - Dati: le query di attività ed eventi accettano un intervallo di giorni (`["tasks", dal, al]`, `["events", dal, al]`) e passano dalla stessa cache e dalla stessa outbox di Today: settimane e mesi già aperti si rivedono offline e le modifiche fatte lì restano in coda come le altre.
+  - **Settimana, mobile**: elenco dei sette giorni con barra di carico e fino a tre elementi; il tocco apre il Giorno. Per spostare un elemento si apre e si cambia la data.
+  - **Settimana, desktop**: sette colonne con attività senza orario in testa e blocchi posizionati sull'orario (8–20, allargato a ciò che c'è). Si trascinano tra i giorni le attività e gli eventi nati nell'app e non ricorrenti; serie ed eventi di Google o iCloud restano fermi. Un evento spostato mantiene ora locale e durata.
+  - **Fascia Periodo** (D33): attività nel periodo ancora aperte la cui finestra tocca la settimana; trascinate su un giorno prendono quella data. Nell'ultimo giorno utile compaiono anche nella colonna, con il segno di scadenza.
+  - **Mese**: solo segni nelle celle (evento, attività, scadenza, importante) con legenda; un tocco mostra l'anteprima del giorno sotto la griglia, il doppio tocco o "Apri il giorno" apre il Giorno. I segni del Log arrivano con l'incremento 7.
+  - Il giorno scelto passa alla vista Giorno in memoria (`lib/nav/day-handoff.ts`), non nell'URL.
+  - Non incluso: trascinamento verticale per cambiare orario; filtro "Senza data" (ancora [PROPOSTA] nella Product Definition 6).
 
 **Incremento 7 — Personal Log**
 - Categorie, timeline, "ultima volta", blocco Face ID/PIN, titoli neutri.
