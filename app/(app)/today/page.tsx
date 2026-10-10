@@ -9,6 +9,8 @@ import { QuickAdd } from "@/components/today/quick-add";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { WorkoutRow } from "@/components/workouts/workout-row";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { EmptyState } from "@/components/ui/page-header";
 import {
   useAreas,
@@ -20,14 +22,17 @@ import {
   useTimezone,
   useToday,
 } from "@/lib/data/hooks";
+import { useWeekWorkouts, useWorkoutActions } from "@/lib/data/workouts-hooks";
 import {
   addDays,
   atLocalTime,
   dueLabel,
+  endOfWeek,
   formatDuration,
   localTimeString,
   relativeDay,
   trimTime,
+  weekStart,
   type LocalDate,
 } from "@/lib/dates/local";
 import { todayHeading } from "@/lib/dates/today";
@@ -36,7 +41,8 @@ import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { LOAD_LABEL, dayLoad } from "@/lib/tasks/load";
 import { eveningHeading, morningOverview, overviewMode } from "@/lib/today/overview";
-import type { Task } from "@/lib/supabase/types";
+import type { Task, Workout } from "@/lib/supabase/types";
+import { shownStatus, summarize, summaryLabel, workoutsOfDay } from "@/lib/workouts/summary";
 
 type AgendaItem = { key: string; time: string | null; task?: Task; occurrence?: Occurrence };
 
@@ -55,6 +61,10 @@ export default function TodayPage() {
   const eventsQuery = useEvents(day, tz);
   const areas = useAreas().data;
   const actions = useTaskActions(today, tz);
+  // Gli allenamenti della settimana del giorno: servono anche al riepilogo. Se mancano, il resto si mostra comunque.
+  const weekWorkouts = useWeekWorkouts(day).data ?? [];
+  const workoutActions = useWorkoutActions();
+  const [workout, setWorkout] = useState<Workout | null>(null);
 
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rescheduling, setRescheduling] = useState<Task | null>(null);
@@ -116,9 +126,13 @@ export default function TodayPage() {
   const nowTime = localTimeString(now, tz);
   const nowIndex = isToday ? agenda.findIndex((i) => i.time !== null && i.time > nowTime) : -1;
 
+  const workouts = workoutsOfDay(weekWorkouts, day);
+  const weekSummary = summarize(weekWorkouts, weekStart(day), endOfWeek(day));
+
   const load = dayLoad([
     ...occurrences.map((o) => o.durationMin),
     ...[...sections.agenda, ...sections.todo].filter((t) => t.status === "open").map((t) => t.duration_min),
+    ...workouts.filter((w) => shownStatus(w, today) === "planned").map((w) => w.duration_min),
   ]);
 
   const h = todayHeading(atLocalTime(day, "12:00", tz), tz);
@@ -332,6 +346,28 @@ export default function TodayPage() {
             )}
             <QuickAdd day={day} today={today} onDetails={(title) => setEditor({ kind: "new", day, draft: { title } })} />
           </Section>
+
+          {weekSummary.total > 0 ? (
+            <section className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="label-mono">Allenamento</h2>
+                <Link href="/workouts" className="-my-2.5 -mr-2.5 flex min-h-11 items-center gap-1 rounded-lg px-2.5 text-[13px] text-text-2 hover:bg-surface-2 hover:text-text">
+                  <span>
+                    <span className="sr-only">Storico degli allenamenti. </span>
+                    Settimana: {summaryLabel(weekSummary)}
+                  </span>
+                  <Icon name="chevronRight" size={14} />
+                </Link>
+              </div>
+              {workouts.length > 0 ? (
+                <ul className="flex flex-col">
+                  {workouts.map((w) => (
+                    <WorkoutRow key={w.id} workout={w} today={today} onToggle={() => workoutActions.toggle(w)} onOpen={() => setWorkout(w)} />
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
         </>
       )}
 
@@ -380,6 +416,8 @@ export default function TodayPage() {
           onDeleteTask={actions.remove}
         />
       ) : null}
+
+      {workout ? <WorkoutSheet key={workout.id} target={{ kind: "edit", workout }} today={today} onClose={() => setWorkout(null)} /> : null}
 
       {rescheduling ? (
         <RescheduleDialog

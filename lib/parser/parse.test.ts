@@ -252,3 +252,35 @@ describe("testo vuoto o senza senso", () => {
     expect(parse("spesa:")).toMatchObject({ kind: "shopping", title: "" });
   });
 });
+
+describe("allenamenti", () => {
+  const activities = ["Allenamento", "Corsa", "Forza", "Pilates"];
+  const workout = (text: string) => parse(text, { activities });
+
+  it("una frase che comincia con una disciplina è un allenamento, con giorno, ora e durata", () => {
+    expect(workout("corsa domani alle 18 45 min")).toMatchObject({ kind: "workout", title: "Corsa", date: "2026-10-11", time: "18:00", durationMin: 45, confidence: "high" });
+    expect(workout("Allenamento gambe lunedì")).toMatchObject({ kind: "workout", title: "Allenamento gambe", date: "2026-10-12", time: null });
+  });
+
+  it("senza giorno vale per oggi; ieri resta ieri", () => {
+    expect(workout("pilates")).toMatchObject({ kind: "workout", title: "Pilates", date: TODAY });
+    expect(workout("corsa ieri 30 min")).toMatchObject({ kind: "workout", date: "2026-10-09", durationMin: 30 });
+  });
+
+  it("la disciplina deve aprire la frase ed essere una parola intera", () => {
+    expect(workout("Comprare scarpe da corsa")).toMatchObject({ kind: "shopping" });
+    expect(workout("Prenotare corsa campestre domani")).toMatchObject({ kind: "task" });
+    expect(workout("Forzare la serratura domani")).toMatchObject({ kind: "task" });
+  });
+
+  it("con una ripetizione, una scadenza o un promemoria resta un'attività o un evento", () => {
+    expect(workout("corsa ogni lunedì alle 7").kind).toBe("event");
+    expect(workout("corsa entro domenica").kind).toBe("task");
+    expect(workout("ricordami corsa domani").kind).toBe("task");
+  });
+
+  it("senza discipline note non cambia nulla, e il tipo scelto a mano vince", () => {
+    expect(parse("corsa domani alle 18").kind).toBe("event");
+    expect(parse("Dentista martedì alle 15", { kind: "workout" })).toMatchObject({ kind: "workout", title: "Dentista", date: "2026-10-13", time: "15:00" });
+  });
+});

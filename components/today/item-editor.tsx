@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
+import { useToast } from "@/components/ui/toast";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import {
   cancelOccurrence,
   createEvent,
@@ -16,6 +18,7 @@ import {
   type TaskInput,
 } from "@/lib/data/api";
 import { useAreas, useInvalidateDay, useRecurrences } from "@/lib/data/hooks";
+import { convertEventToWorkout, convertTaskToWorkout } from "@/lib/data/workouts";
 import {
   addDays,
   atLocalTime,
@@ -38,6 +41,7 @@ import {
   toRRule,
 } from "@/lib/recurrence/rule";
 import type { Attention, Task } from "@/lib/supabase/types";
+import { canConvertEvent, canConvertTask } from "@/lib/workouts/convert";
 
 /** Valori iniziali di un nuovo elemento, ad esempio quelli letti dal Quick Capture. */
 export type EditorDraft = Partial<{
@@ -68,7 +72,7 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
 
 function initialState(target: EditorTarget, today: LocalDate) {
   const base = {
-    type: "task" as "task" | "event",
+    type: "task" as "task" | "event" | "workout",
     title: "",
     notes: "",
     areaId: "",
@@ -150,6 +154,7 @@ export function ItemEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const areas = useAreas().data ?? [];
   const invalidate = useInvalidateDay();
+  const toast = useToast();
 
   const task = target.kind === "task" ? target.task : null;
   const occurrence = target.kind === "event" ? target.occurrence : null;
@@ -243,6 +248,41 @@ export function ItemEditor({
     run(() => (event ? updateEvent(event, input) : createEvent(input)));
   }
 
+  const typeChoice =
+    target.kind === "new" ? (
+      <Segmented
+        label="Tipo"
+        value={f.type}
+        onChange={(v) => setF((prev) => ({ ...prev, type: v, repeat: "none" }))}
+        options={[
+          { value: "task", label: "Attività" },
+          { value: "event", label: "Evento" },
+          { value: "workout", label: "Allenamento" },
+        ]}
+      />
+    ) : null;
+
+  // L'allenamento ha un modulo suo: da qui si passano il giorno e ciò che è già stato scritto.
+  if (f.type === "workout") {
+    return (
+      <WorkoutSheet
+        target={{ kind: "new", day: f.date, draft: { activity: f.title, time: f.time, duration: f.duration } }}
+        today={today}
+        onClose={onClose}
+        header={typeChoice}
+      />
+    );
+  }
+
+  const canConvert = task ? canConvertTask(task) : !!event && canConvertEvent(event);
+  function convert() {
+    run(async () => {
+      if (task) await convertTaskToWorkout(task, today);
+      else if (event) await convertEventToWorkout(event, today);
+      toast({ message: "Ora è un allenamento" });
+    });
+  }
+
   const heading = readOnly
     ? "Evento"
     : target.kind === "new"
@@ -285,17 +325,7 @@ export function ItemEditor({
           save();
         }}
       >
-        {target.kind === "new" ? (
-          <Segmented
-            label="Tipo"
-            value={f.type}
-            onChange={(v) => setF((prev) => ({ ...prev, type: v, repeat: "none" }))}
-            options={[
-              { value: "task", label: "Attività" },
-              { value: "event", label: "Evento" },
-            ]}
-          />
-        ) : null}
+        {typeChoice}
 
         <Field label="Titolo" htmlFor="item-title">
           <input
@@ -521,9 +551,16 @@ export function ItemEditor({
       {target.kind !== "new" ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
           {!confirmDelete ? (
-            <Button variant="quiet" disabled={busy} onClick={() => setConfirmDelete(true)}>
-              Elimina
-            </Button>
+            <>
+              <Button variant="quiet" disabled={busy} onClick={() => setConfirmDelete(true)}>
+                Elimina
+              </Button>
+              {canConvert ? (
+                <Button variant="quiet" disabled={busy} onClick={convert}>
+                  Trasforma in allenamento
+                </Button>
+              ) : null}
+            </>
           ) : task ? (
             <>
               <Button

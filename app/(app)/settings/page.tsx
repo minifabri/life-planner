@@ -43,6 +43,7 @@ export default function SettingsPage() {
       <LockSection />
       <CalendarsSection />
       <ImayogaSection />
+      <WorkoutsSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -454,6 +455,22 @@ function ImayogaSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Allenamenti ---------------- */
+function WorkoutsSection() {
+  return (
+    <Section title="Allenamenti" note="Si aggiungono da “Aggiungi” scegliendo Allenamento, o scrivendo ad esempio “corsa domani 45 min”. In Oggi compaiono quando la settimana ne ha almeno uno.">
+      <div>
+        <Link
+          href="/workouts"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          Storico e riepilogo
+        </Link>
+      </div>
     </Section>
   );
 }

@@ -101,6 +101,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D38 | Ingredienti dei pasti verso la lista della spesa | [FUTURO] |
 | D39 | Calendario dell'iPhone (iCloud): **sola lettura**, in aggiunta a Google Calendar. Gli eventi si modificano nel Calendario dell'iPhone | [APPROVATO il 10 ottobre 2026] |
 | D40 | Attività ed eventi ricavati dalle **mail**, sempre come proposte da confermare | [PROPOSTA] |
+| D41 | **Allenamento come tipo a sé**, accanto ad attività ed eventi: si pianifica e si completa, se salta resta "saltato" e non finisce in Rimaste indietro. L'area di vita "Allenamento" esce dalle predefinite; nessuna voce nuova nella navigazione | [APPROVATO il 10 ottobre 2026] |
+| D42 | Collegamento con **Salute di Apple** in sola lettura, tramite Comando rapido sull'iPhone (vedi 7.14) | [APPROVATO il 10 ottobre 2026; meccanismo DA VERIFICARE con uno spike] |
 
 ---
 
@@ -139,6 +141,10 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 **Planner pasti** (vedi 7.13)
 - Settimana, quattro pasti al giorno, Pronto/Da preparare, Preparato, ricorrenti suggeriti, attività il giorno prima.
 
+**Allenamenti** (vedi 7.14)
+- Disciplina, giorno, ora e durata facoltative, stato (in programma / fatto / saltato), misure facoltative (distanza, calorie, battito medio), note.
+- Riepilogo della settimana e storico; dati da Salute di Apple (D42).
+
 **Wishlist**
 - Nome, categoria, link, prezzo, immagine, note, livello di interesse, stato (desiderato / acquistato / scartato).
 - Recupero dati da link; import multiplo da testo ChatGPT.
@@ -159,7 +165,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 
 ### 3.2 Consigliate dal team (da approvare)
 - **[PROPOSTA]** Ricorrenze in due modalità: **a calendario fisso** ("ogni lunedì") e **dopo il completamento** ("30 giorni dopo l'ultima volta"). Le seconde sono utili per attività domestiche e cura personale.
-- **[PROPOSTA]** Aree di vita predefinite (Lavoro, Insegnamento yoga, Pratica yoga, Allenamento, Casa, Cura personale, Acquisti, Eventi), rinominabili e opzionali, ciascuna con un colore discreto usato solo come piccolo segno.
+- **[PROPOSTA]** Aree di vita predefinite (Lavoro, Insegnamento yoga, Pratica yoga, Casa, Cura personale, Acquisti, Eventi; "Allenamento" è diventato un tipo a sé, D41), rinominabili e opzionali, ciascuna con un colore discreto usato solo come piccolo segno.
 - **[PROPOSTA]** Fasce di silenzio per le notifiche (es. 22:00–7:30), salvo attenzione alta configurata diversamente.
 - **[PROPOSTA]** Prefissi rapidi opzionali nel Quick Capture per chi vuole essere esplicito: `spesa:`, `wish:`, `log:`.
 - **[PROPOSTA]** "Trasforma": convertire un elemento in un altro tipo (es. articolo wishlist → articolo spesa, attività → evento) senza riscriverlo.
@@ -254,6 +260,12 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 - `status`: `open` | `done` | `dismissed`
 - `completed_at`
 - `original_date` (per sapere da quando è "rimasta indietro")
+
+**Workout** (Allenamento — si pianifica e si completa, ma non resta indietro)
+- disciplina (testo libero), `date`, `time` (opzionale), `duration_min` (opzionale), note
+- `status`: `planned` | `done` | `skipped`, `completed_at`
+- distanza, calorie, battito medio (opzionali)
+- `source`: `app` | `health`; identificativo dell'allenamento in Salute, per non duplicare
 
 **LogEntry** (Registrazione — è già successo)
 - titolo, note, `date`, `time` (opzionale)
@@ -367,6 +379,7 @@ Le attività senza data non hanno una sezione "Inbox" dedicata nell'MVP: compaio
 - **Nel periodo**: riga tratteggiata chiusa di default ("4 da fare nel periodo · 2 entro domenica · 2 entro fine mese"); aperta mostra le attività con la loro scadenza e il pulsante "Oggi" per anticiparle. [APPROVATO, D31–D32]
 - **Agenda**: timeline verticale con linea "adesso"; eventi e attività con orario distinti visivamente (l'evento è un blocco, l'attività ha la casella di spunta).
 - **Da fare oggi**: lista compatta con casella di spunta.
+- **Allenamento**: gli allenamenti del giorno con il riepilogo della settimana, che apre lo storico. Compare solo se la settimana ne ha almeno uno. [APPROVATO, D41]
 - **Da ricordare**: scadenze imminenti, elementi ad alta attenzione, segni discreti del Log.
 - Azioni su un elemento:
   - Tocco sulla casella → completa (feedback animato + undo).
@@ -471,6 +484,17 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Pasto vuoto → foglio con i **ricorrenti** di quel momento ordinati per frequenza (ognuno ricorda la sua modalità abituale), oppure un nome nuovo.
 - Pasto da preparare e non preparato → attività il giorno prima in Today; sotto il pasto una riga discreta indica dove si trova. Nessun banner di avviso.
 - Notifica dell'attività: orario configurabile, proposta 20:00 del giorno prima (vedi `technical-design.md`).
+
+### 7.14 Allenamenti [APPROVATO, D41–D42]
+- **Aggiungere**: da "Aggiungi" scegliendo Allenamento, oppure dal Quick Capture con una frase che comincia con una disciplina ("corsa domani alle 18 45 min"). In un giorno già passato nasce come fatto.
+- **Discipline**: testo libero; si propongono prima quelle già usate, poi alcune predefinite (Allenamento, Corsa, Camminata, Forza, Palestra, Pilates, Nuoto, Bici).
+- **Completare**: casella di spunta rotonda, con annulla. Un allenamento in programma in un giorno passato si mostra come **saltato**; non compare in Rimaste indietro e non va riprogrammato.
+- **Today**: sezione "Allenamento" con gli allenamenti del giorno e il riepilogo della settimana ("2 di 3 · 1 h 30": fatti su totali, minuti fatti). Gli allenamenti in programma contano nel carico del giorno.
+- **Calendario**: in Settimana si trascinano tra i giorni; in Mese hanno un segno proprio (un piccolo rombo).
+- **Storico**: ultime 12 settimane con il riepilogo di ognuna; si apre da Today e da Impostazioni.
+- **Trasforma in allenamento**: su attività ed eventi, tranne attività ricorrenti o nate da un pasto, serie ed eventi di altri calendari.
+- **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
+- Non incluso per ora: ripetizioni degli allenamenti.
 
 ---
 

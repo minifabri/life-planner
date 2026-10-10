@@ -8,9 +8,12 @@ import { describeDraft, planCapture, type CaptureDraft, type CapturePlan } from 
 import { createEvent, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
 import { createEntry } from "@/lib/data/log";
 import { createShoppingItem } from "@/lib/data/shopping";
+import { createWorkout } from "@/lib/data/workouts";
+import { useRecentWorkouts } from "@/lib/data/workouts-hooks";
 import { useInvalidateShopping } from "@/lib/data/shopping-hooks";
 import { useInvalidateDay, useLogCategories, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
 import { endOfWeek, isoWeekday, localTimeString, type LocalDate } from "@/lib/dates/local";
+import { WORKOUT_WORDS, activitySuggestions } from "@/lib/workouts/summary";
 
 const CaptureContext = createContext<(text?: string) => void>(() => {});
 
@@ -33,6 +36,10 @@ async function write(plan: CapturePlan, today: LocalDate): Promise<(() => Promis
     case "event": {
       const id = await createEvent(plan.input);
       return () => softDelete("events", id);
+    }
+    case "workout": {
+      const id = await createWorkout(plan.input);
+      return () => softDelete("workouts", id);
     }
     case "shopping": {
       const id = await createShoppingItem(plan.name);
@@ -84,6 +91,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
   const categories = useLogCategories().data ?? [];
+  const activities = activitySuggestions(useRecentWorkouts(today).data ?? [], WORKOUT_WORDS);
   const actions = useTaskActions(today, tz);
   const invalidateDay = useInvalidateDay();
   const invalidateShopping = useInvalidateShopping();
@@ -152,6 +160,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
           today={today}
           now={localTimeString(now, tz)}
           categories={categories}
+          activities={activities}
           onClose={() => setText(null)}
           onSave={save}
           onDetails={(draft) => {

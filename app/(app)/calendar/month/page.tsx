@@ -7,6 +7,8 @@ import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor } from "@/components/today/item-editor";
 import { TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { WorkoutMark, WorkoutRow } from "@/components/workouts/workout-row";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { dayMarks, monthGrid, monthStart, type DayMarks } from "@/lib/calendar/view";
 import { useTimezone, useToday } from "@/lib/data/hooks";
 import { useOpenEntries, usePrivateStubs } from "@/lib/data/log-hooks";
@@ -25,6 +27,7 @@ function describe(marks: DayMarks): string {
     marks.events ? (marks.events === 1 ? "1 evento" : `${marks.events} eventi`) : null,
     marks.tasks ? (marks.tasks === 1 ? "1 attività" : `${marks.tasks} attività`) : null,
     marks.deadlines ? (marks.deadlines === 1 ? "1 scadenza" : `${marks.deadlines} scadenze`) : null,
+    marks.workouts ? (marks.workouts === 1 ? "1 allenamento" : `${marks.workouts} allenamenti`) : null,
     marks.important ? "cose importanti" : null,
   ].filter(Boolean);
   return parts.length ? parts.join(", ") : "niente in programma";
@@ -109,6 +112,7 @@ export default function MonthPage() {
                       {marks.events ? <span className="size-1.5 rounded-full bg-text-3" /> : null}
                       {marks.tasks ? <span className="size-1.5 rounded-full bg-accent" /> : null}
                       {marks.deadlines ? <span className="size-1.5 rounded-full border border-accent" /> : null}
+                      {marks.workouts ? <WorkoutMark /> : null}
                       {marks.important ? <span className="size-1.5 rounded-full bg-gold" /> : null}
                       {hasLog ? <span className="h-px w-1.5 bg-text-2" /> : null}
                     </span>
@@ -125,6 +129,9 @@ export default function MonthPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="size-1.5 rounded-full border border-accent" /> scadenze
+              </span>
+              <span className="flex items-center gap-1.5">
+                <WorkoutMark /> allenamenti
               </span>
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="size-1.5 rounded-full bg-gold" /> importante
@@ -151,7 +158,7 @@ export default function MonthPage() {
                   <Icon name="chevronRight" size={14} />
                 </button>
               </div>
-              {preview.occurrences.length + preview.timed.length + preview.untimed.length === 0 ? (
+              {preview.occurrences.length + preview.timed.length + preview.untimed.length + preview.workouts.length === 0 ? (
                 <p className="text-sm text-text-3">Niente in programma.</p>
               ) : (
                 <>
@@ -173,6 +180,9 @@ export default function MonthPage() {
                         onToggle={() => actions.toggle(t)}
                         onOpen={() => cal.setEditor({ kind: "task", task: t })}
                       />
+                    ))}
+                    {preview.workouts.map((w) => (
+                      <WorkoutRow key={w.id} workout={w} today={today} onToggle={() => cal.workoutActions.toggle(w)} onOpen={() => cal.setWorkout(w)} />
                     ))}
                   </ul>
                 </>
@@ -199,6 +209,9 @@ export default function MonthPage() {
           onClose={() => cal.setEditor(null)}
           onDeleteTask={actions.remove}
         />
+      ) : null}
+      {cal.workout ? (
+        <WorkoutSheet key={cal.workout.id} target={{ kind: "edit", workout: cal.workout }} today={today} onClose={() => cal.setWorkout(null)} />
       ) : null}
     </>
   );

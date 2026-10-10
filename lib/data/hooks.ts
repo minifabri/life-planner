@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
-import { addDays, type LocalDate } from "../dates/local";
+import { addDays, endOfWeek, weekStart, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
 import { getSyncState, subscribeSyncState, type SyncState } from "../sync/engine";
 import { dismissPatch, movePatch, type TaskPatch } from "../tasks/actions";
@@ -20,6 +20,7 @@ import {
   reopenTask,
   updateTask,
 } from "./api";
+import { workoutsQuery } from "./workouts-hooks";
 
 /** L'istante corrente, aggiornato ogni mezzo minuto e al ritorno in primo piano. */
 export function useNow(): Date {
@@ -94,6 +95,7 @@ export function usePrefetchAround(today: LocalDate, tz: string) {
     for (const day of [addDays(today, -1), today, addDays(today, 1)]) {
       void qc.prefetchQuery(tasksQuery(day, tz));
       void qc.prefetchQuery(eventsQuery(day, tz));
+      void qc.prefetchQuery(workoutsQuery(weekStart(day), endOfWeek(day)));
     }
   }, [today, tz, qc]);
 }
@@ -141,6 +143,7 @@ export function useInvalidateDay() {
   return () => {
     qc.invalidateQueries({ queryKey: ["tasks"] });
     qc.invalidateQueries({ queryKey: ["events"] });
+    qc.invalidateQueries({ queryKey: ["workouts"] });
   };
 }
 

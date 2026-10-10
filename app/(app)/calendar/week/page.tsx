@@ -7,6 +7,8 @@ import { useCalendar } from "@/components/calendar/use-calendar";
 import { TaskChip, WeekGrid, type Dragged } from "@/components/calendar/week-grid";
 import { ItemEditor } from "@/components/today/item-editor";
 import { Icon } from "@/components/ui/icon";
+import { WorkoutMark } from "@/components/workouts/workout-row";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { canMoveEvent, dayHighlights, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
 import { addDays, dueLabel, formatDuration, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { useTimezone, useToday } from "@/lib/data/hooks";
@@ -33,6 +35,8 @@ export default function WeekPage() {
     if (!item) return;
     if ("task" in item) {
       if (item.task.date !== day) actions.moveTo(item.task, day);
+    } else if ("workout" in item) {
+      if (item.workout.date !== day) cal.workoutActions.moveTo(item.workout, day);
     } else if (canMoveEvent(item.occurrence.event) && item.fromDay !== day) {
       void cal.moveEvent(item.occurrence.event, moveEventPatch(item.occurrence.event, item.fromDay, day));
     }
@@ -113,6 +117,12 @@ export default function WeekPage() {
                           <span key={item.key} className="flex items-baseline gap-2.5 text-sm">
                             <span className="w-10 shrink-0 font-mono text-[11.5px] text-text-3">{item.time ?? "—"}</span>
                             <span className={`min-w-0 break-words ${item.done ? "text-text-3 line-through" : "text-text-2"}`}>{item.title}</span>
+                            {item.kind === "workout" ? (
+                              <>
+                                <WorkoutMark className="self-center" />
+                                <span className="sr-only">Allenamento</span>
+                              </>
+                            ) : null}
                             {item.important && !item.done ? <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-gold">Importante</span> : null}
                           </span>
                         ))}
@@ -138,6 +148,7 @@ export default function WeekPage() {
             onDropOn={dropOn}
             onOpenDay={cal.openDay}
             onEdit={cal.setEditor}
+            onEditWorkout={cal.setWorkout}
           />
 
           <button
@@ -160,6 +171,9 @@ export default function WeekPage() {
           onClose={() => cal.setEditor(null)}
           onDeleteTask={actions.remove}
         />
+      ) : null}
+      {cal.workout ? (
+        <WorkoutSheet key={cal.workout.id} target={{ kind: "edit", workout: cal.workout }} today={today} onClose={() => cal.setWorkout(null)} />
       ) : null}
     </>
   );

@@ -213,6 +213,18 @@ tags text[] default '{}', is_sensitive boolean not null, deleted_at
 ```
 `is_sensitive` è copiato dalla categoria al salvataggio e può essere modificato a mano.
 
+**workouts** — Allenamento (si pianifica e si completa, non resta indietro)
+```
+id, owner_id, activity text not null,                     -- disciplina, testo libero
+date date not null, time time null, duration_min int null, notes,
+status text check in ('planned','done','skipped') default 'planned', completed_at timestamptz null,
+distance_m int null, energy_kcal int null, avg_hr int null,
+source text check in ('app','health') default 'app', health_id text null,
+deleted_at
+unique (owner_id, health_id)
+```
+"Saltato" per un allenamento in programma in un giorno passato si calcola in lettura (`shownStatus`), senza scritture.
+
 **lists** — contenitore predisposto per la condivisione futura
 ```
 id, owner_id, kind text check in ('shopping','wishlist'), name
@@ -352,6 +364,7 @@ owner_id pk, refresh_token text, access_token text, expires_at timestamptz, scop
 | Spesa | ✓ | ✓ aggiungi, spunta, svuota; suggerimenti dalla cache di product_memory |
 | Quick Capture | — | ✓ salva nella outbox (il parser gira nel client) |
 | Planner pasti | ✓ settimana corrente in cache | ✓ |
+| Allenamenti | ✓ settimane già aperte e storico in cache | ✓ |
 | Week, Month, Wishlist, Log, Ricerca | ultima versione in cache, in sola lettura | ✗ con avviso discreto "Serve la connessione" |
 | Recupero dati da link | ✗ | ✗ (l'URL viene salvato, i metadati si recuperano dopo) |
 
@@ -410,6 +423,7 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - Il prototipo contiene già una prima versione funzionante delle regole (artboard Quick Capture): da riscrivere in TypeScript con test.
 - **Test-driven**: una suite di frasi italiane reali (quelle del brief e del prototipo, più quelle che Bibi userà) con il risultato atteso. Ogni bug trovato nell'uso diventa un nuovo caso di test.
 - Le parole chiave del Log si leggono da `log_categories.keywords`, così il parser impara categorie nuove senza cambiare codice.
+- Allenamenti: il parser riceve le discipline (`activities`: quelle predefinite più quelle già scritte nell'app, mai i nomi arrivati da Salute). Una frase è un allenamento se **comincia** con una di queste, come parola intera; con una ripetizione, una scadenza o "ricordami" resta un'attività o un evento.
 - Fallback AI: [FUTURO], come da Product Definition.
 
 ---
@@ -495,6 +509,14 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - Idea: lettura in sola lettura (Gmail via OAuth `gmail.readonly`, posta iCloud via IMAP con password per app) delle mail recenti della casella principale. Prima fase a regole: inviti `.ics` allegati e conferme strutturate (schema.org: voli, prenotazioni, appuntamenti). Seconda fase con modello AI lato server per le mail scritte a mano (oggi [FUTURO]: il testo delle mail passerebbe da un servizio AI, con costo a consumo).
 - Vincolo: nessuna creazione automatica. Le mail producono **proposte** in una lista "Da confermare" con mittente e frase d'origine; Bibi accetta, corregge o scarta.
 - Alternativa leggera: un indirizzo a cui inoltrare solo le mail rilevanti, senza accesso alla casella.
+
+### 9.8 Salute di Apple [APPROVATO: sola lettura; DA VERIFICARE: meccanismo, con uno spike sull'iPhone]
+- **Vincolo**: una PWA non può leggere HealthKit. I dati escono dall'iPhone solo con un Comando rapido.
+- **Meccanismo proposto**: un Comando rapido legge gli allenamenti ("Trova allenamenti") e li invia con una richiesta https a una Edge Function `health-workouts`.
+- **Accesso**: token personale generato in Impostazioni; nel database solo l'impronta SHA-256, come per imayoga (9.2). Revocabile.
+- **Abbinamento**: un allenamento di Salute completa quello in programma dello stesso giorno e disciplina; altrimenti crea una riga `source = 'health'`, `status = 'done'`. `health_id` (unico per utente) rende l'invio ripetibile senza duplicati.
+- **Spike** (da fare prima di scrivere codice): quali campi espone "Trova allenamenti" (tipo, inizio, durata, calorie, distanza); se un'automazione "a fine allenamento" parte senza conferma. **Piano B**: automazione a orario fisso ogni sera.
+- Lo schema è già pronto (`source`, `health_id`, misure in `workouts`).
 
 ---
 
@@ -644,6 +666,20 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - Si tengono in vista le ultime 2.000 registrazioni per tipo.
   - Non incluso: sezione "Da ricordare" di Today con i segni del Log; titoli neutri in notifiche (incremento 9) e ricerca globale (incremento 10).
 
+**Incremento 7b — Allenamenti** *(aggiunto il 10 ottobre 2026)*
+- Allenamento come tipo a sé (Product Definition 7.14).
+- Come è stato realizzato (10 ottobre 2026):
+  - Migrazione `workouts` (tabella con RLS e quattro policy; "Allenamento" tolta dalle aree predefinite di `handle_new_user`).
+  - Logica pura con test in `lib/workouts/`: `summary.ts` (stato mostrato, allenamenti del giorno, riepilogo, storico per settimane, suggerimenti delle discipline, distanze) e `convert.ts` (da attività e da evento).
+  - Dati in `lib/data/workouts.ts` e `workouts-hooks.ts`: query `["workouts", dal, al]`, salvata sul dispositivo; le scritture passano dalla outbox (`applyToWorkouts` in `lib/sync/ops.ts`). Today chiede la settimana del giorno, la stessa chiave della vista Settimana.
+  - Interfaccia: `components/workouts/` (riga e foglio), terza scelta in `ItemEditor`, sezione in Today, chip e blocchi in Settimana, segno in Mese, pagina `/workouts`, tipo "Allenamento" nel Quick Capture.
+  - Il calendario non aspetta gli allenamenti: se la loro lettura fallisce, attività ed eventi si mostrano comunque.
+- Criteri: test dei moduli puri, del parser, del piano di cattura, del calendario e della sync; `rls_check.sql` esteso a `workouts`; dal telefono: aggiungi, completa, annulla, sposta, trasforma un'attività, ritrova tutto offline.
+- Non incluso: ripetizioni degli allenamenti; notifiche (incremento 9).
+
+**Incremento 7c — Salute di Apple** *(aggiunto il 10 ottobre 2026)*
+- Come da sezione 9.8. Si comincia dallo spike sull'iPhone.
+
 **Incremento 8 — Wishlist**
 - Inserimento manuale, recupero da link con test su link reali, import da ChatGPT. Realizzazione: sezioni 9.3 e 9.4. Elenco per stato (desiderati, acquistati, scartati) e categoria, ordinato per interesse; passa dalla outbox e resta in cache come le altre liste (il recupero dal link richiede la rete).
 
@@ -685,6 +721,8 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T8 | Ordine degli incrementi come nella sezione 13 | [APPROVATO] |
 | T9 | Import una tantum da `.ics` (1b) e Google Calendar (1c) subito dopo l'incremento 1, prima di Quick Capture | [APPROVATO il 10 ottobre 2026] |
 | T10 | imayoga (1e): sola lettura, solo lezioni pubblicate, 60 minuti, individuali solo se prenotate; accesso con funzione protetta da token su `ima-yoga` (sezione 9.2) | [APPROVATO il 10 ottobre 2026] |
+| T11 | Allenamenti (7b): tabella `workouts` separata; "saltato" calcolato in lettura; nessuna voce di navigazione | [APPROVATO il 10 ottobre 2026] |
+| T12 | Salute di Apple (7c): Comando rapido → Edge Function con token personale (sezione 9.8) | [DA VERIFICARE con lo spike] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

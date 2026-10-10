@@ -17,11 +17,11 @@ type Overrides = Partial<
 
 type Panel = "kind" | "when" | "time" | "duration" | "category";
 
-const KINDS: CaptureKind[] = ["task", "event", "shopping", "wishlist", "log"];
+const KINDS: CaptureKind[] = ["task", "event", "workout", "shopping", "wishlist", "log"];
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 const NEXT_ATTENTION: Record<Attention, Attention> = { low: "medium", medium: "high", high: "low" };
 const ATTENTION_LABEL: Record<Attention, string> = { low: "bassa", medium: "media", high: "alta" };
-const EXAMPLES = ["domani alle 20 mettere in ammollo i ceci", "dentista martedì alle 15", "comprare tofu"];
+const EXAMPLES = ["domani alle 20 mettere in ammollo i ceci", "dentista martedì alle 15", "corsa domani 45 min", "comprare tofu"];
 const PREFIXES = ["spesa:", "wish:", "log:"];
 
 /** I chip non rubano il fuoco al campo di testo: su iPhone la tastiera resta aperta. */
@@ -84,6 +84,7 @@ export function CaptureSheet({
   today,
   now,
   categories,
+  activities,
   onClose,
   onSave,
   onDetails,
@@ -93,6 +94,8 @@ export function CaptureSheet({
   /** Ora locale "HH:mm". */
   now: string;
   categories: LogCategory[];
+  /** Discipline che fanno riconoscere un allenamento. */
+  activities: string[];
   onClose: () => void;
   onSave: (draft: CaptureDraft, text: string) => void;
   /** Apre il modulo completo con ciò che è stato letto (solo attività ed eventi). */
@@ -105,7 +108,7 @@ export function CaptureSheet({
   const [error, setError] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  const { spans: _spans, confidence, ...parsed } = parseCapture(text, { today, now, categories, kind: overrides.kind });
+  const { spans: _spans, confidence, ...parsed } = parseCapture(text, { today, now, categories, activities, kind: overrides.kind });
   void _spans;
   const draft: CaptureDraft = { ...parsed, ...overrides };
   if ("categoryId" in overrides) {
@@ -113,8 +116,9 @@ export function CaptureSheet({
   }
 
   const { kind } = draft;
-  const dated = kind === "task" || kind === "event" || kind === "log";
+  const dated = kind === "task" || kind === "event" || kind === "workout" || kind === "log";
   const planned = kind === "task" || kind === "event";
+  const timed = planned || kind === "workout";
   const hasText = text.trim().length > 0;
   const category = categories.find((c) => c.id === draft.categoryId);
   const deadlineMode = kind === "task" && (byDeadline ?? (!draft.date && !!draft.windowEnd));
@@ -242,7 +246,7 @@ export function CaptureSheet({
                     </Chip>
                   ) : null}
 
-                  {planned ? (
+                  {timed ? (
                     <Chip
                       onPress={() => toggle("duration")}
                       expanded={panel === "duration"}

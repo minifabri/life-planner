@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import { AreaDot } from "@/components/today/task-row";
+import { WorkoutMark } from "@/components/workouts/workout-row";
 import type { EditorTarget } from "@/components/today/item-editor";
 import { canMoveEvent, hourRange, layoutBlocks, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
 import type { Occurrence } from "@/lib/events/day";
-import type { Area, Task } from "@/lib/supabase/types";
+import type { Area, Task, Workout } from "@/lib/supabase/types";
 import { LOAD_LABEL } from "@/lib/tasks/load";
 
 /** Altezza di un'ora e durata minima disegnata: un blocco non scende mai sotto i 44 px toccabili. */
 const HOUR_PX = 56;
 const MIN_BLOCK_MIN = Math.ceil((46 / HOUR_PX) * 60);
 
-export type Dragged = { task: Task } | { occurrence: Occurrence; fromDay: LocalDate };
+export type Dragged = { task: Task } | { workout: Workout } | { occurrence: Occurrence; fromDay: LocalDate };
 
 const chipClass =
   "flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-[10px] border px-2 py-1.5 text-left text-[13px] leading-snug hover:bg-surface-2";
@@ -30,6 +31,7 @@ export function WeekGrid({
   onDropOn,
   onOpenDay,
   onEdit,
+  onEditWorkout,
 }: {
   views: DayView[];
   today: LocalDate;
@@ -41,6 +43,7 @@ export function WeekGrid({
   onDropOn: (day: LocalDate) => void;
   onOpenDay: (day: LocalDate) => void;
   onEdit: (target: EditorTarget) => void;
+  onEditWorkout: (workout: Workout) => void;
 }) {
   const [over, setOver] = useState<LocalDate | null>(null);
   const blocksByDay = views.map((v) => timedBlocks(v));
@@ -121,6 +124,24 @@ export function WeekGrid({
                     />
                   </li>
                 ))}
+                {view.workouts
+                  .filter((w) => !w.time)
+                  .map((w) => (
+                    <li key={w.id}>
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={() => onDragStart({ workout: w })}
+                        onDragEnd={onDragEnd}
+                        onClick={() => onEditWorkout(w)}
+                        className={`${chipClass} border-line-2`}
+                      >
+                        <span className={`min-w-0 break-words ${w.status === "done" ? "text-text-3 line-through" : ""}`}>{w.activity}</span>
+                        <WorkoutMark />
+                        <span className="sr-only">Allenamento</span>
+                      </button>
+                    </li>
+                  ))}
               </ul>
 
               <div className="relative" style={{ height: hours.length * HOUR_PX }}>
@@ -160,6 +181,30 @@ export function WeekGrid({
                               <AreaDot area={areaById.get(o.event.area_id ?? "")} />
                             </span>
                             <span className="truncate text-[11.5px] text-text-3">{o.endTime ? `${time}–${o.endTime}` : time}</span>
+                          </button>
+                        </li>
+                      );
+                    }
+                    if (b.workout) {
+                      const w = b.workout;
+                      return (
+                        <li key={b.key} className="absolute" style={style}>
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={() => onDragStart({ workout: w })}
+                            onDragEnd={onDragEnd}
+                            onClick={() => onEditWorkout(w)}
+                            className="flex size-full flex-col overflow-hidden rounded-[10px] border border-line-2 bg-bg px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <span className={`min-w-0 truncate ${w.status === "done" ? "text-text-3 line-through" : ""}`}>{w.activity}</span>
+                              <WorkoutMark />
+                              <span className="sr-only">Allenamento</span>
+                            </span>
+                            <span className="truncate text-[11.5px] text-text-3">
+                              {[time, w.duration_min ? formatDuration(w.duration_min) : null].filter(Boolean).join(" · ")}
+                            </span>
                           </button>
                         </li>
                       );
