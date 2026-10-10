@@ -411,6 +411,14 @@ Da definire quando sapremo quali dati espone. Nel frattempo le lezioni sono even
 - Prezzi con `~` o "circa" → `price_is_estimate = true`.
 - Righe non riconosciute restano nell'anteprima come testo modificabile.
 
+### 9.5 Import da file .ics [APPROVATO il 10 ottobre 2026: import una tantum, prima della sync]
+- Da Impostazioni → Dati → Importa da calendario (`/settings/import`). Uno o più file `.ics` (export di Google Calendar, Calendario Apple, Outlook), letti nel browser: nessun dato passa da un server diverso da Supabase.
+- Parser puro in `lib/import/ics.ts`: `VEVENT` → evento, `VTODO` aperto → attività. Gestisce giorni interi (fine esclusa), UTC, `TZID` e orari senza fuso (fuso del profilo), `RRULE` (con `UNTIL` riportato al giorno locale), `EXDATE` e occorrenze modificate (`RECURRENCE-ID`) come `event_exceptions`.
+- Anteprima prima del salvataggio: periodo "Da oggi in poi" (predefinito) o "Tutto", selezione voce per voce, e passaggio Evento → Attività per le voci non ricorrenti. Le voci non importabili (annullate, completate, senza data) sono elencate con il motivo.
+- Gli elementi importati sono dell'app (`source = 'app'`, modificabili). L'id è deterministico dall'UID del file (`ics:<UID>`, `ics-task:<UID>`): reimportare non duplica e un elemento eliminato non viene ricreato.
+- **Da tenere presente per la sync Google (9.1)**: l'`iCalUID` di un evento Google coincide con l'UID dell'export. La sync deve riconoscere gli eventi già importati (stesso id deterministico) e collegarli invece di duplicarli, e non deve riscriverli su GCal.
+- Limiti noti: la ripetizione dei `VTODO` non viene importata; le occorrenze modificate di una serie mantengono titolo e luogo della serie; i fusi con nome non IANA (alcuni export di Outlook) vengono letti nel fuso del profilo, con avviso nell'anteprima.
+
 ---
 
 ## 10. Export, backup, eliminazione
@@ -493,6 +501,13 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - CRUD attività ed eventi, Agenda, Da fare oggi, Rimaste indietro con Oggi/Riprogramma, completamento con undo, nel periodo con promozione, ricorrenze di entrambi i tipi.
 - Criteri: test unitari di classificazione e promozione; flusso completo dal telefono.
 
+**Incremento 1b — Import da calendario (.ics)** *(aggiunto il 10 ottobre 2026)*
+- Import una tantum da file `.ics` con anteprima (sezione 9.5).
+- Criteri: suite di test del parser; import di un export reale di Google Calendar dall'iPhone e dal desktop; secondo import dello stesso file senza duplicati.
+
+**Incremento 1c — Google Calendar** *(anticipato dal 12 il 10 ottobre 2026)*
+- Sync continua come da sezione 9.1. Richiede prima il progetto Google Cloud con client OAuth creato da Bibi.
+
 **Incremento 2 — Quick Capture**
 - Parser con suite di test, foglio di cattura con chip correggibili, prefissi.
 - Criteri: tutte le frasi della suite interpretate correttamente; cattura sotto i 3 secondi per frasi semplici.
@@ -524,7 +539,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 
 **Incremento 11 — Morning overview, Evening review, Templates**
 
-**Incremento 12 — Google Calendar**
+**Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 
 **Incremento 13 — Export, backup automatico, eliminazione account**
 
@@ -546,6 +561,7 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T6 | Tabelle separate `shopping_items` e `wishlist_items` | [APPROVATO] |
 | T7 | Notifica dell'attività di preparazione pasti alle 20:00 del giorno prima, configurabile | [APPROVATO] |
 | T8 | Ordine degli incrementi come nella sezione 13 | [APPROVATO] |
+| T9 | Import una tantum da `.ics` (1b) e Google Calendar (1c) subito dopo l'incremento 1, prima di Quick Capture | [APPROVATO il 10 ottobre 2026] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

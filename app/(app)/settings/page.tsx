@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -30,6 +31,7 @@ export default function SettingsPage() {
       <ThemeSection />
       <NotificationsSection />
       <LockSection />
+      <DataSection />
       <AccountSection />
     </div>
   );
@@ -254,6 +256,22 @@ function LockSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Dati ---------------- */
+function DataSection() {
+  return (
+    <Section title="Dati" note="Porta dentro eventi e promemoria da Google Calendar, Calendario Apple o Outlook con un file .ics.">
+      <div>
+        <Link
+          href="/settings/import"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          Importa da calendario
+        </Link>
+      </div>
     </Section>
   );
 }
