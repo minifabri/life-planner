@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
+import { sync } from "@/lib/sync/engine";
+import { forgetCachedData } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
@@ -295,7 +297,10 @@ function AccountSection() {
       <div>
         <Button
           onClick={async () => {
+            // Prima si prova a inviare ciò che è in attesa; poi i dati salvati sul dispositivo si tolgono.
+            await sync();
             await getSupabase().auth.signOut();
+            await forgetCachedData();
             router.replace("/login");
           }}
         >

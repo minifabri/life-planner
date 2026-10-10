@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCapture } from "@/components/capture/capture-provider";
+import { SyncStatus } from "@/components/data/sync-status";
 import { Icon, type IconName } from "@/components/ui/icon";
 
 type NavItem = { href: string; label: string; icon: IconName; match: string[] };
@@ -81,6 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] md:pb-0">
+          <SyncStatus />
           {children}
         </main>
 

@@ -125,8 +125,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       });
     } catch {
       // Niente va perso: "Riprova" riapre il foglio con il testo scritto.
+      // Senza rete si arriva qui solo per le registrazioni riservate, che non si salvano sul dispositivo.
       toast({
-        message: "Non salvato. Controlla la connessione.",
+        message: navigator.onLine ? "Non salvato. Riprova." : "Per questa registrazione serve la connessione.",
         tone: "warn",
         actionLabel: "Riprova",
         onAction: () => open(original),

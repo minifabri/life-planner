@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/page-header";
 import {
   useAreas,
   useEvents,
-  useRecurrenceMaintenance,
+  useOffline,
   useTaskActions,
   useTasks,
   useTimezone,
@@ -50,7 +50,6 @@ export default function TodayPage() {
   const eventsQuery = useEvents(day, tz);
   const areas = useAreas().data;
   const actions = useTaskActions(today, tz);
-  useRecurrenceMaintenance(today);
 
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rescheduling, setRescheduling] = useState<Task | null>(null);
@@ -107,8 +106,11 @@ export default function TodayPage() {
 
   const h = todayHeading(atLocalTime(day, "12:00", tz), tz);
   const eyebrow = isToday ? "Oggi" : relativeDay(day, today);
-  const loading = tasksQuery.isPending || eventsQuery.isPending;
-  const failed = tasksQuery.isError || eventsQuery.isError;
+  // Con dati in cache si mostrano quelli, anche se l'aggiornamento non riesce: l'avviso di rete è nella barra in alto.
+  const missing = tasksQuery.data === undefined || eventsQuery.data === undefined;
+  const offline = useOffline();
+  const failed = missing && (offline || tasksQuery.isError || eventsQuery.isError);
+  const loading = missing && !failed;
   const openTask = (task: Task) => setEditor({ kind: "task", task });
 
   const nowLine = (
@@ -168,7 +170,7 @@ export default function TodayPage() {
 
       {failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
-          <p>Non riesco a caricare i dati. Controlla la connessione.</p>
+          <p>{offline ? "Questo giorno non è disponibile senza rete. Offline trovi ieri, oggi e domani." : "Non riesco a caricare i dati. Controlla la connessione."}</p>
           <button
             type="button"
             onClick={() => {
@@ -228,64 +230,68 @@ export default function TodayPage() {
         </section>
       ) : null}
 
-      <Section title="Agenda">
-        {loading ? (
-          <Skeleton />
-        ) : agenda.length === 0 ? (
-          <EmptyState title="Niente in programma." hint="Gli appuntamenti e le attività con orario compaiono qui." />
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {agenda.map((item, i) => (
-              <AgendaRow key={item.key} time={item.time} before={i === nowIndex ? nowLine : null}>
-                {item.occurrence ? (
-                  <EventBlock
-                    occurrence={item.occurrence}
-                    area={areaById.get(item.occurrence.event.area_id ?? "")}
-                    onOpen={() => setEditor({ kind: "event", occurrence: item.occurrence! })}
-                  />
-                ) : (
-                  <TaskRow
-                    task={item.task!}
-                    area={areaById.get(item.task!.area_id ?? "")}
-                    onToggle={() => actions.toggle(item.task!)}
-                    onOpen={() => openTask(item.task!)}
-                  />
-                )}
-              </AgendaRow>
-            ))}
-            {isToday && nowIndex === -1 && agenda.some((i) => i.time !== null) ? nowLine : null}
-          </ul>
-        )}
-      </Section>
+      {failed ? null : (
+        <>
+          <Section title="Agenda">
+            {loading ? (
+              <Skeleton />
+            ) : agenda.length === 0 ? (
+              <EmptyState title="Niente in programma." hint="Gli appuntamenti e le attività con orario compaiono qui." />
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {agenda.map((item, i) => (
+                  <AgendaRow key={item.key} time={item.time} before={i === nowIndex ? nowLine : null}>
+                    {item.occurrence ? (
+                      <EventBlock
+                        occurrence={item.occurrence}
+                        area={areaById.get(item.occurrence.event.area_id ?? "")}
+                        onOpen={() => setEditor({ kind: "event", occurrence: item.occurrence! })}
+                      />
+                    ) : (
+                      <TaskRow
+                        task={item.task!}
+                        area={areaById.get(item.task!.area_id ?? "")}
+                        onToggle={() => actions.toggle(item.task!)}
+                        onOpen={() => openTask(item.task!)}
+                      />
+                    )}
+                  </AgendaRow>
+                ))}
+                {isToday && nowIndex === -1 && agenda.some((i) => i.time !== null) ? nowLine : null}
+              </ul>
+            )}
+          </Section>
 
-      <Section title={isToday ? "Da fare oggi" : "Da fare"}>
-        {loading ? (
-          <Skeleton />
-        ) : sections.todo.length === 0 ? (
-          <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Tocca + per aggiungere qualcosa." />
-        ) : (
-          <ul className="flex flex-col">
-            {sections.todo.map((t) => (
-              <TaskRow
-                key={t.id}
-                task={t}
-                area={areaById.get(t.area_id ?? "")}
-                meta={t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
-                onToggle={() => actions.toggle(t)}
-                onOpen={() => openTask(t)}
-              />
-            ))}
-          </ul>
-        )}
-        <button
-          type="button"
-          onClick={() => setEditor({ kind: "new", day })}
-          className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
-        >
-          <Icon name="plus" size={16} />
-          Aggiungi
-        </button>
-      </Section>
+          <Section title={isToday ? "Da fare oggi" : "Da fare"}>
+            {loading ? (
+              <Skeleton />
+            ) : sections.todo.length === 0 ? (
+              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Tocca + per aggiungere qualcosa." />
+            ) : (
+              <ul className="flex flex-col">
+                {sections.todo.map((t) => (
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    area={areaById.get(t.area_id ?? "")}
+                    meta={t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
+                    onToggle={() => actions.toggle(t)}
+                    onOpen={() => openTask(t)}
+                  />
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={() => setEditor({ kind: "new", day })}
+              className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+            >
+              <Icon name="plus" size={16} />
+              Aggiungi
+            </button>
+          </Section>
+        </>
+      )}
 
       {isToday && sections.window.length > 0 ? (
         <section className="flex flex-col">

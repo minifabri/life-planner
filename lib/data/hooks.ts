@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
-import type { LocalDate } from "../dates/local";
+import { addDays, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
-import { completePatch, dismissPatch, movePatch, reopenPatch, type TaskPatch } from "../tasks/actions";
+import { getSyncState, subscribeSyncState, type SyncState } from "../sync/engine";
+import { dismissPatch, movePatch, type TaskPatch } from "../tasks/actions";
 import type { Task } from "../supabase/types";
 import {
-  createNextAfterCompletion,
+  completeTask,
   fetchAreas,
   fetchEvents,
   fetchLogCategories,
   fetchProfile,
+  fetchRecurrences,
   fetchTasks,
-  materializeRecurrences,
-  removeNextAfterCompletion,
+  reopenTask,
   updateTask,
 } from "./api";
 
@@ -53,61 +54,57 @@ export function useLogCategories() {
   return useQuery({ queryKey: ["log-categories"], queryFn: fetchLogCategories, staleTime: 5 * 60_000 });
 }
 
+function tasksQuery(day: LocalDate, tz: string) {
+  return { queryKey: ["tasks", day], queryFn: () => fetchTasks(day, tz) };
+}
+
+function eventsQuery(day: LocalDate, tz: string) {
+  return { queryKey: ["events", day], queryFn: () => fetchEvents(day, tz) };
+}
+
 export function useTasks(day: LocalDate, tz: string) {
-  return useQuery({ queryKey: ["tasks", day], queryFn: () => fetchTasks(day, tz) });
+  return useQuery(tasksQuery(day, tz));
 }
 
 export function useEvents(day: LocalDate, tz: string) {
-  return useQuery({ queryKey: ["events", day], queryFn: () => fetchEvents(day, tz) });
+  return useQuery(eventsQuery(day, tz));
 }
 
-/** Una volta al giorno (e a ogni apertura) crea le prossime attività ricorrenti. */
-export function useRecurrenceMaintenance(today: LocalDate) {
+/** Tiene in cache ieri e domani, così Today funziona senza rete su tre giorni (technical-design.md, 6.2). */
+export function usePrefetchAround(today: LocalDate, tz: string) {
   const qc = useQueryClient();
   useEffect(() => {
-    let active = true;
-    materializeRecurrences(today)
-      .then((created) => {
-        if (active && created > 0) qc.invalidateQueries({ queryKey: ["tasks"] });
-      })
-      .catch(() => {
-        // Senza rete si riprova alla prossima apertura: le attività già create restano visibili.
-      });
-    return () => {
-      active = false;
-    };
-  }, [today, qc]);
+    for (const day of [addDays(today, -1), addDays(today, 1)]) {
+      void qc.prefetchQuery(tasksQuery(day, tz));
+      void qc.prefetchQuery(eventsQuery(day, tz));
+    }
+  }, [today, tz, qc]);
 }
 
-/** Azioni sulle attività con aggiornamento immediato dell'interfaccia. */
+export function useRecurrences() {
+  return useQuery({ queryKey: ["recurrences"], queryFn: fetchRecurrences, staleTime: 5 * 60_000 });
+}
+
+/** Azioni sulle attività: l'interfaccia si aggiorna subito, l'invio al server segue appena c'è rete. */
 export function useTaskActions(today: LocalDate, tz: string) {
-  const qc = useQueryClient();
   const toast = useToast();
 
-  async function apply(task: Task, patch: TaskPatch, after?: () => Promise<void>) {
-    await qc.cancelQueries({ queryKey: ["tasks"] });
-    qc.setQueriesData<Task[]>({ queryKey: ["tasks"] }, (old) =>
-      old?.map((t) => (t.id === task.id ? { ...t, ...patch } : t)),
-    );
+  async function apply(write: () => Promise<void>) {
     try {
-      await updateTask(task.id, patch);
-      await after?.();
+      await write();
       return true;
     } catch {
-      toast({ message: "Modifica non salvata. Controlla la connessione e riprova.", tone: "warn" });
+      // La outbox non è scrivibile (spazio esaurito, navigazione privata): la modifica non è stata registrata.
+      toast({ message: "Modifica non salvata. Riprova.", tone: "warn" });
       return false;
-    } finally {
-      qc.invalidateQueries({ queryKey: ["tasks"] });
     }
   }
 
-  function reopen(task: Task) {
-    return apply(task, reopenPatch(), () => removeNextAfterCompletion(task));
-  }
+  const patch = (task: Task, change: TaskPatch) => apply(() => updateTask(task, change));
+  const reopen = (task: Task) => apply(() => reopenTask(task));
 
   async function complete(task: Task) {
-    const now = new Date();
-    const ok = await apply(task, completePatch(now), () => createNextAfterCompletion(task, now, tz));
+    const ok = await apply(() => completeTask(task, new Date(), tz));
     if (ok) toast({ message: "Completata", actionLabel: "Annulla", onAction: () => reopen(task) });
   }
 
@@ -115,10 +112,10 @@ export function useTaskActions(today: LocalDate, tz: string) {
     complete,
     reopen,
     toggle: (task: Task) => (task.status === "done" ? reopen(task) : complete(task)),
-    moveTo: (task: Task, date: LocalDate) => apply(task, movePatch(task, date)),
-    moveToToday: (task: Task) => apply(task, movePatch(task, today)),
-    dismiss: (task: Task) => apply(task, dismissPatch()),
-    remove: (task: Task) => apply(task, { deleted_at: new Date().toISOString() }),
+    moveTo: (task: Task, date: LocalDate) => patch(task, movePatch(task, date)),
+    moveToToday: (task: Task) => patch(task, movePatch(task, today)),
+    dismiss: (task: Task) => patch(task, dismissPatch()),
+    remove: (task: Task) => patch(task, { deleted_at: new Date().toISOString() }),
   };
 }
 
@@ -128,4 +125,27 @@ export function useInvalidateDay() {
     qc.invalidateQueries({ queryKey: ["tasks"] });
     qc.invalidateQueries({ queryKey: ["events"] });
   };
+}
+
+/** Modifiche in attesa di rete e stato dell'ultimo invio. */
+export function useSyncState(): SyncState {
+  return useSyncExternalStore(subscribeSyncState, getSyncState, getSyncState);
+}
+
+function subscribeOnline(listener: () => void) {
+  window.addEventListener("online", listener);
+  window.addEventListener("offline", listener);
+  return () => {
+    window.removeEventListener("online", listener);
+    window.removeEventListener("offline", listener);
+  };
+}
+
+/** Vero quando il dispositivo dichiara di non avere rete. */
+export function useOffline(): boolean {
+  return useSyncExternalStore(
+    subscribeOnline,
+    () => !navigator.onLine,
+    () => false,
+  );
 }
