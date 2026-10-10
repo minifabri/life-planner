@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { uuidv7 } from "../ids";
@@ -20,15 +20,12 @@ import {
 const ITEMS_KEY = ["shopping-items"];
 const MEMORY_KEY = ["product-memory"];
 
-/** Scritture in corso: finché ce ne sono, gli avvisi Realtime non ricaricano la lista sopra le modifiche locali. */
-let pendingWrites = 0;
-
 export function useShoppingItems() {
   const qc = useQueryClient();
+  // La lettura restituisce i dati del server con sopra le modifiche in attesa: ricaricare non le cancella.
   useEffect(
     () =>
       subscribeToShoppingItems(() => {
-        if (pendingWrites > 0) return;
         qc.invalidateQueries({ queryKey: ITEMS_KEY });
         qc.invalidateQueries({ queryKey: MEMORY_KEY });
       }),
@@ -49,38 +46,23 @@ export function useInvalidateShopping() {
   };
 }
 
-/** Azioni sulla lista con aggiornamento immediato dell'interfaccia. */
+/** Azioni sulla lista: l'interfaccia si aggiorna subito, l'invio al server segue appena c'è rete. */
 export function useShoppingActions() {
   const qc = useQueryClient();
   const toast = useToast();
-  const listId = useRef<string | null>(null);
 
-  async function apply(change: (items: ShoppingItem[]) => ShoppingItem[], write: () => Promise<void>): Promise<boolean> {
-    pendingWrites += 1;
-    await qc.cancelQueries({ queryKey: ITEMS_KEY });
-    qc.setQueryData<ShoppingItem[]>(ITEMS_KEY, (old) => (old ? change(old) : old));
+  async function apply(write: () => Promise<void>): Promise<boolean> {
     try {
       await write();
       return true;
     } catch {
-      toast({ message: "Modifica non salvata. Controlla la connessione e riprova.", tone: "warn" });
+      // La outbox non è scrivibile oppure la lista non è mai stata scaricata su questo dispositivo.
+      toast({ message: "Modifica non salvata. Riprova.", tone: "warn" });
       return false;
-    } finally {
-      pendingWrites -= 1;
-      if (pendingWrites === 0) {
-        qc.invalidateQueries({ queryKey: ITEMS_KEY });
-        qc.invalidateQueries({ queryKey: MEMORY_KEY });
-      }
     }
   }
 
-  function patch(ids: string[], change: ShoppingPatch) {
-    const set = new Set(ids);
-    return apply(
-      (items) => items.flatMap((i) => (!set.has(i.id) ? [i] : change.deleted_at ? [] : [{ ...i, ...change }])),
-      () => updateShoppingItems(ids, change),
-    );
-  }
+  const patch = (items: ShoppingItem[], change: ShoppingPatch) => apply(() => updateShoppingItems(items, change));
 
   /** Aggiunge ciò che è stato scritto; se l'articolo è già in lista da comprare non lo duplica. */
   function add(input: string | Entry) {
@@ -92,9 +74,8 @@ export function useShoppingActions() {
       return Promise.resolve(true);
     }
     const memory = qc.getQueryData<ProductMemory[]>(MEMORY_KEY) ?? [];
-    const item: ShoppingItem = {
+    const item: Omit<ShoppingItem, "list_id"> = {
       id: uuidv7(),
-      list_id: listId.current ?? "",
       ...entry,
       department: learnedDepartment(entry.name, memory),
       checked: false,
@@ -102,38 +83,27 @@ export function useShoppingActions() {
       deleted_at: null,
       created_at: new Date().toISOString(),
     };
-    return apply(
-      (items) => [...items, item],
-      async () => {
-        listId.current ??= await shoppingListId();
-        await insertShoppingItem({ ...item, list_id: listId.current });
-      },
-    );
+    return apply(async () => insertShoppingItem({ ...item, list_id: await shoppingListId() }));
   }
 
   function toggle(item: ShoppingItem) {
-    return patch([item.id], item.checked ? { checked: false, checked_at: null } : { checked: true, checked_at: new Date().toISOString() });
+    return patch([item], item.checked ? { checked: false, checked_at: null } : { checked: true, checked_at: new Date().toISOString() });
   }
 
   async function remove(items: ShoppingItem[], message: string) {
-    const ids = items.map((i) => i.id);
-    const ok = await patch(ids, { deleted_at: new Date().toISOString() });
+    const ok = await patch(items, { deleted_at: new Date().toISOString() });
     if (!ok) return;
     toast({
       message,
       actionLabel: "Annulla",
-      onAction: () =>
-        apply(
-          (current) => [...current, ...items],
-          () => updateShoppingItems(ids, { deleted_at: null }),
-        ),
+      onAction: () => patch(items, { deleted_at: null }),
     });
   }
 
   return {
     add,
     toggle,
-    edit: (item: ShoppingItem, change: Pick<ShoppingItem, "name" | "quantity" | "department">) => patch([item.id], change),
+    edit: (item: ShoppingItem, change: Pick<ShoppingItem, "name" | "quantity" | "department">) => patch([item], change),
     remove: (item: ShoppingItem) => remove([item], "Articolo eliminato"),
     clearChecked: (checked: ShoppingItem[]) =>
       remove(checked, checked.length === 1 ? "1 articolo tolto dalla lista" : `${checked.length} articoli tolti dalla lista`),

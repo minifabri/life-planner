@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { QueryProvider } from "@/components/data/query-provider";
+import { SyncManager } from "@/components/data/sync-manager";
 import { CaptureProvider } from "@/components/capture/capture-provider";
 import { AppShell } from "@/components/shell/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
@@ -25,8 +26,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <QueryProvider>
+    <QueryProvider userId={session.user.id}>
       <ToastProvider>
+        <SyncManager />
         <CaptureProvider>
           <AppShell>{children}</AppShell>
         </CaptureProvider>

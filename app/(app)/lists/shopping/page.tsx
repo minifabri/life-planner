@@ -84,14 +84,14 @@ export default function ShoppingPage() {
         ) : null}
       </div>
 
-      {itemsQuery.isError ? (
+      {itemsQuery.isError && itemsQuery.data === undefined ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
           <p>Non riesco a caricare la lista. Controlla la connessione.</p>
           <button type="button" onClick={() => itemsQuery.refetch()} className="min-h-11 rounded-lg px-3 font-medium text-accent">
             Riprova
           </button>
         </div>
-      ) : itemsQuery.isPending ? (
+      ) : itemsQuery.data === undefined ? (
         <p className="text-sm text-text-3" aria-live="polite">
           Carico la lista…
         </p>

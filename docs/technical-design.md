@@ -333,7 +333,7 @@ owner_id pk, refresh_token text, access_token text, expires_at timestamptz, scop
 3. **Svuotamento della outbox**: in ordine, quando c'è rete. Trigger: avvio dell'app, ritorno in primo piano (`visibilitychange`), evento `online`, timer ogni 30 secondi mentre l'app è aperta.
    - **Non si usa la Background Sync API**: Safari iOS non la supporta, quindi la sync avviene quando l'app viene aperta o torna in primo piano.
 4. **Id generati dal client** (UUID v7): un elemento creato offline ha già il suo id definitivo; niente rimappature.
-5. **Conflitti**: last-write-wins per riga, usando `updated_at`. Con un solo utente i conflitti reali sono rari (stesso elemento modificato su due dispositivi offline). Caso speciale: spuntare e togliere la spunta su due dispositivi → vince l'ultima azione, accettabile.
+5. **Conflitti**: vince l'ultima modifica che arriva al server, campo per campo (vedi 6.4; la proposta iniziale era last-write-wins per riga con `updated_at`). Con un solo utente i conflitti reali sono rari (stesso elemento modificato su due dispositivi offline). Caso speciale: spuntare e togliere la spunta su due dispositivi → vince l'ultima azione, accettabile.
 6. **Aggiornamento tra dispositivi**: refetch al ritorno in primo piano. Supabase Realtime solo sulla Spesa (utile con telefono e computer aperti insieme), entro il limite free di 200 connessioni.
 
 ### 6.2 Cosa funziona offline
@@ -352,6 +352,18 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - Precache della shell dell'app e degli asset statici.
 - Strategia network-first per le pagine, fallback alla shell offline.
 - Gestione di `push` e `notificationclick` (apre la schermata giusta tramite deep link).
+
+### 6.4 Come è stato realizzato (incremento 3, 10 ottobre 2026)
+- **Modifiche come dati** (`lib/sync/ops.ts`, puro e testato): ogni scrittura è un'operazione `insert` / `update` / `delete` su una tabella. La stessa descrizione serve a inviarla a Supabase e ad applicarla ai dati in cache. Gli inserimenti partono come upsert che ignora i doppioni: rimandare una modifica la cui risposta è andata persa non crea nulla due volte.
+- **Outbox** (`lib/sync/outbox.ts`, Dexie, database `planner`): le modifiche si inviano una alla volta, in ordine. Senza rete, con errori 5xx o con la sessione da rinnovare (401) l'invio si ferma e riprova al giro successivo; un rifiuto vero del server (4xx) scarta la modifica, avvisa con un toast e rilegge i dati.
+- **Cache** (`lib/sync/engine.ts`): il risultato di ogni lettura è "dati del server + modifiche ancora in attesa", quindi un refetch non cancella ciò che non è ancora partito. La cache di TanStack Query è salvata in IndexedDB (7 giorni) per profilo, aree, categorie, liste, ricorrenze, attività, eventi, lista della spesa e catalogo dei prodotti. Il Log non viene salvato.
+- **Giorni disponibili offline**: oggi, ieri e domani vengono scaricati a ogni apertura; gli altri giorni solo se già visitati.
+- **Conflitti**: vince l'ultima modifica che arriva al server, campo per campo (le azioni rapide inviano solo i campi cambiati). Non si confronta `updated_at`: con un confronto per riga, completare un'attività offline verrebbe annullato da una modifica al titolo fatta più tardi su un altro dispositivo. **[APPROVATO il 10 ottobre 2026]**: sostituisce il confronto su `updated_at` del punto 5 della 6.1.
+- **Ricorrenze**: la prossima attività "N giorni dopo" nasce offline insieme al completamento (id deterministico). Le occorrenze a calendario fisso si creano solo con la rete: a ogni apertura, al cambio di giorno e dopo ogni invio riuscito.
+- **Registrazioni riservate del Log**: non passano dalla outbox (che è in chiaro sul dispositivo). Dal Quick Capture senza rete l'app risponde "Per questa registrazione serve la connessione".
+- **Uscita dall'account**: si prova a inviare ciò che è in attesa, poi la cache salvata viene cancellata. Le modifiche non inviate restano nella outbox, legate all'utente, e partono al prossimo accesso.
+- **Service worker**: sorgente in `app/sw.ts`, compilato in build da `@serwist/turbopack` e servito come file statico su `/serwist/sw.js` con scope `/` (stessa registrazione del vecchio `/sw.js`, quindi l'iscrizione push resta valida). Precache di script, stili, font e delle schermate; le richieste verso Supabase non passano dal service worker. Un nuovo deploy si vede alla seconda apertura dell'app.
+- **Avviso di stato**: una riga discreta in alto, solo quando serve ("Sei offline", "N modifiche in attesa").
 
 ---
 
@@ -549,7 +561,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Criteri: tutte le frasi della suite interpretate correttamente; cattura sotto i 3 secondi per frasi semplici.
 
 **Incremento 3 — Offline per Today e Spesa**
-- Persistenza cache, outbox, svuotamento al ritorno in primo piano.
+- Persistenza cache, outbox, svuotamento al ritorno in primo piano (realizzazione: sezione 6.4). Funzionano offline Today, il Quick Capture e la Spesa (aggiungi, spunta, modifica, svuota; il catalogo dei prodotti lo aggiorna il database alla sincronizzazione).
 - Criteri: modalità aereo sull'iPhone → modifiche → riattivazione → dati coerenti su desktop.
 
 **Incremento 4 — Spesa**

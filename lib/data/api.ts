@@ -4,6 +4,10 @@ import { deterministicId, uuidv7 } from "../ids";
 import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
 import { getSupabase } from "../supabase/client";
+import { commit, withPendingEvents, withPendingRecurrences, withPendingTasks } from "../sync/engine";
+import { byId, type DayEvents, type Op, type Row, type Table } from "../sync/ops";
+import { completePatch, reopenPatch } from "../tasks/actions";
+import { queryClient } from "./query-client";
 import type {
   Area,
   EventException,
@@ -35,16 +39,18 @@ export async function fetchAreas(): Promise<Area[]> {
  */
 export async function fetchTasks(day: LocalDate, tz: string): Promise<Task[]> {
   const dayStart = startOfLocalDay(day, tz).toISOString();
-  return check(
-    await getSupabase()
-      .from("tasks")
-      .select("*")
-      .is("deleted_at", null)
-      .or(`status.eq.open,date.eq.${day},completed_at.gte."${dayStart}"`),
+  return withPendingTasks(
+    check(
+      await getSupabase()
+        .from("tasks")
+        .select("*")
+        .is("deleted_at", null)
+        .or(`status.eq.open,date.eq.${day},completed_at.gte."${dayStart}"`),
+    ),
   );
 }
 
-export type DayEvents = { events: EventRow[]; exceptions: EventException[] };
+export type { DayEvents };
 
 /** Eventi che possono toccare il giorno: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
 export async function fetchEvents(day: LocalDate, tz: string): Promise<DayEvents> {
@@ -64,11 +70,29 @@ export async function fetchEvents(day: LocalDate, tz: string): Promise<DayEvents
   const exceptions: EventException[] = recurring.length
     ? check(await supabase.from("event_exceptions").select("*").in("event_id", recurring))
     : [];
-  return { events, exceptions };
+  return withPendingEvents({ events, exceptions }, day, tz);
 }
 
-export async function fetchRecurrence(id: string): Promise<Recurrence | null> {
-  return check(await getSupabase().from("recurrences").select("*").eq("id", id).maybeSingle());
+/** Tutte le ricorrenze: sono poche e servono anche senza rete, per creare la prossima attività. */
+export async function fetchRecurrences(): Promise<Recurrence[]> {
+  return withPendingRecurrences(check(await getSupabase().from("recurrences").select("*")));
+}
+
+const recurrencesQuery = { queryKey: ["recurrences"], queryFn: fetchRecurrences, staleTime: 5 * 60_000 };
+const listsQuery = { queryKey: ["lists"], queryFn: fetchLists, staleTime: Infinity };
+
+/** Scaricate all'apertura, così sono già in cache quando la rete manca. */
+export function prefetchReferenceData() {
+  void queryClient.prefetchQuery(recurrencesQuery);
+  void queryClient.prefetchQuery(listsQuery);
+}
+
+async function findRecurrence(id: string): Promise<Recurrence | null> {
+  try {
+    return (await queryClient.ensureQueryData(recurrencesQuery)).find((r) => r.id === id) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export type TaskInput = Pick<
@@ -93,62 +117,73 @@ function templateFrom(input: TaskInput, startDate: LocalDate): RecurrenceTemplat
   };
 }
 
-async function createRecurrence(input: TaskInput, repeat: Exclude<RepeatInput, { kind: "none" }>, startDate: LocalDate) {
-  const id = uuidv7();
-  check(
-    await getSupabase()
-      .from("recurrences")
-      .insert({
-        id,
-        kind: repeat.kind,
-        rrule: repeat.kind === "fixed" ? repeat.rrule : null,
-        interval_days: repeat.kind === "after_completion" ? repeat.intervalDays : null,
-        template: templateFrom(input, startDate),
-      })
-      .select("id"),
-  );
-  return id;
+function insert(table: Table, row: Row & { id: string }): Op {
+  return { kind: "insert", table, row };
 }
 
-/** Crea un'attività e ne restituisce l'id; con una ripetizione crea anche la ricorrenza di cui è la prima occorrenza. */
+function recurrenceInsert(id: string, input: TaskInput, repeat: Exclude<RepeatInput, { kind: "none" }>, startDate: LocalDate): Op {
+  return insert("recurrences", {
+    id,
+    kind: repeat.kind,
+    rrule: repeat.kind === "fixed" ? repeat.rrule : null,
+    interval_days: repeat.kind === "after_completion" ? repeat.intervalDays : null,
+    template: templateFrom(input, startDate),
+  });
+}
+
+/**
+ * Crea un'attività e ne restituisce l'id; con una ripetizione crea anche la ricorrenza di cui è la prima occorrenza.
+ * Le occorrenze successive di una ripetizione fissa nascono alla prossima sincronizzazione (`materializeRecurrences`).
+ */
 export async function createTask(input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<string> {
-  const row: Partial<Task> = { id: uuidv7(), ...input };
+  const row: Partial<Task> & { id: string } = { id: uuidv7(), ...input };
+  const ops: Op[] = [];
   if (repeat.kind !== "none") {
     row.date = input.date ?? today;
-    row.recurrence_id = await createRecurrence(input, repeat, row.date);
+    row.recurrence_id = uuidv7();
     row.source = "recurrence";
+    ops.push(recurrenceInsert(row.recurrence_id, input, repeat, row.date));
   }
-  check(await getSupabase().from("tasks").insert(row).select("id"));
-  if (repeat.kind === "fixed") await materializeRecurrences(today);
-  return row.id!;
+  await commit([...ops, insert("tasks", row)]);
+  return row.id;
 }
 
-export async function updateTask(id: string, patch: Partial<Task>): Promise<void> {
-  check(await getSupabase().from("tasks").update(patch).eq("id", id).select("id"));
+/** Modifica un'attività. Passare l'attività intera permette di mostrarla subito anche nelle viste che non l'avevano. */
+function taskUpdate(task: Pick<Task, "id"> | Task, patch: Partial<Task>): Op {
+  const snapshot = "title" in task ? { ...task, ...patch } : undefined;
+  return { kind: "update", table: "tasks", patch, where: byId(task.id), snapshot };
 }
 
-/** Aggiunge una ripetizione a un'attività esistente. */
-export async function addRepeat(task: Task, input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<void> {
-  if (repeat.kind === "none") return;
+export async function updateTask(task: Pick<Task, "id"> | Task, patch: Partial<Task>): Promise<void> {
+  await commit([taskUpdate(task, patch)]);
+}
+
+/** Salva le modifiche a un'attività e, se richiesta, le aggiunge una ripetizione. */
+export async function saveTask(task: Task, input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<void> {
+  if (task.recurrence_id || repeat.kind === "none") return updateTask(task, input);
   const date = input.date ?? today;
-  const recurrenceId = await createRecurrence(input, repeat, date);
-  await updateTask(task.id, { recurrence_id: recurrenceId, date });
-  if (repeat.kind === "fixed") await materializeRecurrences(today);
+  const recurrenceId = uuidv7();
+  await commit([
+    recurrenceInsert(recurrenceId, input, repeat, date),
+    taskUpdate(task, { ...input, recurrence_id: recurrenceId, date }),
+  ]);
 }
 
 /** Ferma una ricorrenza ed elimina le occorrenze future non ancora completate. */
 export async function stopRecurrence(recurrenceId: string, today: LocalDate): Promise<void> {
-  const supabase = getSupabase();
-  check(await supabase.from("recurrences").update({ active: false }).eq("id", recurrenceId).select("id"));
-  check(
-    await supabase
-      .from("tasks")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("recurrence_id", recurrenceId)
-      .eq("status", "open")
-      .gt("date", today)
-      .select("id"),
-  );
+  await commit([
+    { kind: "update", table: "recurrences", patch: { active: false }, where: byId(recurrenceId) },
+    {
+      kind: "update",
+      table: "tasks",
+      patch: { deleted_at: new Date().toISOString() },
+      where: [
+        ["recurrence_id", "eq", recurrenceId],
+        ["status", "eq", "open"],
+        ["date", "gt", today],
+      ],
+    },
+  ]);
 }
 
 function taskFromTemplate(recurrenceId: string, template: RecurrenceTemplate, id: string, date: LocalDate) {
@@ -169,7 +204,7 @@ function taskFromTemplate(recurrenceId: string, template: RecurrenceTemplate, id
 /**
  * Crea le attività dei prossimi 14 giorni per le ricorrenze a calendario fisso.
  * Gli id sono deterministici: ripetere l'operazione, anche da un altro dispositivo, non duplica nulla
- * e un'occorrenza eliminata non viene ricreata.
+ * e un'occorrenza eliminata non viene ricreata. Serve la rete: senza, si rifà alla prossima sincronizzazione.
  */
 export async function materializeRecurrences(today: LocalDate): Promise<number> {
   const supabase = getSupabase();
@@ -193,23 +228,31 @@ function nextInstanceId(task: Pick<Task, "id" | "recurrence_id">) {
   return deterministicId(`${task.recurrence_id}:after:${task.id}`);
 }
 
-/** Dopo il completamento: crea la prossima attività di una ricorrenza "N giorni dopo". */
-export async function createNextAfterCompletion(task: Task, completedAt: Date, tz: string): Promise<void> {
-  if (!task.recurrence_id) return;
-  const recurrence = await fetchRecurrence(task.recurrence_id);
-  if (!recurrence) return;
-  const date = nextAfterCompletion(recurrence, localDateString(completedAt, tz));
-  if (!date) return;
-  const row = taskFromTemplate(recurrence.id, recurrence.template, await nextInstanceId(task), date);
-  check(await getSupabase().from("tasks").upsert(row, { onConflict: "id", ignoreDuplicates: true }).select("id"));
+/** Completa un'attività; se appartiene a una ricorrenza "N giorni dopo" crea anche la prossima. */
+export async function completeTask(task: Task, completedAt: Date, tz: string): Promise<void> {
+  const ops = [taskUpdate(task, completePatch(completedAt))];
+  const recurrence = task.recurrence_id ? await findRecurrence(task.recurrence_id) : null;
+  const date = recurrence ? nextAfterCompletion(recurrence, localDateString(completedAt, tz)) : null;
+  if (recurrence && date) {
+    ops.push(insert("tasks", taskFromTemplate(recurrence.id, recurrence.template, await nextInstanceId(task), date)));
+  }
+  await commit(ops);
 }
 
-/** Annullando il completamento si toglie l'attività successiva, se è ancora intatta. */
-export async function removeNextAfterCompletion(task: Task): Promise<void> {
-  if (!task.recurrence_id) return;
-  check(
-    await getSupabase().from("tasks").delete().eq("id", await nextInstanceId(task)).eq("status", "open").select("id"),
-  );
+/** Rimette da fare un'attività; l'attività successiva della ricorrenza si toglie, se è ancora intatta. */
+export async function reopenTask(task: Task): Promise<void> {
+  const ops = [taskUpdate(task, reopenPatch())];
+  if (task.recurrence_id) {
+    ops.push({
+      kind: "delete",
+      table: "tasks",
+      where: [
+        ["id", "eq", await nextInstanceId(task)],
+        ["status", "eq", "open"],
+      ],
+    });
+  }
+  await commit(ops);
 }
 
 export type EventInput = Pick<
@@ -219,25 +262,25 @@ export type EventInput = Pick<
 
 export async function createEvent(input: EventInput): Promise<string> {
   const id = uuidv7();
-  check(await getSupabase().from("events").insert({ id, ...input }).select("id"));
+  await commit([insert("events", { id, ...input })]);
   return id;
 }
 
-export async function updateEvent(id: string, patch: Partial<EventRow>): Promise<void> {
-  check(await getSupabase().from("events").update(patch).eq("id", id).select("id"));
+export async function updateEvent(event: EventRow, patch: Partial<EventRow>): Promise<void> {
+  await commit([{ kind: "update", table: "events", patch, where: byId(event.id), snapshot: { ...event, ...patch } }]);
 }
 
 /** Cancella una sola occorrenza di un evento ricorrente. */
 export async function cancelOccurrence(eventId: string, originalStart: Date): Promise<void> {
-  check(
-    await getSupabase()
-      .from("event_exceptions")
-      .upsert(
-        { id: uuidv7(), event_id: eventId, original_start: originalStart.toISOString(), cancelled: true },
-        { onConflict: "event_id,original_start" },
-      )
-      .select("id"),
-  );
+  await commit([
+    {
+      kind: "insert",
+      table: "event_exceptions",
+      row: { id: uuidv7(), event_id: eventId, original_start: originalStart.toISOString(), cancelled: true },
+      onConflict: "event_id,original_start",
+      merge: true,
+    },
+  ]);
 }
 
 export async function fetchLogCategories(): Promise<LogCategory[]> {
@@ -253,8 +296,9 @@ export async function fetchLists(): Promise<List[]> {
   return check(await getSupabase().from("lists").select("id, kind, name").order("created_at"));
 }
 
-async function listId(kind: List["kind"]): Promise<string> {
-  const list = (await fetchLists()).find((l) => l.kind === kind);
+/** L'id della lista, dalla cache: si trova anche senza rete. */
+export async function listId(kind: List["kind"]): Promise<string> {
+  const list = (await queryClient.ensureQueryData(listsQuery)).find((l) => l.kind === kind);
   if (!list) throw new Error(`Lista mancante: ${kind}`);
   return list.id;
 }
@@ -262,15 +306,14 @@ async function listId(kind: List["kind"]): Promise<string> {
 /** Con un link l'articolo nasce con `source = 'link'`: i metadati si recuperano dopo (incremento 8). */
 export async function createWishlistItem(name: string, url: string | null): Promise<string> {
   const id = uuidv7();
-  check(
-    await getSupabase()
-      .from("wishlist_items")
-      .insert({ id, list_id: await listId("wishlist"), name, url, source: url ? "link" : "manual" })
-      .select("id"),
-  );
+  await commit([insert("wishlist_items", { id, list_id: await listId("wishlist"), name, url, source: url ? "link" : "manual" })]);
   return id;
 }
 
+/**
+ * Le registrazioni riservate non passano dalla outbox, che è salvata in chiaro sul dispositivo:
+ * si scrivono solo con la rete (technical-design.md, 6.2).
+ */
 export async function createLogEntry(entry: {
   title: string;
   date: LocalDate;
@@ -279,7 +322,8 @@ export async function createLogEntry(entry: {
   is_sensitive: boolean;
 }): Promise<string> {
   const id = uuidv7();
-  check(await getSupabase().from("log_entries").insert({ id, ...entry }).select("id"));
+  if (entry.is_sensitive) check(await getSupabase().from("log_entries").insert({ id, ...entry }).select("id"));
+  else await commit([insert("log_entries", { id, ...entry })]);
   return id;
 }
 
@@ -288,7 +332,7 @@ export async function softDelete(
   table: "tasks" | "events" | "shopping_items" | "wishlist_items" | "log_entries",
   id: string,
 ): Promise<void> {
-  check(await getSupabase().from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"));
+  await commit([{ kind: "update", table, patch: { deleted_at: new Date().toISOString() }, where: byId(id) }]);
 }
 
 export type ImportResult = { created: number; existing: number };

@@ -27,7 +27,9 @@ app/(auth)/login        Login con codice OTP via email
 app/(app)/...           Sezioni dell'app (protette dal login)
 app/icons/[file]        Icone PWA generate in build
 app/manifest.ts         Manifest della PWA
-public/sw.js            Service worker (push; cache offline dall'incremento 3)
+app/sw.ts               Service worker (Serwist): precache della shell, offline, push
+app/serwist/[path]      Route che lo compila in build e lo serve su /serwist/sw.js
+lib/sync/               Outbox (Dexie), modifiche in attesa, cache delle query sul dispositivo
 components/             UI condivisa (shell, icone, intestazioni, foglio, toast), vista Oggi e Quick Capture
 lib/                    Logica pura con test (date, attività, ricorrenze, eventi, parser, capture) e accesso ai dati (data, supabase)
 supabase/migrations     Schema SQL versionato

@@ -1,24 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
 import {
-  addRepeat,
   cancelOccurrence,
   createEvent,
   createTask,
-  fetchRecurrence,
+  saveTask,
   stopRecurrence,
   updateEvent,
-  updateTask,
   type EventInput,
   type RepeatInput,
   type TaskInput,
 } from "@/lib/data/api";
-import { useAreas, useInvalidateDay } from "@/lib/data/hooks";
+import { useAreas, useInvalidateDay, useRecurrences } from "@/lib/data/hooks";
 import {
   addDays,
   atLocalTime,
@@ -158,11 +155,8 @@ export function ItemEditor({
   // Una serie con una regola che l'interfaccia non sa mostrare si lascia com'è.
   const lockedRule = event?.rrule && !parseRRule(event.rrule) ? event.rrule : null;
 
-  const recurrence = useQuery({
-    queryKey: ["recurrence", task?.recurrence_id],
-    queryFn: () => fetchRecurrence(task!.recurrence_id!),
-    enabled: !!task?.recurrence_id,
-  }).data;
+  const recurrences = useRecurrences().data;
+  const recurrence = task?.recurrence_id ? recurrences?.find((r) => r.id === task.recurrence_id) : undefined;
 
   function set<K extends keyof typeof f>(key: K, value: (typeof f)[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -189,7 +183,7 @@ export function ItemEditor({
       invalidate();
       onClose();
     } catch {
-      setError("Non è stato possibile salvare. Controlla la connessione e riprova.");
+      setError("Non è stato possibile salvare. Riprova.");
       setBusy(false);
     }
   }
@@ -213,8 +207,7 @@ export function ItemEditor({
       };
       run(async () => {
         if (!task) return createTask(input, taskRepeat(), today);
-        await updateTask(task.id, input);
-        if (!task.recurrence_id) await addRepeat(task, input, taskRepeat(), today);
+        await saveTask(task, input, taskRepeat(), today);
       });
       return;
     }
@@ -236,7 +229,7 @@ export function ItemEditor({
       tz: etz,
       rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule()),
     };
-    run(() => (event ? updateEvent(event.id, input) : createEvent(input)));
+    run(() => (event ? updateEvent(event, input) : createEvent(input)));
   }
 
   const heading = readOnly
@@ -535,7 +528,7 @@ export function ItemEditor({
                   Solo questo giorno
                 </Button>
               ) : null}
-              <Button disabled={busy} onClick={() => run(() => updateEvent(event.id, { deleted_at: new Date().toISOString() }))}>
+              <Button disabled={busy} onClick={() => run(() => updateEvent(event, { deleted_at: new Date().toISOString() }))}>
                 {event.rrule ? "Tutta la serie" : "Conferma eliminazione"}
               </Button>
               <Button variant="quiet" onClick={() => setConfirmDelete(false)}>
