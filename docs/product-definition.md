@@ -447,6 +447,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Eventi GCal visibili in Today/Week/Month con un segno di provenienza; modificabili solo in GCal (nell'app: "Apri in Google Calendar").
 - Eventi creati nell'app copiati su GCal; marcati con un identificativo dell'app per evitare duplicati alla rilettura.
 - Sincronizzazione incrementale; conflitti e dettagli tecnici in `technical-design.md`.
+- **Import una tantum da file `.ics`** [APPROVATO il 10 ottobre 2026] da Impostazioni → Dati: eventi e promemoria da Google Calendar, Calendario Apple o Outlook, con anteprima da confermare. Dettagli in `technical-design.md` 9.5.
 
 ### 7.13 Planner pasti [APPROVATO, D34–D37]
 - Raggiungibile da Liste → Pasti (mobile) e dalla sidebar (desktop).

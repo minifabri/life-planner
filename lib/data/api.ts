@@ -1,6 +1,7 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { localDateString } from "../dates/today";
 import { deterministicId, uuidv7 } from "../ids";
+import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
 import { getSupabase } from "../supabase/client";
 import type {
@@ -294,4 +295,50 @@ export async function softDelete(
   id: string,
 ): Promise<void> {
   check(await getSupabase().from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"));
+}
+
+export type ImportResult = { created: number; existing: number };
+
+const IMPORT_CHUNK = 200;
+
+async function insertNew(table: "events" | "tasks" | "event_exceptions", rows: object[], onConflict = "id"): Promise<string[]> {
+  const created: string[] = [];
+  for (let i = 0; i < rows.length; i += IMPORT_CHUNK) {
+    const result: { id: string }[] = check(
+      await getSupabase()
+        .from(table)
+        .upsert(rows.slice(i, i + IMPORT_CHUNK), { onConflict, ignoreDuplicates: true })
+        .select("id"),
+    );
+    created.push(...result.map((r) => r.id));
+  }
+  return created;
+}
+
+/**
+ * Salva gli elementi scelti nell'anteprima di un file .ics.
+ * L'id deriva dall'UID del file: importare di nuovo lo stesso file non duplica nulla
+ * e un elemento eliminato nell'app non viene ricreato.
+ */
+export async function importItems(items: ImportItem[], tz: string): Promise<ImportResult> {
+  const events = [];
+  const tasks = [];
+  const exceptionsByEvent = new Map<string, ReturnType<typeof toExceptionInputs>>();
+  for (const item of items) {
+    if (item.kind === "task") {
+      tasks.push({ id: await deterministicId(`ics-task:${item.uid}`), ...toTaskInput(item, tz) });
+    } else {
+      const id = await deterministicId(`ics:${item.uid}`);
+      events.push({ id, ...toEventInput(item) });
+      exceptionsByEvent.set(id, toExceptionInputs(item));
+    }
+  }
+  const createdEvents = await insertNew("events", events);
+  const exceptions = createdEvents.flatMap((eventId) =>
+    (exceptionsByEvent.get(eventId) ?? []).map((ex) => ({ id: uuidv7(), event_id: eventId, ...ex })),
+  );
+  await insertNew("event_exceptions", exceptions, "event_id,original_start");
+  const createdTasks = await insertNew("tasks", tasks);
+  const created = createdEvents.length + createdTasks.length;
+  return { created, existing: items.length - created };
 }
