@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
@@ -47,8 +47,7 @@ function isTyping(target: EventTarget | null) {
 export default function TodayPage() {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
-  // Arrivando da Settimana o Mese si apre il giorno scelto lì.
-  const [selected, setSelected] = useState<LocalDate | null>(takeRequestedDay);
+  const [selected, setSelected] = useState<LocalDate | null>(null);
   const day = selected ?? today;
   const isToday = day === today;
 
@@ -64,6 +63,15 @@ export default function TodayPage() {
   const profile = useProfile();
   const [morningClosed, closeMorning] = useDismissedToday("planner-overview-closed", today);
   const [eveningClosed, closeEvening] = useDismissedToday("planner-review-closed", today);
+
+  // Arrivando da Settimana o Mese si apre il giorno scelto lì. La pagina resta montata tra una
+  // navigazione e l'altra (Activity): lo stato iniziale non basta, gli effetti invece ripartono a ogni ritorno.
+  useLayoutEffect(() => {
+    const requested = takeRequestedDay();
+    // La richiesta si legge una volta sola, al ritorno sulla pagina: non è uno stato derivabile durante il render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (requested) setSelected(requested);
+  }, []);
 
   const go = (delta: number) => setSelected(addDays(day, delta));
   const goRef = useRef(go);

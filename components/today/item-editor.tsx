@@ -33,6 +33,7 @@ import {
   DAY_SHORT,
   describeAfterCompletion,
   describeRRule,
+  describeUntil,
   parseRRule,
   toRRule,
 } from "@/lib/recurrence/rule";
@@ -80,6 +81,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     repeat: "none" as Repeat,
     weekDays: [isoWeekday(today)],
     intervalDays: "30",
+    until: "",
     allDay: false,
     startTime: "09:00",
     endTime: "10:00",
@@ -125,6 +127,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     location: e.location ?? "",
     repeat: (rule ? rule.freq : "none") as Repeat,
     weekDays: rule?.byDay ?? [isoWeekday(date)],
+    until: rule?.until ?? "",
   };
 }
 
@@ -158,21 +161,25 @@ export function ItemEditor({
   const recurrences = useRecurrences().data;
   const recurrence = task?.recurrence_id ? recurrences?.find((r) => r.id === task.recurrence_id) : undefined;
 
+  const canChooseRepeat = f.type === "event" ? !lockedRule : f.when === "day" && !task?.recurrence_id;
+
   function set<K extends keyof typeof f>(key: K, value: (typeof f)[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
   }
 
-  function fixedRule(): string {
+  /** `until` entra nella RRULE solo per gli eventi: le attività lo tengono nella ricorrenza. */
+  function fixedRule(until?: LocalDate): string {
     if (f.repeat === "weekly") {
-      return toRRule({ freq: "weekly", interval: 1, byDay: f.weekDays.length ? f.weekDays : [isoWeekday(f.date)] });
+      return toRRule({ freq: "weekly", interval: 1, byDay: f.weekDays.length ? f.weekDays : [isoWeekday(f.date)], until });
     }
-    return toRRule({ freq: f.repeat as "daily" | "monthly", interval: 1 });
+    return toRRule({ freq: f.repeat as "daily" | "monthly", interval: 1, until });
   }
 
   function taskRepeat(): RepeatInput {
     if (f.when !== "day" || f.repeat === "none") return { kind: "none" };
-    if (f.repeat === "after") return { kind: "after_completion", intervalDays: Math.max(1, Number(f.intervalDays) || 1) };
-    return { kind: "fixed", rrule: fixedRule() };
+    const until = f.until || null;
+    if (f.repeat === "after") return { kind: "after_completion", intervalDays: Math.max(1, Number(f.intervalDays) || 1), until };
+    return { kind: "fixed", rrule: fixedRule(), until };
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -192,6 +199,10 @@ export function ItemEditor({
     const title = f.title.trim();
     if (!title) {
       setError("Scrivi un titolo.");
+      return;
+    }
+    if (canChooseRepeat && f.repeat !== "none" && f.until && f.until < f.date) {
+      setError("La fine della ripetizione non può venire prima del primo giorno.");
       return;
     }
     const common = { title, notes: f.notes.trim() || null, area_id: f.areaId || null, attention: f.attention };
@@ -227,7 +238,7 @@ export function ItemEditor({
       start_at: startAt?.toISOString() ?? null,
       end_at: endAt?.toISOString() ?? null,
       tz: etz,
-      rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule()),
+      rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule(f.until || undefined)),
     };
     run(() => (event ? updateEvent(event, input) : createEvent(input)));
   }
@@ -264,7 +275,6 @@ export function ItemEditor({
     { value: "monthly", label: "Ogni mese" },
     ...(f.type === "task" ? [{ value: "after" as const, label: "Dopo il completamento" }] : []),
   ];
-  const canChooseRepeat = f.type === "event" ? !lockedRule : f.when === "day" && !task?.recurrence_id;
 
   return (
     <Sheet title={heading} isOpen onClose={onClose}>
@@ -393,6 +403,7 @@ export function ItemEditor({
                       : recurrence.kind === "fixed" && recurrence.rrule
                         ? describeRRule(recurrence.rrule)
                         : describeAfterCompletion(recurrence.interval_days ?? 1)}
+                  {recurrence?.active && recurrence.until ? `, ${describeUntil(recurrence.until)}` : ""}
                 </p>
                 {recurrence?.active ? (
                   <Button
@@ -453,6 +464,11 @@ export function ItemEditor({
                       onChange={(e) => set("intervalDays", e.target.value)}
                       className={inputClass}
                     />
+                  </Field>
+                ) : null}
+                {f.repeat !== "none" ? (
+                  <Field label="Fino al (facoltativo)" htmlFor="item-until">
+                    <input id="item-until" type="date" min={f.date} value={f.until} onChange={(e) => set("until", e.target.value)} className={inputClass} />
                   </Field>
                 ) : null}
               </div>
