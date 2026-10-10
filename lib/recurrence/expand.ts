@@ -17,6 +17,12 @@ export function occurrenceDates(rrule: string, start: LocalDate, from: LocalDate
   return rule.between(utc(from), utc(to), true).map((d) => d.toISOString().slice(0, 10));
 }
 
+/** Vero se la serie ha almeno un'occorrenza da `from` in poi. */
+export function hasOccurrenceFrom(rrule: string, start: LocalDate, from: LocalDate): boolean {
+  const options = RRule.parseString(rrule.replace(/^RRULE:/i, ""));
+  return new RRule({ ...options, dtstart: utc(start) }).after(utc(from), true) !== null;
+}
+
 /** Giorni di anticipo con cui si creano le attività ricorrenti a calendario fisso. */
 export const MATERIALIZE_DAYS = 14;
 
