@@ -44,7 +44,8 @@ export function useTimezone(): string {
 
 /** Profilo (nome, ora della Evening review): dalla stessa cache del fuso. */
 export function useProfile() {
-  return useQuery({ queryKey: ["profile"], queryFn: fetchProfile, staleTime: Infinity }).data ?? null;
+  // Non `Infinity`: un profilo salvato sul dispositivo da una versione precedente va riletto, o gli mancano i campi nuovi.
+  return useQuery({ queryKey: ["profile"], queryFn: fetchProfile, staleTime: 5 * 60_000 }).data ?? null;
 }
 
 export function useToday(tz: string): { today: LocalDate; now: Date } {
