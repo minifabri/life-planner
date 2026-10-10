@@ -27,7 +27,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 export async function fetchProfile(): Promise<Profile | null> {
-  return check(await getSupabase().from("profiles").select("owner_id, display_name, timezone, theme").maybeSingle());
+  return check(await getSupabase().from("profiles").select("owner_id, display_name, timezone, theme, evening_review_time").maybeSingle());
 }
 
 export async function fetchAreas(): Promise<Area[]> {
