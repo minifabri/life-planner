@@ -28,8 +28,8 @@ app/(app)/...           Sezioni dell'app (protette dal login)
 app/icons/[file]        Icone PWA generate in build
 app/manifest.ts         Manifest della PWA
 public/sw.js            Service worker (push; cache offline dall'incremento 3)
-components/             UI condivisa (shell, icone, intestazioni)
-lib/                    Logica pura e client (date, push, blocco, supabase)
+components/             UI condivisa (shell, icone, intestazioni, foglio, toast) e vista Oggi
+lib/                    Logica pura con test (date, attività, ricorrenze, eventi) e accesso ai dati (data, supabase)
 supabase/migrations     Schema SQL versionato
 supabase/functions      Edge Functions (dispatch-reminders)
 supabase/tests          Verifiche SQL (RLS)
@@ -42,4 +42,6 @@ docs/                   Product definition e technical design
 - **Vercel**: progetto `life-planner`, produzione su `life-planner-theta-mocha.vercel.app`.
 
 ## Stato
-Incremento 0 (fondamenta e spike) — vedi `docs/technical-design.md`, sezione 13.
+Incremento 1 (Today, attività, eventi) in verifica — vedi `docs/technical-design.md`, sezione 13.
+
+Vitest 5 richiede Node 22.12 o successivo.
