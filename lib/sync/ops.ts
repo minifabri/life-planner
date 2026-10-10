@@ -1,5 +1,5 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
-import type { EventException, EventRow, Recurrence, ShoppingItem, Task } from "../supabase/types";
+import type { EventException, EventRow, MealMemory, MealPlan, Recurrence, ShoppingItem, Task } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -10,6 +10,8 @@ export type Table =
   | "events"
   | "event_exceptions"
   | "recurrences"
+  | "meal_plans"
+  | "meal_memory"
   | "shopping_items"
   | "wishlist_items"
   | "log_entries";
@@ -178,6 +180,22 @@ export function applyToShopping(items: ShoppingItem[], op: Op, at: string): Shop
     (row) =>
       ({ quantity: null, department: null, checked: false, checked_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
   ).filter((i) => !i.deleted_at);
+}
+
+/** I pasti di una settimana (da `from` a `to`, inclusi) dopo una modifica in attesa. */
+export function applyToMeals(meals: MealPlan[], op: Op, from: LocalDate, to: LocalDate): MealPlan[] {
+  if (op.table !== "meal_plans") return meals;
+  return applyToRows(
+    meals,
+    op,
+    (row) => ({ prepared: false, prepared_at: null, reminder_task_id: null, ...row }) as MealPlan,
+    (m) => m.date >= from && m.date <= to,
+  );
+}
+
+export function applyToMealMemory(memory: MealMemory[], op: Op): MealMemory[] {
+  if (op.table !== "meal_memory") return memory;
+  return applyToRows(memory, op, (row) => row as MealMemory);
 }
 
 /** Esito di un invio, dal codice HTTP della risposta (0 = la richiesta non è partita o non è arrivata). */

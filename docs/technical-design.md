@@ -272,7 +272,16 @@ Regole del planner pasti (logica in `lib/meals/`):
 - Eliminare l'attività → solo il promemoria sparisce (`reminder_task_id = null`); il pasto resta `to_prep`. Non viene ricreata automaticamente.
 - Passare il pasto a `ready` o eliminarlo → l'attività collegata viene eliminata.
 - Pasti di giorni passati non generano attività.
-- La sincronizzazione pasto ↔ attività avviene nella stessa transazione: funzione Postgres `set_meal_prepared` e trigger su `tasks` per i cambi di stato, così resta coerente anche con modifiche fatte offline e sincronizzate dopo.
+- La sincronizzazione pasto ↔ attività avviene nella stessa transazione, con due trigger (`tasks_sync_meal`, `meal_plans_sync_task`), così resta coerente anche con modifiche fatte offline e sincronizzate dopo.
+
+Come è stato realizzato (incremento 5, 10 ottobre 2026):
+- Le regole vivono due volte, volutamente: in `lib/meals/rules.ts` (funzioni pure che producono le operazioni per la outbox, così l'interfaccia si aggiorna subito e funziona senza rete) e nei trigger del database (che garantiscono la coerenza qualunque cosa arrivi). Le due versioni sono idempotenti: applicarle entrambe dà lo stesso risultato. I trigger hanno preso il posto della funzione `set_meal_prepared` prevista all'inizio. Verifica dei trigger: `supabase/tests/meal_sync_check.sql`.
+- "Giorni passati" include oggi: un pasto di oggi da preparare non crea un'attività per ieri. Si spunta **Preparato** direttamente dal planner.
+- Togliere **Preparato** dal planner rimette da fare l'attività collegata, se esiste ancora.
+- Tornare da Pronto a Da preparare crea una nuova attività (è una scelta esplicita); dopo aver eliminato l'attività a mano, invece, niente la ricrea.
+- Cambiare il piatto aggiorna le note dell'attività collegata. In Today il piatto compare sotto il titolo dell'attività.
+- `meal_memory`: una riga per momento e nome normalizzato, con id deterministico; a ogni pasto aggiunto o rinominato `use_count + 1` e la modalità scelta diventa quella abituale.
+- Offline: la settimana corrente e i ricorrenti vengono scaricati a ogni apertura; le altre settimane solo se già visitate.
 
 **templates**
 ```
@@ -572,7 +581,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Criteri: test di `lib/shopping`; verifica SQL del catalogo; dal telefono: aggiungi, assegna un reparto, spunta, svuota, riaggiungi dallo storico e ritrova il reparto; con telefono e computer aperti insieme la lista si aggiorna da sola.
 
 **Incremento 5 — Planner pasti**
-- Settimana, quattro pasti, ricorrenti per pasto, Pronto/Da preparare, attività del giorno prima sincronizzata.
+- Settimana, quattro pasti, ricorrenti per pasto, Pronto/Da preparare, attività del giorno prima sincronizzata. Realizzazione: fine della sezione 5.1. La notifica delle 20:00 arriva con l'incremento 9.
 - Criteri: test delle regole pasto ↔ attività, incluse le modifiche fatte offline.
 
 **Incremento 6 — Calendario Week e Month**

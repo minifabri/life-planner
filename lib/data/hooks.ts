@@ -16,6 +16,7 @@ import {
   fetchProfile,
   fetchRecurrences,
   fetchTasks,
+  removeTask,
   reopenTask,
   updateTask,
 } from "./api";
@@ -70,11 +71,11 @@ export function useEvents(day: LocalDate, tz: string) {
   return useQuery(eventsQuery(day, tz));
 }
 
-/** Tiene in cache ieri e domani, così Today funziona senza rete su tre giorni (technical-design.md, 6.2). */
+/** Tiene in cache ieri, oggi e domani, anche se l'app è stata aperta su un'altra schermata (technical-design.md, 6.2). */
 export function usePrefetchAround(today: LocalDate, tz: string) {
   const qc = useQueryClient();
   useEffect(() => {
-    for (const day of [addDays(today, -1), addDays(today, 1)]) {
+    for (const day of [addDays(today, -1), today, addDays(today, 1)]) {
       void qc.prefetchQuery(tasksQuery(day, tz));
       void qc.prefetchQuery(eventsQuery(day, tz));
     }
@@ -115,7 +116,7 @@ export function useTaskActions(today: LocalDate, tz: string) {
     moveTo: (task: Task, date: LocalDate) => patch(task, movePatch(task, date)),
     moveToToday: (task: Task) => patch(task, movePatch(task, today)),
     dismiss: (task: Task) => patch(task, dismissPatch()),
-    remove: (task: Task) => patch(task, { deleted_at: new Date().toISOString() }),
+    remove: (task: Task) => apply(() => removeTask(task)),
   };
 }
 
