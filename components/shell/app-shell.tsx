@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCapture } from "@/components/capture/capture-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { useIcloudAutoSync } from "@/lib/icloud/hooks";
 
 type NavItem = { href: string; label: string; icon: IconName; match: string[] };
 
@@ -31,6 +32,7 @@ function isActive(pathname: string, item: NavItem) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const capture = useCapture();
+  useIcloudAutoSync();
 
   return (
     <div className="flex min-h-dvh">
