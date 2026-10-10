@@ -1,5 +1,5 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
-import type { EventException, EventRow, MealMemory, MealPlan, Recurrence, ShoppingItem, Task } from "../supabase/types";
+import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -196,6 +196,23 @@ export function applyToMeals(meals: MealPlan[], op: Op, from: LocalDate, to: Loc
 export function applyToMealMemory(memory: MealMemory[], op: Op): MealMemory[] {
   if (op.table !== "meal_memory") return memory;
   return applyToRows(memory, op, (row) => row as MealMemory);
+}
+
+/**
+ * Le registrazioni non riservate del Log dopo una modifica in attesa.
+ * Le riservate non passano mai da qui: non entrano nella outbox né nella cache salvata.
+ */
+export function applyToLog(entries: LogEntry[], op: Op, at: string): LogEntry[] {
+  if (op.table !== "log_entries") return entries;
+  return applyToRows(
+    entries,
+    op,
+    (row) =>
+      ({ category_id: null, notes: null, time: null, tags: [], is_sensitive: false, deleted_at: null, created_at: at, ...(row as Partial<LogEntry> & { id: string }) }) as LogEntry,
+    (e) => !e.is_sensitive,
+  )
+    .filter((e) => !e.deleted_at && !e.is_sensitive)
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** Esito di un invio, dal codice HTTP della risposta (0 = la richiesta non è partita o non è arrivata). */

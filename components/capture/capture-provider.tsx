@@ -5,7 +5,8 @@ import { CaptureSheet } from "@/components/capture/capture-sheet";
 import { ItemEditor, type EditorDraft } from "@/components/today/item-editor";
 import { useToast } from "@/components/ui/toast";
 import { describeDraft, planCapture, type CaptureDraft, type CapturePlan } from "@/lib/capture/plan";
-import { createEvent, createLogEntry, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
+import { createEvent, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
+import { createEntry } from "@/lib/data/log";
 import { createShoppingItem } from "@/lib/data/shopping";
 import { useInvalidateShopping } from "@/lib/data/shopping-hooks";
 import { useInvalidateDay, useLogCategories, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
@@ -42,7 +43,7 @@ async function write(plan: CapturePlan, today: LocalDate): Promise<(() => Promis
       return () => softDelete("wishlist_items", id);
     }
     case "log": {
-      const id = await createLogEntry(plan.entry);
+      const id = await createEntry({ ...plan.entry, notes: null, tags: [] });
       return () => softDelete("log_entries", id);
     }
   }

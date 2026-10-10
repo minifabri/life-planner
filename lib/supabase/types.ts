@@ -180,3 +180,19 @@ export type MealMemory = {
   use_count: number;
   last_used_at: string | null;
 };
+
+export type LogEntry = {
+  id: string;
+  category_id: string | null;
+  title: string;
+  notes: string | null;
+  date: string;
+  time: string | null;
+  tags: string[];
+  is_sensitive: boolean;
+  deleted_at: string | null;
+  created_at: string;
+};
+
+/** Ciò che si vede di una registrazione riservata a Log bloccato: solo che esiste, e in che giorno. */
+export type LogStub = { id: string; date: string };

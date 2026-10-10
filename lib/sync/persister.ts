@@ -1,5 +1,6 @@
 import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 import { queryClient } from "../data/query-client";
+import { lockLog } from "../lock/session";
 import { getDb } from "./db";
 
 const WRITE_DELAY_MS = 1000;
@@ -44,6 +45,7 @@ export function createPersister(key: string): Persister {
 
 /** All'uscita dall'account: via i dati in memoria e quelli salvati sul dispositivo. La outbox resta, per non perdere modifiche. */
 export async function forgetCachedData(): Promise<void> {
+  lockLog();
   queryClient.clear();
   try {
     await getDb().kv.clear();

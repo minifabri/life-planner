@@ -9,6 +9,8 @@ import { TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
 import { dayMarks, monthGrid, monthStart, type DayMarks } from "@/lib/calendar/view";
 import { useTimezone, useToday } from "@/lib/data/hooks";
+import { useOpenEntries, usePrivateStubs } from "@/lib/data/log-hooks";
+import { logDays } from "@/lib/log/timeline";
 import { addMonths, dueLabel, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
 
 const WEEKDAYS = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
@@ -37,6 +39,8 @@ export default function MonthPage() {
   const days = monthGrid(month);
   const cal = useCalendar(days);
   const { views, areaById, actions } = cal;
+  // Segno discreto del Log (D24): dice solo che in quel giorno c'è una registrazione, riservata o no.
+  const logged = logDays(useOpenEntries().data ?? [], usePrivateStubs().data ?? []);
 
   // L'anteprima segue il giorno toccato; se non è in questo mese, oggi (quando si vede) o il primo.
   const fallback = days.includes(today) && monthStart(today) === month ? today : month;
@@ -86,12 +90,13 @@ export default function MonthPage() {
                 const marks = dayMarks(view, cal.tasks);
                 const inMonth = view.day.slice(0, 7) === month.slice(0, 7);
                 const active = view.day === selected;
+                const hasLog = logged.has(view.day);
                 return (
                   <button
                     key={view.day}
                     type="button"
                     aria-pressed={active}
-                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}: ${describe(marks)}`}
+                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}: ${describe(marks)}${hasLog ? ", registrazioni nel Log" : ""}`}
                     onClick={() => setPicked(view.day)}
                     onDoubleClick={() => cal.openDay(view.day)}
                     className={`flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-xl border text-sm transition-colors md:min-h-[72px] ${
@@ -105,6 +110,7 @@ export default function MonthPage() {
                       {marks.tasks ? <span className="size-1.5 rounded-full bg-accent" /> : null}
                       {marks.deadlines ? <span className="size-1.5 rounded-full border border-accent" /> : null}
                       {marks.important ? <span className="size-1.5 rounded-full bg-gold" /> : null}
+                      {hasLog ? <span className="h-px w-1.5 bg-text-2" /> : null}
                     </span>
                   </button>
                 );
@@ -122,6 +128,9 @@ export default function MonthPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="size-1.5 rounded-full bg-gold" /> importante
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-px w-1.5 bg-text-2" /> Log
               </span>
             </p>
           </div>
