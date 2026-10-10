@@ -196,3 +196,25 @@ export type LogEntry = {
 
 /** Ciò che si vede di una registrazione riservata a Log bloccato: solo che esiste, e in che giorno. */
 export type LogStub = { id: string; date: string };
+
+export type WishlistStatus = "wanted" | "bought" | "discarded";
+
+export type WishlistItem = {
+  id: string;
+  list_id: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  url: string | null;
+  price_amount: number | null;
+  price_currency: string | null;
+  price_is_estimate: boolean;
+  image_url: string | null;
+  notes: string | null;
+  interest: 1 | 2 | 3;
+  status: WishlistStatus;
+  source: "manual" | "link" | "chatgpt";
+  metadata_fetched_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+};
