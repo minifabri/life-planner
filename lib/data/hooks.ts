@@ -11,6 +11,7 @@ import {
   createNextAfterCompletion,
   fetchAreas,
   fetchEvents,
+  fetchLogCategories,
   fetchProfile,
   fetchTasks,
   materializeRecurrences,
@@ -46,6 +47,10 @@ export function useToday(tz: string): { today: LocalDate; now: Date } {
 
 export function useAreas() {
   return useQuery({ queryKey: ["areas"], queryFn: fetchAreas, staleTime: 5 * 60_000 });
+}
+
+export function useLogCategories() {
+  return useQuery({ queryKey: ["log-categories"], queryFn: fetchLogCategories, staleTime: 5 * 60_000 });
 }
 
 export function useTasks(day: LocalDate, tz: string) {

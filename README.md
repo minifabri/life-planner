@@ -28,8 +28,8 @@ app/(app)/...           Sezioni dell'app (protette dal login)
 app/icons/[file]        Icone PWA generate in build
 app/manifest.ts         Manifest della PWA
 public/sw.js            Service worker (push; cache offline dall'incremento 3)
-components/             UI condivisa (shell, icone, intestazioni, foglio, toast) e vista Oggi
-lib/                    Logica pura con test (date, attività, ricorrenze, eventi) e accesso ai dati (data, supabase)
+components/             UI condivisa (shell, icone, intestazioni, foglio, toast), vista Oggi e Quick Capture
+lib/                    Logica pura con test (date, attività, ricorrenze, eventi, parser, capture) e accesso ai dati (data, supabase)
 supabase/migrations     Schema SQL versionato
 supabase/functions      Edge Functions (dispatch-reminders)
 supabase/tests          Verifiche SQL (RLS)
@@ -42,6 +42,9 @@ docs/                   Product definition e technical design
 - **Vercel**: progetto `life-planner`, produzione su `life-planner-theta-mocha.vercel.app`.
 
 ## Stato
-Incremento 1 (Today, attività, eventi) in verifica — vedi `docs/technical-design.md`, sezione 13.
+Incremento 2 (Quick Capture) in verifica — vedi `docs/technical-design.md`, sezione 13.
+
+Il parser del Quick Capture (`lib/parser/parse.ts`) ha una suite di frasi reali in `lib/parser/parse.test.ts`:
+ogni frase interpretata male nell'uso va aggiunta lì con il risultato atteso, prima di correggere le regole.
 
 Vitest 5 richiede Node 22.12 o successivo.

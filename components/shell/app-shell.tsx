@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useCapture } from "@/components/capture/capture-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
 
 type NavItem = { href: string; label: string; icon: IconName; match: string[] };
@@ -29,6 +30,7 @@ function isActive(pathname: string, item: NavItem) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const capture = useCapture();
 
   return (
     <div className="flex min-h-dvh">
@@ -38,14 +40,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="size-3.5 rounded-[4px] bg-accent-fill shadow-[0_0_0_3px_var(--accent-soft)]" />
           <span className="font-mono text-[13px] tracking-[0.08em]">planner</span>
         </div>
-        <Link
-          href="/capture"
-          className="flex min-h-10 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 text-[13px] text-text-3 hover:text-text"
+        <button
+          type="button"
+          onClick={() => capture()}
+          aria-keyshortcuts="N"
+          className="flex min-h-11 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 text-left text-[13px] text-text-3 hover:text-text"
         >
           <Icon name="plus" size={15} />
           <span className="flex-1">Aggiungi</span>
           <kbd className="rounded-[5px] border border-line-2 px-1.5 font-mono text-[10.5px]">N</kbd>
-        </Link>
+        </button>
         <nav aria-label="Sezioni" className="flex flex-col gap-0.5">
           {DESKTOP_NAV.map((item) => {
             const active = isActive(pathname, item);
@@ -88,13 +92,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           {MOBILE_NAV.slice(0, 2).map((item) => (
             <MobileNavLink key={item.href} item={item} active={isActive(pathname, item)} />
           ))}
-          <Link
-            href="/capture"
+          <button
+            type="button"
+            onClick={() => capture()}
             aria-label="Aggiungi"
             className="mx-auto flex size-[54px] items-center justify-center rounded-[18px] bg-accent-fill text-on-accent"
           >
             <Icon name="plus" size={24} strokeWidth={1.8} />
-          </Link>
+          </button>
           {MOBILE_NAV.slice(2).map((item) => (
             <MobileNavLink key={item.href} item={item} active={isActive(pathname, item)} />
           ))}
