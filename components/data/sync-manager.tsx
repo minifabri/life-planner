@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { materializeRecurrences, prefetchReferenceData } from "@/lib/data/api";
 import { usePrefetchAround, useTimezone, useToday } from "@/lib/data/hooks";
+import { usePrefetchMeals } from "@/lib/data/meals-hooks";
 import { onSynced, sync } from "@/lib/sync/engine";
 
 const SYNC_INTERVAL_MS = 30_000;
@@ -19,6 +20,7 @@ export function SyncManager() {
   const qc = useQueryClient();
   const toast = useToast();
   usePrefetchAround(today, tz);
+  usePrefetchMeals(today);
 
   useEffect(() => {
     const run = () => void sync();

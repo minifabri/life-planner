@@ -148,3 +148,29 @@ export type IcloudCalendar = {
   ctag: string | null;
   last_synced_at: string | null;
 };
+
+export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
+export type PrepMode = "ready" | "to_prep";
+
+export type MealPlan = {
+  id: string;
+  date: string;
+  slot: MealSlot;
+  name: string;
+  prep_mode: PrepMode;
+  prepared: boolean;
+  prepared_at: string | null;
+  /** Attività "Preparare … di domani" collegata, se esiste ancora. */
+  reminder_task_id: string | null;
+};
+
+/** Un pasto ricorrente imparato dall'uso, per i suggerimenti. */
+export type MealMemory = {
+  id: string;
+  slot: MealSlot;
+  name_normalized: string;
+  display_name: string;
+  default_prep_mode: PrepMode;
+  use_count: number;
+  last_used_at: string | null;
+};

@@ -2,12 +2,13 @@ import { queryClient } from "../data/query-client";
 import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
-import type { Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
+import { addDays } from "../dates/local";
+import type { MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
-async function currentOwner(): Promise<string | null> {
+export async function currentOwner(): Promise<string | null> {
   const { data } = await getSupabase().auth.getSession();
   return data.session?.user.id ?? null;
 }
@@ -42,6 +43,13 @@ function applyToCache(op: Op, at: string) {
     queryClient.setQueryData<Recurrence[]>(["recurrences"], (old) => old && applyToRecurrences(old, op));
   } else if (op.table === "shopping_items") {
     queryClient.setQueryData<ShoppingItem[]>(["shopping-items"], (old) => old && applyToShopping(old, op, at));
+  } else if (op.table === "meal_plans") {
+    for (const [key, data] of queryClient.getQueriesData<MealPlan[]>({ queryKey: ["meals"] })) {
+      const from = key[1] as LocalDate;
+      if (data) queryClient.setQueryData(key, applyToMeals(data, op, from, addDays(from, 6)));
+    }
+  } else if (op.table === "meal_memory") {
+    queryClient.setQueryData<MealMemory[]>(["meal-memory"], (old) => old && applyToMealMemory(old, op));
   }
 }
 
@@ -82,6 +90,14 @@ export async function withPendingRecurrences(recurrences: Recurrence[]): Promise
 
 export async function withPendingShopping(items: ShoppingItem[]): Promise<ShoppingItem[]> {
   return (await pending()).reduce((acc, e) => applyToShopping(acc, e.op, e.at), items);
+}
+
+export async function withPendingMeals(meals: MealPlan[], from: LocalDate): Promise<MealPlan[]> {
+  return (await pending()).reduce((acc, e) => applyToMeals(acc, e.op, from, addDays(from, 6)), meals);
+}
+
+export async function withPendingMealMemory(memory: MealMemory[]): Promise<MealMemory[]> {
+  return (await pending()).reduce((acc, e) => applyToMealMemory(acc, e.op), memory);
 }
 
 export type SyncState = {
