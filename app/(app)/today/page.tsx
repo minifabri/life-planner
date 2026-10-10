@@ -36,7 +36,7 @@ import {
   type LocalDate,
 } from "@/lib/dates/local";
 import { todayHeading } from "@/lib/dates/today";
-import { takeRequestedDay } from "@/lib/nav/day-handoff";
+import { onDayRequested, takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { timeToMinutes } from "@/lib/calendar/view";
@@ -82,6 +82,11 @@ export default function TodayPage() {
     // La richiesta si legge una volta sola, al ritorno sulla pagina: non è uno stato derivabile durante il render.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (requested) setSelected(requested);
+    // Con la pagina già aperta la richiesta arriva dalla ricerca.
+    return onDayRequested(() => {
+      const day = takeRequestedDay();
+      if (day) setSelected(day);
+    });
   }, []);
 
   const go = (delta: number) => setSelected(addDays(day, delta));

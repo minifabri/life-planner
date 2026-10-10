@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { QueryProvider } from "@/components/data/query-provider";
 import { SyncManager } from "@/components/data/sync-manager";
 import { CaptureProvider } from "@/components/capture/capture-provider";
+import { SearchProvider } from "@/components/search/search-provider";
 import { AppShell } from "@/components/shell/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -30,7 +31,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <ToastProvider>
         <SyncManager />
         <CaptureProvider>
-          <AppShell>{children}</AppShell>
+          <SearchProvider>
+            <AppShell>{children}</AppShell>
+          </SearchProvider>
         </CaptureProvider>
       </ToastProvider>
     </QueryProvider>

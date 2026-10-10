@@ -338,11 +338,20 @@ owner_id pk, refresh_token text, access_token text, expires_at timestamptz, scop
 
 ### 5.3 Ricerca
 - Estensioni `unaccent` e `pg_trgm`.
-- Colonna generata `search_text` (titolo + note, normalizzati e senza accenti) con indice GIN trigram su ogni tabella ricercabile.
-- Funzione RPC `search_all(q text, types text[], from_date date, to_date date, include_sensitive boolean)` che unisce i risultati di events, tasks, log_entries, shopping_items, wishlist_items, meal_plans e li ordina per similarità e data.
-- Tolleranza agli errori: si confronta anche la query senza spazi (`"lent icchie"` → `"lenticchie"`) con `similarity()`.
-- `include_sensitive` è `true` solo quando il Log è sbloccato; altrimenti le registrazioni sensibili tornano con titolo neutro.
-- Date in linguaggio naturale nella ricerca ("ottobre", "settembre") interpretate dal parser client e trasformate in filtri.
+- Funzione RPC `search_all(q text, types text[], from_date date, to_date date, include_sensitive boolean, max_results int)` che unisce i risultati di events, tasks, log_entries, shopping_items, wishlist_items, meal_plans e workouts e li ordina per somiglianza e data. Gira con i permessi di chi chiama (RLS).
+- Tolleranza agli errori: il testo si confronta senza accenti né maiuscole, anche senza spazi (`"lent icchie"` → `"lenticchie"`), e con `word_similarity()` per gli errori di battitura (soglia 0,5).
+- Date in linguaggio naturale nella ricerca ("ottobre", "settembre 2025", "2025") interpretate dal parser client e trasformate in filtri.
+
+Come è stato realizzato (incremento 10, 10 ottobre 2026):
+- **Niente colonna generata `search_text` né indici trigram**, diversamente dalla bozza: `search_all` dà un punteggio a ogni riga, quindi gli indici non verrebbero usati, e una colonna in più cambierebbe la forma delle righe che il client legge con `select *` e riscrive dalla outbox. Con i dati di una persona la lettura completa costa pochi millisecondi; se servirà, si aggiungono indici su espressione (`public.search_text(...)` è immutabile apposta).
+- **Registrazioni riservate, a Log bloccato: non compaiono affatto** (diversamente dalla bozza e dalla 4.3, che prevedevano il titolo neutro): anche un segnaposto direbbe che la parola cercata c'è. È la stessa regola della cronologia del Log (incremento 7). La palette lo dice in fondo ai risultati. `include_sensitive` è `true` solo a Log sbloccato.
+- Logica pura con test in `lib/search/query.ts`: periodo nel testo, comandi, raggruppamento e descrizione dei risultati, destinazione.
+- **Command palette** (`components/search/search-provider.tsx`): `⌘K` / `Ctrl+K` su desktop e pulsante "Cerca" nella barra laterale; su mobile l'icona in alto in ogni schermata. `N` resta la cattura diretta.
+  - Senza testo: "Aggiungi…" e i comandi (vai a una sezione, cambia tema). Con il testo: i risultati per tipo, poi "Aggiungi «testo»" (apre il Quick Capture con quel testo) e i comandi che corrispondono.
+  - Un'attività si apre nel modulo di modifica (così si raggiungono anche quelle senza data); un evento apre il suo giorno; il resto apre la sezione.
+  - Tastiera: frecce, Invio, Esc. Ruoli `combobox` / `listbox`.
+- La ricerca vuole la connessione; i comandi funzionano anche senza. I risultati non entrano nella cache salvata sul dispositivo.
+- Non incluso: filtro per tipo nell'interfaccia (la funzione lo accetta già); apertura diretta di registrazioni, pasti, articoli e allenamenti (si apre la sezione); per le serie di eventi la data è quella della prima occorrenza; filtro "Senza data" nel Calendario (ancora [PROPOSTA]).
 
 ---
 
@@ -687,6 +696,8 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni.
 
 **Incremento 10 — Ricerca globale e command palette**
+- Realizzazione: fine della sezione 5.3.
+- Criteri: test di `lib/search`; verifica SQL di `search_all`; dal telefono: icona in alto → "lent icchie" trova le lenticchie; "unghie ottobre" filtra il mese; a Log bloccato una registrazione riservata non compare, sbloccato sì. Da desktop: `⌘K`, frecce e Invio senza mouse.
 
 **Incremento 11 — Morning overview, Evening review, Templates**
 - Morning overview ed Evening review anticipate il 10 ottobre 2026 (i Templates restano da fare):
