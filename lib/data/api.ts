@@ -103,8 +103,8 @@ export type TaskInput = Pick<
 
 export type RepeatInput =
   | { kind: "none" }
-  | { kind: "fixed"; rrule: string }
-  | { kind: "after_completion"; intervalDays: number };
+  | { kind: "fixed"; rrule: string; until?: LocalDate | null }
+  | { kind: "after_completion"; intervalDays: number; until?: LocalDate | null };
 
 function templateFrom(input: TaskInput, startDate: LocalDate): RecurrenceTemplate {
   return {
@@ -128,6 +128,7 @@ function recurrenceInsert(id: string, input: TaskInput, repeat: Exclude<RepeatIn
     kind: repeat.kind,
     rrule: repeat.kind === "fixed" ? repeat.rrule : null,
     interval_days: repeat.kind === "after_completion" ? repeat.intervalDays : null,
+    until: repeat.until ?? null,
     template: templateFrom(input, startDate),
   });
 }
