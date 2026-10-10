@@ -55,7 +55,7 @@ export type EventRow = {
   rrule: string | null;
   area_id: string | null;
   attention: Attention;
-  source: "app" | "gcal" | "icloud";
+  source: "app" | "gcal" | "icloud" | "imayoga";
   icloud_calendar_id: string | null;
   icloud_href: string | null;
   icloud_etag: string | null;
@@ -135,6 +135,12 @@ export type IcloudAccount = {
   owner_id: string;
   apple_id: string;
   home_url: string | null;
+  last_synced_at: string | null;
+  last_error: string | null;
+};
+
+export type ImayogaAccount = {
+  owner_id: string;
   last_synced_at: string | null;
   last_error: string | null;
 };

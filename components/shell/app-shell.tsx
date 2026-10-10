@@ -7,6 +7,7 @@ import { useCapture } from "@/components/capture/capture-provider";
 import { SyncStatus } from "@/components/data/sync-status";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { useIcloudAutoSync } from "@/lib/icloud/hooks";
+import { useImayogaAutoSync } from "@/lib/imayoga/hooks";
 
 type NavItem = { href: string; label: string; icon: IconName; match: string[] };
 
@@ -34,6 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const capture = useCapture();
   useIcloudAutoSync();
+  useImayogaAutoSync();
 
   return (
     <div className="flex min-h-dvh">

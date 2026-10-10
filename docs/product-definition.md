@@ -51,7 +51,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 |---|---|---|
 | D9 | Google Calendar **personale**: lettura degli eventi + scrittura su GCal solo degli eventi creati nell'app (un solo "proprietario" per evento) | [APPROVATO] |
 | D10 | Calendario di lavoro: **escluso** dall'integrazione | [APPROVATO] |
-| D11 | Lezioni yoga: in futuro da **imayoga**; nell'MVP eventi ricorrenti inseriti a mano | [APPROVATO] (integrazione [FUTURO]) |
+| D11 | Lezioni yoga: lette da **imayoga** in sola lettura. Solo le lezioni **pubblicate** (niente bozze), durata predefinita **un'ora**, lezioni individuali **solo se prenotate** | [APPROVATO il 10 ottobre 2026] |
 
 ### Privacy
 | # | Decisione | Stato |
@@ -167,7 +167,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 - **[PROPOSTA]** Dizionario iniziale minimo prodotto → reparto in italiano (es. tofu → Frigo), sovrascritto da ciò che l'app impara.
 
 ### 3.3 Idee per versioni successive
-- **[FUTURO]** Integrazione imayoga (lezioni come eventi).
+- **[APPROVATO, D11]** Integrazione imayoga (lezioni come eventi, sola lettura): vedi 7.12c.
 - **[FUTURO]** Fallback AI per Quick Capture (escluso per categorie sensibili).
 - **[FUTURO]** Smart rescheduling.
 - **[FUTURO]** Condivisione liste (spesa) con altre persone.
@@ -456,6 +456,14 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Eventi iCloud visibili in Today/Week/Month con un segno di provenienza; modificabili solo nel Calendario dell'iPhone.
 - Una web app non può leggere il calendario del telefono: la lettura avviene dal server su iCloud. Dettagli in `technical-design.md` 9.6.
 
+### 7.12c Lezioni da imayoga [APPROVATO, D11]
+- Le lezioni che Bibi insegna arrivano da imayoga e compaiono in Today/Week/Month come eventi, con un segno di provenienza. Si modificano solo in imayoga.
+- Entrano solo le lezioni **pubblicate**: le bozze restano fuori finché non vengono pubblicate.
+- imayoga registra solo l'ora di inizio: la durata è **un'ora**.
+- Le lezioni individuali compaiono **solo quando qualcuno le ha prenotate**; gli slot vuoti non si vedono. Il titolo non riporta il nome dell'allieva.
+- Una lezione eliminata o tolta dalla pubblicazione in imayoga sparisce dal planner alla sync successiva.
+- Dettagli in `technical-design.md` 9.2.
+
 ### 7.13 Planner pasti [APPROVATO, D34–D37]
 - Raggiungibile da Liste → Pasti (mobile) e dalla sidebar (desktop).
 - Striscia dei 7 giorni in alto; sotto ogni giorno quattro puntini (vuoto = non pianificato, grigio = a posto, lilla = da preparare).
@@ -511,7 +519,7 @@ Vedi 3.3.
 
 | # | Tema | Prossimo passo |
 |---|---|---|
-| A1 | Integrazione imayoga | Capire quali dati e API espone imayoga |
+| A1 | Integrazione imayoga | Chiuso il 10 ottobre 2026 (D11, `technical-design.md` 9.2) |
 | A2 | Proposte marcate [PROPOSTA] | Approvazione in revisione di questo documento o in Fase 3 |
 | A3 | Destinazione del backup automatico (es. Google Drive, repository privato, email) | Fase 4 |
 | A4 | Scheduler delle notifiche entro i free tier | Fase 4 |

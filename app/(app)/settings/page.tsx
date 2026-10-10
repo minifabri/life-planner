@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase/client";
 import { sync } from "@/lib/sync/engine";
 import { forgetCachedData } from "@/lib/sync/persister";
@@ -10,6 +11,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
+import { useImayogaAccount } from "@/lib/imayoga/hooks";
+import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
 import {
   checkPushSupport,
   currentSubscription,
@@ -35,6 +38,7 @@ export default function SettingsPage() {
       <NotificationsSection />
       <LockSection />
       <CalendarsSection />
+      <ImayogaSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -291,6 +295,97 @@ function CalendarsSection() {
           {account ? "Gestisci" : "Collega il calendario iCloud"}
         </Link>
       </div>
+    </Section>
+  );
+}
+
+/* ---------------- Lezioni da imayoga ---------------- */
+function ImayogaSection() {
+  const qc = useQueryClient();
+  const account = useImayogaAccount();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+
+  async function act(action: () => Promise<string | null>) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const text = await action();
+      setStatus(text ? { text, tone: "ok" } : null);
+    } catch (e) {
+      setStatus({ text: imayogaErrorMessage(e), tone: "warn" });
+    } finally {
+      await Promise.all([qc.invalidateQueries({ queryKey: ["imayoga-account"] }), qc.invalidateQueries({ queryKey: ["events"] })]);
+      setBusy(false);
+    }
+  }
+
+  async function update() {
+    const result = await syncImayoga();
+    const changes = result ? result.updated + result.removed : 0;
+    return changes === 0 ? "Tutto aggiornato." : changes === 1 ? "1 lezione aggiornata." : `${changes} lezioni aggiornate.`;
+  }
+
+  const connected = !!account.data;
+  const lastSync = account.data?.last_synced_at
+    ? new Date(account.data.last_synced_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "Mai";
+
+  return (
+    <Section
+      title="Lezioni imayoga"
+      note="Le lezioni pubblicate su imayoga compaiono in Oggi come eventi di un'ora e si modificano in imayoga. Le bozze e gli slot individuali non prenotati restano fuori."
+    >
+      <Row
+        label="Lezioni da imayoga"
+        value={
+          account.isPending ? (
+            "…"
+          ) : connected ? (
+            account.data?.last_error ? (
+              <span className="text-gold">Da riconfigurare</span>
+            ) : (
+              <span className="text-accent">Collegate</span>
+            )
+          ) : (
+            <span className="text-text-3">Non collegate</span>
+          )
+        }
+      />
+      {connected ? <Row label="Ultimo aggiornamento" value={lastSync} /> : null}
+      <div className="flex flex-wrap gap-2">
+        {connected ? (
+          <>
+            <Button onClick={() => act(update)} disabled={busy}>
+              {busy ? "Aggiorno…" : "Aggiorna ora"}
+            </Button>
+            <Button
+              onClick={() =>
+                act(async () => {
+                  await disconnectImayoga();
+                  return null;
+                })
+              }
+              disabled={busy}
+            >
+              Scollega
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={() =>
+              act(async () => {
+                await connectImayoga();
+                return update();
+              })
+            }
+            disabled={busy || account.isPending}
+          >
+            {busy ? "Collego…" : "Collega le lezioni"}
+          </Button>
+        )}
+      </div>
+      <Status text={status?.text ?? null} tone={status?.tone} />
     </Section>
   );
 }
