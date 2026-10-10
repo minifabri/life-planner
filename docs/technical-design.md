@@ -135,6 +135,8 @@ theme text check in ('dark','light') default 'dark',
 morning_overview_time time default '07:00', evening_review_time time default '20:30',
 quiet_start time default '22:00', quiet_end time default '07:30',
 meal_prep_reminder_time time default '20:00',
+notify_medium bool default true, notify_high bool default true, quiet_allow_high bool default false,
+notify_meal_prep bool default true, notify_morning bool default false, notify_evening bool default false,
 log_lock_pin_hash text null, log_lock_webauthn jsonb null
 ```
 
@@ -292,9 +294,11 @@ id, owner_id, name, items jsonb  -- [{title, day_offset, time, duration_min, are
 ```
 id, owner_id, target_type text check in ('event','task','log_entry','meal_plan','digest'),
 target_id uuid null, fire_at timestamptz not null, kind text check in ('auto','custom'),
-title_snapshot text, sent_at timestamptz null, attempts int default 0
+title_snapshot text, sent_at timestamptz null, attempts int default 0,
+dedupe_key text null  -- unica per (owner_id, dedupe_key)
 index on (fire_at) where sent_at is null
 ```
+Dall'incremento 9 è il registro degli invii e la coda dei tentativi, non un elenco pianificato in anticipo (sezione 7.4).
 
 **push_subscriptions**
 ```
@@ -400,6 +404,22 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 ### 7.3 Onboarding notifiche
 - Su iPhone, se l'app non è installata, una schermata spiega come aggiungerla alla Home (Condividi → Aggiungi alla schermata Home).
 - Il permesso si chiede solo da un pulsante esplicito in Impostazioni o al primo promemoria impostato, mai all'avvio.
+
+### 7.4 Come è stato realizzato (incremento 9, 10 ottobre 2026)
+- **Scostamento dal punto 1 del flusso [APPROVATO il 10 ottobre 2026]**: le notifiche non vengono scritte in anticipo dal client. A ogni giro del cron la Edge Function `dispatch-reminders` le ricava dallo stato reale di attività ed eventi per gli ultimi 10 minuti, le registra in `reminders` con una chiave (`dedupe_key`) e invia ciò che è in attesa. Così le serie di eventi notificano senza aprire l'app, e ciò che è completato, spostato o eliminato non notifica: non c'è nulla da tenere allineato.
+- **Regole** in `lib/reminders/plan.ts` (puro, con test):
+  - Media: all'orario; senza orario all'ora del mattino (`morning_overview_time`). Le attività "nel periodo" avvisano nell'ultimo giorno utile.
+  - Alta: in più il richiamo del giorno prima, alla stessa ora locale; senza orario all'ora della revisione serale.
+  - Eventi: all'inizio (quelli di tutto il giorno al mattino); le serie rispettano eccezioni e cambio dell'ora.
+  - Pasti: l'attività "Preparare … di domani" avvisa a `meal_prep_reminder_time` se è ancora aperta, qualunque sia l'attenzione.
+  - Silenzio: l'invio slitta alla fine della fascia e il testo si adegua ("Ieri alle 23:00"); le alte la attraversano solo con `quiet_allow_high`. Un elemento con orario dentro la fascia viene quindi avvisato dopo il suo orario.
+  - Panoramica del mattino e revisione della sera: facoltative, spente in partenza; la sera solo se resta qualcosa di aperto.
+  - Un elemento creato o modificato dopo l'orario previsto non manda l'avviso in ritardo. Spostato a un altro orario, avvisa di nuovo (la chiave contiene data e ora).
+- **Stesso codice in produzione e nei test**: `pnpm build:functions` impacchetta il modulo in `supabase/functions/dispatch-reminders/plan.gen.js` (le librerie restano fuori, Deno le prende da npm alle versioni di `package.json`); `pnpm test` fallisce se il file non è aggiornato. Dopo una modifica alle regole la funzione va ripubblicata.
+- **Prova senza invii**: chiamata con `{"dryRun": true, "at": "<istante>", "minutes": <n>}` la funzione risponde con ciò che registrerebbe.
+- Il registro più vecchio di 30 giorni viene tolto una volta al giorno.
+- **Impostazioni → Notifiche**: attivazione per dispositivo; preferenze (livelli, pasti, mattino, sera, orari, silenzio) valide per tutti i dispositivi, salvate solo con la rete.
+- Non incluso: notifiche dal Personal Log (le registrazioni non hanno un livello di attenzione, quindi la regola dei titoli neutri oggi non ha casi); anticipo configurabile per gli eventi; apertura diretta dell'elemento dalla notifica (si apre Oggi).
 
 ---
 
@@ -635,7 +655,8 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Inserimento manuale, recupero da link con test su link reali, import da ChatGPT.
 
 **Incremento 9 — Notifiche**
-- Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni.
+- Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni. Realizzazione: sezione 7.4.
+- Criteri: test di `lib/reminders`; prova a secco della funzione; dal telefono: attività ad attenzione media con orario tra pochi minuti → notifica con app chiusa; la stessa completata prima dell'orario → nessuna notifica.
 
 **Incremento 10 — Ricerca globale e command palette**
 
