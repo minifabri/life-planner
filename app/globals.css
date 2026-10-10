@@ -27,6 +27,15 @@
   --area-train: #e9a873;
   --area-home: #a3a9b8;
   --area-care: #e7a2c6;
+  --dept-produce: #8fcb8a;
+  --dept-fridge: #82a8ec;
+  --dept-bakery: #e9a873;
+  --dept-pantry: #c5c27a;
+  --dept-frozen: #7cc4d8;
+  --dept-drinks: #ea9c90;
+  --dept-home: #b9a4ff;
+  --dept-care: #e7a2c6;
+  --dept-other: #a3a9b8;
 }
 
 [data-theme="light"] {
@@ -51,6 +60,15 @@
   --area-train: #b86a2a;
   --area-home: #6f7687;
   --area-care: #b8508a;
+  --dept-produce: #3c8a3f;
+  --dept-fridge: #3f6fc4;
+  --dept-bakery: #b86a2a;
+  --dept-pantry: #7a7420;
+  --dept-frozen: #23819c;
+  --dept-drinks: #b9523f;
+  --dept-home: #6b4fd8;
+  --dept-care: #b8508a;
+  --dept-other: #6f7687;
 }
 
 @theme inline {
@@ -114,6 +132,39 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Spesa: superficie con la sfumatura del reparto (--dept lo imposta il contenitore) */
+.dept-tint {
+  background: color-mix(in oklab, var(--dept) 13%, var(--surface));
+  border-color: color-mix(in oklab, var(--dept) 26%, var(--line));
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.pop {
+  animation: pop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.rise {
+  animation: rise 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .no-scrollbar {

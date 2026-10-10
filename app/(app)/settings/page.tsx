@@ -43,6 +43,7 @@ export default function SettingsPage() {
       <LockSection />
       <CalendarsSection />
       <ImayogaSection />
+      <WorkoutsSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -127,7 +128,7 @@ function DaySection() {
   const [draft, setDraft] = useState<{ name?: string; evening?: string }>({});
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
   const name = draft.name ?? profile?.display_name ?? "";
-  const evening = draft.evening ?? profile?.evening_review_time.slice(0, 5) ?? DEFAULT_EVENING_TIME;
+  const evening = draft.evening ?? profile?.evening_review_time?.slice(0, 5) ?? DEFAULT_EVENING_TIME;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -454,6 +455,22 @@ function ImayogaSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Allenamenti ---------------- */
+function WorkoutsSection() {
+  return (
+    <Section title="Allenamenti" note="Si aggiungono da “Aggiungi” scegliendo Allenamento, o scrivendo ad esempio “corsa domani 45 min”. In Oggi compaiono quando la settimana ne ha almeno uno.">
+      <div>
+        <Link
+          href="/workouts"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          Storico e riepilogo
+        </Link>
+      </div>
     </Section>
   );
 }

@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
 import { normalizeName, parseEntry } from "./entry";
-import { groupItems, learnedDepartment, recentProducts, suggestProducts, suggestionScore } from "./list";
+import { recognizeProduct } from "./catalog";
+import {
+  departmentOf,
+  frequentProducts,
+  groupItems,
+  learnedDepartment,
+  recentProducts,
+  suggestProducts,
+  suggestionScore,
+  usageLabel,
+} from "./list";
 
 let seq = 0;
 function item(name: string, over: Partial<ShoppingItem> = {}): ShoppingItem {
@@ -55,7 +65,59 @@ describe("parseEntry", () => {
   });
 });
 
+describe("recognizeProduct", () => {
+  it.each([
+    ["Zucchine", "Frutta e verdura", "salad"],
+    ["limoni", "Frutta e verdura", "citrus"],
+    ["Latte di soia", "Frigo", "milk"],
+    ["yogurt alla fragola", "Frigo", "milk"],
+    ["Tofu affumicato", "Frigo", "vegan"],
+    ["petto di pollo", "Frigo", "poultry"],
+    ["pane integrale", "Pane e forno", "wheat"],
+    ["Lenticchie rosse", "Dispensa", "bean"],
+    ["cioccolato al latte", "Dispensa", "candy"],
+    ["Fiocchi d'avena", "Dispensa", "wheat"],
+    ["fiocchi di latte", "Frigo", "milk"],
+    ["burro di arachidi", "Dispensa", "nut"],
+    ["passata di pomodoro", "Dispensa", "bottle"],
+    ["patatine", "Dispensa", "popcorn"],
+    ["caffè", "Dispensa", "coffee"],
+    ["gelato al pistacchio", "Surgelati", "icecream"],
+    ["spinaci surgelati", "Surgelati", "leafy"],
+    ["acqua frizzante", "Bevande", "water"],
+    ["aranciata", "Bevande", "soda"],
+    ["succo di mela", "Bevande", "soda"],
+    ["Detersivo lavatrice", "Casa", "spray"],
+    ["detersivo piatti", "Casa", "bubbles"],
+    ["carta igienica", "Casa", "paper"],
+    ["latte detergente", "Cura della persona", "sparkles"],
+    ["acqua micellare", "Cura della persona", "sparkles"],
+    ["dentifricio", "Cura della persona", "toothbrush"],
+    ["sale", "Dispensa", null],
+  ])("%s", (name, department, icon) => {
+    expect(recognizeProduct(name)).toEqual({ department, icon });
+  });
+
+  it("non inventa un reparto per ciò che non conosce", () => {
+    expect(recognizeProduct("misterioso")).toBeNull();
+    expect(recognizeProduct("pannello")).toBeNull();
+    expect(recognizeProduct("")).toBeNull();
+  });
+});
+
 describe("groupItems", () => {
+  it("il reparto scelto o imparato vince su quello riconosciuto dal nome", () => {
+    expect(departmentOf("latte", null)).toBe("Frigo");
+    expect(departmentOf("latte", "Bevande")).toBe("Bevande");
+    expect(departmentOf("misterioso", null)).toBeNull();
+    const { groups } = groupItems([item("mele"), item("latte", { department: "Bevande" }), item("spugne")]);
+    expect(groups.map((g) => [g.department, g.items.map((i) => i.name)])).toEqual([
+      ["Frutta e verdura", ["mele"]],
+      ["Bevande", ["latte"]],
+      ["Casa", ["spugne"]],
+    ]);
+  });
+
   it("raggruppa per reparto nell'ordine previsto, con Altro in fondo", () => {
     const { groups } = groupItems([
       item("spugne", { department: "Casa" }),
@@ -123,6 +185,21 @@ describe("suggerimenti", () => {
       "latte di soia",
       "Lenticchie",
     ]);
+  });
+
+  it("compri spesso: per punteggio, senza ciò che è in lista o mai comprato", () => {
+    expect(frequentProducts(memory, [item("latte di soia")], NOW, 3).map((p) => p.display_name)).toEqual([
+      "cioccolato al latte",
+      "latte di avena",
+      "latte di mandorla",
+    ]);
+  });
+
+  it("descrive quanto e quando è stato comprato", () => {
+    expect(usageLabel({ use_count: 8, last_used_at: "2026-10-08T10:00:00Z" }, NOW)).toBe("8 volte · 2 g fa");
+    expect(usageLabel({ use_count: 1, last_used_at: "2026-10-09T09:00:00Z" }, NOW)).toBe("1 volta · ieri");
+    expect(usageLabel({ use_count: 3, last_used_at: "2026-10-10T09:00:00Z" }, NOW)).toBe("3 volte · oggi");
+    expect(usageLabel({ use_count: 2, last_used_at: null }, NOW)).toBe("2 volte");
   });
 
   it("ritrova il reparto imparato", () => {

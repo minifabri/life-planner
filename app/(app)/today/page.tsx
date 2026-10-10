@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
+import { QuickAdd } from "@/components/today/quick-add";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { WorkoutRow } from "@/components/workouts/workout-row";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { EmptyState } from "@/components/ui/page-header";
 import {
   useAreas,
@@ -19,14 +22,17 @@ import {
   useTimezone,
   useToday,
 } from "@/lib/data/hooks";
+import { useWeekWorkouts, useWorkoutActions } from "@/lib/data/workouts-hooks";
 import {
   addDays,
   atLocalTime,
   dueLabel,
+  endOfWeek,
   formatDuration,
   localTimeString,
   relativeDay,
   trimTime,
+  weekStart,
   type LocalDate,
 } from "@/lib/dates/local";
 import { todayHeading } from "@/lib/dates/today";
@@ -36,7 +42,8 @@ import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { timeToMinutes } from "@/lib/calendar/view";
 import { LOAD_LABEL, PART_LABEL, dayLoad, loadSplit } from "@/lib/tasks/load";
 import { eveningHeading, morningOverview, overviewMode } from "@/lib/today/overview";
-import type { Task } from "@/lib/supabase/types";
+import type { Task, Workout } from "@/lib/supabase/types";
+import { shownStatus, summarize, summaryLabel, workoutsOfDay } from "@/lib/workouts/summary";
 
 type AgendaItem = { key: string; time: string | null; task?: Task; occurrence?: Occurrence };
 
@@ -47,8 +54,7 @@ function isTyping(target: EventTarget | null) {
 export default function TodayPage() {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
-  // Arrivando da Settimana o Mese si apre il giorno scelto lì.
-  const [selected, setSelected] = useState<LocalDate | null>(takeRequestedDay);
+  const [selected, setSelected] = useState<LocalDate | null>(null);
   const day = selected ?? today;
   const isToday = day === today;
 
@@ -56,6 +62,10 @@ export default function TodayPage() {
   const eventsQuery = useEvents(day, tz);
   const areas = useAreas().data;
   const actions = useTaskActions(today, tz);
+  // Gli allenamenti della settimana del giorno: servono anche al riepilogo. Se mancano, il resto si mostra comunque.
+  const weekWorkouts = useWeekWorkouts(day).data ?? [];
+  const workoutActions = useWorkoutActions();
+  const [workout, setWorkout] = useState<Workout | null>(null);
 
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [rescheduling, setRescheduling] = useState<Task | null>(null);
@@ -64,6 +74,15 @@ export default function TodayPage() {
   const profile = useProfile();
   const [morningClosed, closeMorning] = useDismissedToday("planner-overview-closed", today);
   const [eveningClosed, closeEvening] = useDismissedToday("planner-review-closed", today);
+
+  // Arrivando da Settimana o Mese si apre il giorno scelto lì. La pagina resta montata tra una
+  // navigazione e l'altra (Activity): lo stato iniziale non basta, gli effetti invece ripartono a ogni ritorno.
+  useLayoutEffect(() => {
+    const requested = takeRequestedDay();
+    // La richiesta si legge una volta sola, al ritorno sulla pagina: non è uno stato derivabile durante il render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (requested) setSelected(requested);
+  }, []);
 
   const go = (delta: number) => setSelected(addDays(day, delta));
   const goRef = useRef(go);
@@ -108,11 +127,17 @@ export default function TodayPage() {
   const nowTime = localTimeString(now, tz);
   const nowIndex = isToday ? agenda.findIndex((i) => i.time !== null && i.time > nowTime) : -1;
 
+  const workouts = workoutsOfDay(weekWorkouts, day);
+  const weekSummary = summarize(weekWorkouts, weekStart(day), endOfWeek(day));
+
   const loadItems = [
     ...occurrences.map((o) => ({ startMin: o.allDay || !o.startTime ? null : timeToMinutes(o.startTime), minutes: o.durationMin })),
     ...[...sections.agenda, ...sections.todo]
       .filter((t) => t.status === "open")
       .map((t) => ({ startMin: t.time ? timeToMinutes(trimTime(t.time)) : null, minutes: t.duration_min })),
+    ...workouts
+      .filter((w) => shownStatus(w, today) === "planned")
+      .map((w) => ({ startMin: w.time ? timeToMinutes(trimTime(w.time)) : null, minutes: w.duration_min })),
   ];
   const load = dayLoad(loadItems.map((i) => i.minutes));
   // La barra distingue ciò che è già passato da ciò che resta: un giorno passato è tutto alle spalle, uno futuro tutto davanti.
@@ -319,7 +344,7 @@ export default function TodayPage() {
             {loading ? (
               <Skeleton />
             ) : sections.todo.length === 0 ? (
-              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Tocca + per aggiungere qualcosa." />
+              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Scrivi qui sotto e premi Invio per aggiungere." />
             ) : (
               <ul className="flex flex-col">
                 {sections.todo.map((t) => (
@@ -336,15 +361,30 @@ export default function TodayPage() {
                 ))}
               </ul>
             )}
-            <button
-              type="button"
-              onClick={() => setEditor({ kind: "new", day })}
-              className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
-            >
-              <Icon name="plus" size={16} />
-              Aggiungi
-            </button>
+            <QuickAdd day={day} today={today} onDetails={(title) => setEditor({ kind: "new", day, draft: { title } })} />
           </Section>
+
+          {weekSummary.total > 0 ? (
+            <section className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="label-mono">Allenamento</h2>
+                <Link href="/workouts" className="-my-2.5 -mr-2.5 flex min-h-11 items-center gap-1 rounded-lg px-2.5 text-[13px] text-text-2 hover:bg-surface-2 hover:text-text">
+                  <span>
+                    <span className="sr-only">Storico degli allenamenti. </span>
+                    Settimana: {summaryLabel(weekSummary)}
+                  </span>
+                  <Icon name="chevronRight" size={14} />
+                </Link>
+              </div>
+              {workouts.length > 0 ? (
+                <ul className="flex flex-col">
+                  {workouts.map((w) => (
+                    <WorkoutRow key={w.id} workout={w} today={today} onToggle={() => workoutActions.toggle(w)} onOpen={() => setWorkout(w)} />
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
         </>
       )}
 
@@ -393,6 +433,8 @@ export default function TodayPage() {
           onDeleteTask={actions.remove}
         />
       ) : null}
+
+      {workout ? <WorkoutSheet key={workout.id} target={{ kind: "edit", workout }} today={today} onClose={() => setWorkout(null)} /> : null}
 
       {rescheduling ? (
         <RescheduleDialog

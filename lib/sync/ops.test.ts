@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventRow, Task } from "../supabase/types";
-import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
+import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, applyToWorkouts, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
 
 const AT = "2026-10-10T08:00:00.000Z";
 const TZ = "Europe/Rome";
@@ -195,5 +195,35 @@ describe("classifyStatus", () => {
 
   it("un rifiuto del server scarta la modifica", () => {
     for (const status of [400, 403, 404, 409, 422]) expect(classifyStatus(status, true)).toBe("rejected");
+  });
+});
+
+describe("applyToWorkouts", () => {
+  const FROM = "2026-10-05";
+  const TO = "2026-10-11";
+  const insert = (id: string, date: string): Op => ({ kind: "insert", table: "workouts", row: { id, activity: "Corsa", date } });
+
+  it("aggiunge un allenamento della settimana con i valori predefiniti", () => {
+    const [w] = applyToWorkouts([], insert("w1", DAY), AT, FROM, TO);
+    expect(w).toMatchObject({ id: "w1", activity: "Corsa", status: "planned", source: "app", time: null, created_at: AT });
+  });
+
+  it("ignora quelli di un'altra settimana e le modifiche ad altre tabelle", () => {
+    expect(applyToWorkouts([], insert("w1", "2026-10-12"), AT, FROM, TO)).toEqual([]);
+    expect(applyToWorkouts([], { kind: "insert", table: "tasks", row: { id: "t1", title: "x" } }, AT, FROM, TO)).toEqual([]);
+  });
+
+  it("segna come fatto, sposta fuori dalla settimana ed elimina", () => {
+    const rows = applyToWorkouts([], insert("w1", DAY), AT, FROM, TO);
+    const done = applyToWorkouts(rows, { kind: "update", table: "workouts", patch: { status: "done" }, where: byId("w1") }, AT, FROM, TO);
+    expect(done[0].status).toBe("done");
+    expect(applyToWorkouts(done, { kind: "update", table: "workouts", patch: { date: "2026-10-14" }, where: byId("w1") }, AT, FROM, TO)).toEqual([]);
+    expect(applyToWorkouts(done, { kind: "update", table: "workouts", patch: { deleted_at: AT }, where: byId("w1") }, AT, FROM, TO)).toEqual([]);
+  });
+
+  it("un allenamento spostato dentro la settimana compare grazie alla riga intera", () => {
+    const moved = { ...applyToWorkouts([], insert("w1", "2026-10-14"), AT, "2026-10-12", "2026-10-18")[0], date: DAY };
+    const op: Op = { kind: "update", table: "workouts", patch: { date: DAY }, where: byId("w1"), snapshot: moved };
+    expect(applyToWorkouts([], op, AT, FROM, TO).map((w) => w.id)).toEqual(["w1"]);
   });
 });

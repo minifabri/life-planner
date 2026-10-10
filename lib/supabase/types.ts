@@ -42,6 +42,30 @@ export type Task = {
   updated_at: string;
 };
 
+export type WorkoutStatus = "planned" | "done" | "skipped";
+
+/** Allenamento: si pianifica e si completa, ma se salta non resta indietro. */
+export type Workout = {
+  id: string;
+  /** Disciplina, testo libero: "Corsa", "Forza". */
+  activity: string;
+  date: string;
+  time: string | null;
+  duration_min: number | null;
+  notes: string | null;
+  status: WorkoutStatus;
+  completed_at: string | null;
+  distance_m: number | null;
+  energy_kcal: number | null;
+  avg_hr: number | null;
+  source: "app" | "health";
+  /** Identificativo dell'allenamento in Salute di Apple: evita i duplicati. */
+  health_id: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EventRow = {
   id: string;
   title: string;
@@ -197,3 +221,25 @@ export type LogEntry = {
 
 /** Ciò che si vede di una registrazione riservata a Log bloccato: solo che esiste, e in che giorno. */
 export type LogStub = { id: string; date: string };
+
+export type WishlistStatus = "wanted" | "bought" | "discarded";
+
+export type WishlistItem = {
+  id: string;
+  list_id: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  url: string | null;
+  price_amount: number | null;
+  price_currency: string | null;
+  price_is_estimate: boolean;
+  image_url: string | null;
+  notes: string | null;
+  interest: 1 | 2 | 3;
+  status: WishlistStatus;
+  source: "manual" | "link" | "chatgpt";
+  metadata_fetched_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+};

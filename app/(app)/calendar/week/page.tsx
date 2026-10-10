@@ -12,6 +12,8 @@ import { Diamond } from "@/components/ui/marks";
 import { useToast } from "@/components/ui/toast";
 import { canMoveEvent, dayHighlights, freeLabel, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
 import { addDays, dueLabel, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { WorkoutMark } from "@/components/workouts/workout-row";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { useTimezone, useToday } from "@/lib/data/hooks";
 import { updateTask } from "@/lib/data/api";
 
@@ -44,6 +46,8 @@ export default function WeekPage() {
       void actions.moveTo(task, day).then((ok) => {
         if (ok) moved(task.title, () => void updateTask({ ...task, date: day }, { date: task.date, original_date: task.original_date }));
       });
+    } else if ("workout" in item) {
+      if (item.workout.date !== day) cal.workoutActions.moveTo(item.workout, day);
     } else if (canMoveEvent(item.occurrence.event) && item.fromDay !== day) {
       const { event } = item.occurrence;
       const patch = moveEventPatch(event, item.fromDay, day);
@@ -130,6 +134,11 @@ export default function WeekPage() {
                             <span className="w-10 shrink-0 font-mono text-[11.5px] text-text-3">{item.time ?? "—"}</span>
                             {gold ? (
                               <Diamond label={item.deadline ? "Scadenza" : "Importante"} />
+                            ) : item.kind === "workout" ? (
+                              <>
+                                <WorkoutMark />
+                                <span className="sr-only">Allenamento</span>
+                              </>
                             ) : item.kind === "event" ? (
                               <AreaDot area={areaById.get(item.areaId ?? "")} fallback />
                             ) : (
@@ -160,6 +169,7 @@ export default function WeekPage() {
             onDropOn={dropOn}
             onOpenDay={cal.openDay}
             onEdit={cal.setEditor}
+            onEditWorkout={cal.setWorkout}
           />
 
           <button
@@ -182,6 +192,9 @@ export default function WeekPage() {
           onClose={() => cal.setEditor(null)}
           onDeleteTask={actions.remove}
         />
+      ) : null}
+      {cal.workout ? (
+        <WorkoutSheet key={cal.workout.id} target={{ kind: "edit", workout: cal.workout }} today={today} onClose={() => cal.setWorkout(null)} />
       ) : null}
     </>
   );

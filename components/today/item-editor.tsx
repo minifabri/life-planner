@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
+import { useToast } from "@/components/ui/toast";
+import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import {
   cancelOccurrence,
   createEvent,
@@ -16,6 +18,7 @@ import {
   type TaskInput,
 } from "@/lib/data/api";
 import { useAreas, useInvalidateDay, useRecurrences } from "@/lib/data/hooks";
+import { convertEventToWorkout, convertTaskToWorkout } from "@/lib/data/workouts";
 import {
   addDays,
   atLocalTime,
@@ -33,10 +36,12 @@ import {
   DAY_SHORT,
   describeAfterCompletion,
   describeRRule,
+  describeUntil,
   parseRRule,
   toRRule,
 } from "@/lib/recurrence/rule";
 import type { Attention, Task } from "@/lib/supabase/types";
+import { canConvertEvent, canConvertTask } from "@/lib/workouts/convert";
 
 /** Valori iniziali di un nuovo elemento, ad esempio quelli letti dal Quick Capture. */
 export type EditorDraft = Partial<{
@@ -67,7 +72,7 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180];
 
 function initialState(target: EditorTarget, today: LocalDate) {
   const base = {
-    type: "task" as "task" | "event",
+    type: "task" as "task" | "event" | "workout",
     title: "",
     notes: "",
     areaId: "",
@@ -80,6 +85,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     repeat: "none" as Repeat,
     weekDays: [isoWeekday(today)],
     intervalDays: "30",
+    until: "",
     allDay: false,
     startTime: "09:00",
     endTime: "10:00",
@@ -125,6 +131,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     location: e.location ?? "",
     repeat: (rule ? rule.freq : "none") as Repeat,
     weekDays: rule?.byDay ?? [isoWeekday(date)],
+    until: rule?.until ?? "",
   };
 }
 
@@ -147,6 +154,7 @@ export function ItemEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const areas = useAreas().data ?? [];
   const invalidate = useInvalidateDay();
+  const toast = useToast();
 
   const task = target.kind === "task" ? target.task : null;
   const occurrence = target.kind === "event" ? target.occurrence : null;
@@ -158,21 +166,25 @@ export function ItemEditor({
   const recurrences = useRecurrences().data;
   const recurrence = task?.recurrence_id ? recurrences?.find((r) => r.id === task.recurrence_id) : undefined;
 
+  const canChooseRepeat = f.type === "event" ? !lockedRule : f.when === "day" && !task?.recurrence_id;
+
   function set<K extends keyof typeof f>(key: K, value: (typeof f)[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
   }
 
-  function fixedRule(): string {
+  /** `until` entra nella RRULE solo per gli eventi: le attività lo tengono nella ricorrenza. */
+  function fixedRule(until?: LocalDate): string {
     if (f.repeat === "weekly") {
-      return toRRule({ freq: "weekly", interval: 1, byDay: f.weekDays.length ? f.weekDays : [isoWeekday(f.date)] });
+      return toRRule({ freq: "weekly", interval: 1, byDay: f.weekDays.length ? f.weekDays : [isoWeekday(f.date)], until });
     }
-    return toRRule({ freq: f.repeat as "daily" | "monthly", interval: 1 });
+    return toRRule({ freq: f.repeat as "daily" | "monthly", interval: 1, until });
   }
 
   function taskRepeat(): RepeatInput {
     if (f.when !== "day" || f.repeat === "none") return { kind: "none" };
-    if (f.repeat === "after") return { kind: "after_completion", intervalDays: Math.max(1, Number(f.intervalDays) || 1) };
-    return { kind: "fixed", rrule: fixedRule() };
+    const until = f.until || null;
+    if (f.repeat === "after") return { kind: "after_completion", intervalDays: Math.max(1, Number(f.intervalDays) || 1), until };
+    return { kind: "fixed", rrule: fixedRule(), until };
   }
 
   async function run(action: () => Promise<unknown>) {
@@ -192,6 +204,10 @@ export function ItemEditor({
     const title = f.title.trim();
     if (!title) {
       setError("Scrivi un titolo.");
+      return;
+    }
+    if (canChooseRepeat && f.repeat !== "none" && f.until && f.until < f.date) {
+      setError("La fine della ripetizione non può venire prima del primo giorno.");
       return;
     }
     const common = { title, notes: f.notes.trim() || null, area_id: f.areaId || null, attention: f.attention };
@@ -227,9 +243,44 @@ export function ItemEditor({
       start_at: startAt?.toISOString() ?? null,
       end_at: endAt?.toISOString() ?? null,
       tz: etz,
-      rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule()),
+      rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule(f.until || undefined)),
     };
     run(() => (event ? updateEvent(event, input) : createEvent(input)));
+  }
+
+  const typeChoice =
+    target.kind === "new" ? (
+      <Segmented
+        label="Tipo"
+        value={f.type}
+        onChange={(v) => setF((prev) => ({ ...prev, type: v, repeat: "none" }))}
+        options={[
+          { value: "task", label: "Attività" },
+          { value: "event", label: "Evento" },
+          { value: "workout", label: "Allenamento" },
+        ]}
+      />
+    ) : null;
+
+  // L'allenamento ha un modulo suo: da qui si passano il giorno e ciò che è già stato scritto.
+  if (f.type === "workout") {
+    return (
+      <WorkoutSheet
+        target={{ kind: "new", day: f.date, draft: { activity: f.title, time: f.time, duration: f.duration } }}
+        today={today}
+        onClose={onClose}
+        header={typeChoice}
+      />
+    );
+  }
+
+  const canConvert = task ? canConvertTask(task) : !!event && canConvertEvent(event);
+  function convert() {
+    run(async () => {
+      if (task) await convertTaskToWorkout(task, today);
+      else if (event) await convertEventToWorkout(event, today);
+      toast({ message: "Ora è un allenamento" });
+    });
   }
 
   const heading = readOnly
@@ -264,7 +315,6 @@ export function ItemEditor({
     { value: "monthly", label: "Ogni mese" },
     ...(f.type === "task" ? [{ value: "after" as const, label: "Dopo il completamento" }] : []),
   ];
-  const canChooseRepeat = f.type === "event" ? !lockedRule : f.when === "day" && !task?.recurrence_id;
 
   return (
     <Sheet title={heading} isOpen onClose={onClose}>
@@ -275,17 +325,7 @@ export function ItemEditor({
           save();
         }}
       >
-        {target.kind === "new" ? (
-          <Segmented
-            label="Tipo"
-            value={f.type}
-            onChange={(v) => setF((prev) => ({ ...prev, type: v, repeat: "none" }))}
-            options={[
-              { value: "task", label: "Attività" },
-              { value: "event", label: "Evento" },
-            ]}
-          />
-        ) : null}
+        {typeChoice}
 
         <Field label="Titolo" htmlFor="item-title">
           <input
@@ -393,6 +433,7 @@ export function ItemEditor({
                       : recurrence.kind === "fixed" && recurrence.rrule
                         ? describeRRule(recurrence.rrule)
                         : describeAfterCompletion(recurrence.interval_days ?? 1)}
+                  {recurrence?.active && recurrence.until ? `, ${describeUntil(recurrence.until)}` : ""}
                 </p>
                 {recurrence?.active ? (
                   <Button
@@ -455,6 +496,11 @@ export function ItemEditor({
                     />
                   </Field>
                 ) : null}
+                {f.repeat !== "none" ? (
+                  <Field label="Fino al (facoltativo)" htmlFor="item-until">
+                    <input id="item-until" type="date" min={f.date} value={f.until} onChange={(e) => set("until", e.target.value)} className={inputClass} />
+                  </Field>
+                ) : null}
               </div>
             ) : null}
 
@@ -505,9 +551,16 @@ export function ItemEditor({
       {target.kind !== "new" ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
           {!confirmDelete ? (
-            <Button variant="quiet" disabled={busy} onClick={() => setConfirmDelete(true)}>
-              Elimina
-            </Button>
+            <>
+              <Button variant="quiet" disabled={busy} onClick={() => setConfirmDelete(true)}>
+                Elimina
+              </Button>
+              {canConvert ? (
+                <Button variant="quiet" disabled={busy} onClick={convert}>
+                  Trasforma in allenamento
+                </Button>
+              ) : null}
+            </>
           ) : task ? (
             <>
               <Button

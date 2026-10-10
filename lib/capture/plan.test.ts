@@ -130,3 +130,32 @@ describe("etichette", () => {
     ]);
   });
 });
+
+describe("allenamenti", () => {
+  const workout = (text: string) => ({ ...parseCapture(text, { today: TODAY, now: "10:00", activities: ["Corsa"] }) });
+
+  it("da oggi in poi si pianifica", () => {
+    const d = workout("corsa domani alle 18 45 min");
+    expect(planCapture(d, TODAY, TZ)).toEqual({
+      kind: "workout",
+      input: {
+        activity: "Corsa",
+        date: "2026-10-11",
+        time: "18:00",
+        duration_min: 45,
+        notes: null,
+        status: "planned",
+        completed_at: null,
+        distance_m: null,
+        energy_kcal: null,
+        avg_hr: null,
+      },
+    });
+    expect(describeDraft(d, TODAY)).toBe("Allenamento aggiunto · domani · 18:00 · 45 min");
+  });
+
+  it("in un giorno passato si annota come fatto", () => {
+    const plan = planCapture(workout("corsa ieri 30 min"), TODAY, TZ);
+    expect(plan).toMatchObject({ kind: "workout", input: { date: "2026-10-09", status: "done", completed_at: "2026-10-09T10:00:00.000Z" } });
+  });
+});

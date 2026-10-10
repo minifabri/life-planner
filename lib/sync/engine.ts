@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
+import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -52,8 +52,15 @@ function applyToCache(op: Op, at: string) {
     }
   } else if (op.table === "log_entries") {
     queryClient.setQueryData<LogEntry[]>(["log-entries"], (old) => old && applyToLog(old, op, at));
+  } else if (op.table === "wishlist_items") {
+    queryClient.setQueryData<WishlistItem[]>(["wishlist-items"], (old) => old && applyToWishlist(old, op, at));
   } else if (op.table === "meal_memory") {
     queryClient.setQueryData<MealMemory[]>(["meal-memory"], (old) => old && applyToMealMemory(old, op));
+  } else if (op.table === "workouts") {
+    // Chiave: ["workouts", dal, al].
+    for (const [key, data] of queryClient.getQueriesData<Workout[]>({ queryKey: ["workouts"] })) {
+      if (data) queryClient.setQueryData(key, applyToWorkouts(data, op, at, key[1] as LocalDate, key[2] as LocalDate));
+    }
   }
 }
 
@@ -106,6 +113,14 @@ export async function withPendingMealMemory(memory: MealMemory[]): Promise<MealM
 
 export async function withPendingLog(entries: LogEntry[]): Promise<LogEntry[]> {
   return (await pending()).reduce((acc, e) => applyToLog(acc, e.op, e.at), entries);
+}
+
+export async function withPendingWishlist(items: WishlistItem[]): Promise<WishlistItem[]> {
+  return (await pending()).reduce((acc, e) => applyToWishlist(acc, e.op, e.at), items);
+}
+
+export async function withPendingWorkouts(workouts: Workout[], from: LocalDate, to: LocalDate): Promise<Workout[]> {
+  return (await pending()).reduce((acc, e) => applyToWorkouts(acc, e.op, e.at, from, to), workouts);
 }
 
 export type SyncState = {

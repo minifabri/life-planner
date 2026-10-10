@@ -2,7 +2,7 @@ import { addDays, addMonths, endOfMonth, endOfWeek, isoWeekday, nextWeekday, typ
 import type { SimpleRule } from "../recurrence/rule";
 import type { Attention } from "../supabase/types";
 
-export type CaptureKind = "task" | "event" | "shopping" | "wishlist" | "log";
+export type CaptureKind = "task" | "event" | "workout" | "shopping" | "wishlist" | "log";
 
 /** Parte del testo (indici sul testo originale) che ha generato un campo. */
 export type Span = { start: number; end: number };
@@ -18,6 +18,8 @@ export type ParseOptions = {
   /** Ora locale corrente "HH:mm": serve per "tra due ore" e per capire se un orario di oggi è già passato. */
   now?: string;
   categories?: CategoryHint[];
+  /** Discipline di allenamento: una frase che comincia con una di queste è un allenamento. */
+  activities?: string[];
   /** Tipo scelto a mano dal chip: vince sulle regole e sui prefissi. */
   kind?: CaptureKind;
 };
@@ -285,7 +287,7 @@ function capitalize(s: string): string {
  * Tutto ciò che non viene riconosciuto resta nel titolo: non si scarta e non si inventa nulla.
  */
 export function parseCapture(input: string, options: ParseOptions): ParsedCapture {
-  const { today, now, categories = [] } = options;
+  const { today, now, categories = [], activities = [] } = options;
   const orig = input.normalize("NFC");
   // Minuscolo carattere per carattere, così gli indici restano quelli del testo originale.
   const low = Array.from(orig, (c) => (c.toLowerCase().length === c.length ? c.toLowerCase() : c)).join("");
@@ -462,6 +464,12 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
   const verb = startsWithVerb(rest);
   const buys = BUY.test(rest);
   const hasWhen = !!date || minutes !== null || !!windowEnd || !!repeat;
+  // "Corsa domani alle 18": la disciplina deve aprire la frase, così "Scarpe da corsa" resta ciò che è.
+  // Con una ripetizione resta un'attività o un evento: gli allenamenti non si ripetono da soli.
+  const plainRest = stripAccents(rest.toLowerCase());
+  const looksLikeWorkout =
+    !reminded && !windowEnd && !repeat && !buys &&
+    activities.some((a) => a.trim() && new RegExp(`^${escapeRegExp(stripAccents(a.trim().toLowerCase()))}(?![${LETTER}])`, "u").test(plainRest));
   const looksLikeLog = !!category && !verb && !reminded && !windowEnd && !repeat && !relativeDate && (!date || date.date <= today);
 
   let kind: CaptureKind;
@@ -473,7 +481,8 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     // "Comprare mascara": spesa di default, il chip lo sposta in Wishlist.
     kind = "shopping";
     confidence = "low";
-  } else if (looksLikeLog) {
+  } else if (looksLikeWorkout) kind = "workout";
+  else if (looksLikeLog) {
     kind = "log";
     if (!date) confidence = "low";
   } else if (reminded) kind = "task";
@@ -503,6 +512,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
       ? repeat.byDay.map((wd) => nextWeekday(today, wd)).sort()[0]
       : today;
   }
+  if (kind === "workout" && !day) day = today;
   if (time && !day && kind !== "log") {
     // Solo l'orario: oggi, oppure domani se oggi è già passato.
     day = now && time <= now && !windowEnd ? addDays(today, 1) : today;

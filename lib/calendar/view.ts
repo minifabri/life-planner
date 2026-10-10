@@ -1,9 +1,10 @@
 import { addDays, atLocalTime, diffDays, localTimeString, weekStart, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
 import { eventsForDay, type Occurrence } from "../events/day";
-import type { EventException, EventRow, Task } from "../supabase/types";
+import type { EventException, EventRow, Task, Workout } from "../supabase/types";
 import { classifyTask } from "../tasks/classify";
 import { dayLoad, type LoadLevel } from "../tasks/load";
+import { shownStatus, workoutsOfDay } from "../workouts/summary";
 
 export function weekDays(from: LocalDate): LocalDate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(from, i));
@@ -30,6 +31,8 @@ export type DayView = {
   timed: Task[];
   /** Attività del giorno senza orario (comprese quelle nel periodo arrivate all'ultimo giorno utile). */
   untimed: Task[];
+  /** Allenamenti del giorno: prima quelli con orario. */
+  workouts: Workout[];
   load: { minutes: number; level: LoadLevel; ratio: number };
 };
 
@@ -41,6 +44,7 @@ export function buildDay(
   day: LocalDate,
   today: LocalDate,
   tz: string = DEFAULT_TZ,
+  workouts: Workout[] = [],
 ): DayView {
   const occurrences = eventsForDay(events, exceptions, day, tz);
   const timed: Task[] = [];
@@ -52,18 +56,20 @@ export function buildDay(
   }
   timed.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
   untimed.sort((a, b) => Number(a.status === "done") - Number(b.status === "done") || a.created_at.localeCompare(b.created_at));
+  const ofDay = workoutsOfDay(workouts, day);
   const load = dayLoad([
     ...occurrences.map((o) => o.durationMin),
     ...[...timed, ...untimed].filter((t) => t.status === "open").map((t) => t.duration_min),
+    ...ofDay.filter((w) => shownStatus(w, today) === "planned").map((w) => w.duration_min),
   ]);
-  return { day, occurrences, timed, untimed, load };
+  return { day, occurrences, timed, untimed, workouts: ofDay, load };
 }
 
 export type Highlight = {
   key: string;
   time: string | null;
   title: string;
-  kind: "event" | "task";
+  kind: "event" | "task" | "workout";
   important: boolean;
   /** Attività nel periodo arrivata all'ultimo giorno utile. */
   deadline: boolean;
@@ -101,12 +107,18 @@ export function dayHighlights(view: DayView, max = 3): { items: Highlight[]; mor
       areaId: o.event.area_id,
     })),
     ...view.timed.map((t) => taskHighlight(t, view.day)),
+    ...view.workouts.filter((w) => w.time).map(workoutHighlight),
   ].sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
-  const untimed: Highlight[] = view.untimed
-    .map((t) => taskHighlight(t, view.day))
-    .sort((a, b) => Number(a.done) - Number(b.done) || Number(b.important) - Number(a.important));
+  const untimed: Highlight[] = [
+    ...view.untimed.map((t) => taskHighlight(t, view.day)),
+    ...view.workouts.filter((w) => !w.time).map(workoutHighlight),
+  ].sort((a, b) => Number(a.done) - Number(b.done) || Number(b.important) - Number(a.important));
   const all = [...timed, ...untimed];
   return { items: all.slice(0, max), more: Math.max(0, all.length - max) };
+}
+
+function workoutHighlight(w: Workout): Highlight {
+  return { key: w.id, time: w.time ? w.time.slice(0, 5) : null, title: w.activity, kind: "workout", important: false, deadline: false, done: w.status === "done", areaId: null };
 }
 
 /**
@@ -128,7 +140,7 @@ export function freeLabel(view: DayView): string {
 }
 
 /** Segni minimi di un giorno nella griglia del mese. Le lezioni (imayoga) hanno un segno a parte e non contano tra gli eventi. */
-export type DayMarks = { events: number; lessons: number; tasks: number; deadlines: number; important: boolean };
+export type DayMarks = { events: number; lessons: number; tasks: number; deadlines: number; workouts: number; important: boolean };
 
 export function dayMarks(view: DayView, tasks: Task[]): DayMarks {
   const open = [...view.timed, ...view.untimed].filter((t) => t.status === "open");
@@ -139,6 +151,7 @@ export function dayMarks(view: DayView, tasks: Task[]): DayMarks {
     lessons,
     tasks: open.filter((t) => t.due_date !== view.day || t.date !== null).length,
     deadlines,
+    workouts: view.workouts.length,
     important: open.some((t) => t.attention === "high") || view.occurrences.some((o) => o.event.attention === "high"),
   };
 }
@@ -234,8 +247,8 @@ export function hourRange(blocks: TimedBlock[]): { startHour: number; endHour: n
   return { startHour, endHour };
 }
 
-/** I blocchi con orario di un giorno: eventi (non di tutto il giorno) e attività con orario. */
-export function timedBlocks(view: DayView): (TimedBlock & { occurrence?: Occurrence; task?: Task })[] {
+/** I blocchi con orario di un giorno: eventi (non di tutto il giorno), attività e allenamenti con orario. */
+export function timedBlocks(view: DayView): (TimedBlock & { occurrence?: Occurrence; task?: Task; workout?: Workout })[] {
   return [
     ...view.occurrences
       .filter((o) => !o.allDay && o.startTime)
@@ -247,5 +260,11 @@ export function timedBlocks(view: DayView): (TimedBlock & { occurrence?: Occurre
       const startMin = minutes(t.time!.slice(0, 5));
       return { key: t.id, startMin, endMin: Math.min(24 * 60, startMin + (t.duration_min ?? 0)), task: t };
     }),
+    ...view.workouts
+      .filter((w) => w.time)
+      .map((w) => {
+        const startMin = minutes(w.time!.slice(0, 5));
+        return { key: w.id, startMin, endMin: Math.min(24 * 60, startMin + (w.duration_min ?? 0)), workout: w };
+      }),
   ];
 }

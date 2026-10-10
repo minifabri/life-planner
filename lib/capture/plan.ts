@@ -2,6 +2,7 @@ import type { EventInput, RepeatInput, TaskInput } from "../data/api";
 import { addDays, atLocalTime, dueLabel, formatDuration, isoWeekday, relativeDay, type LocalDate } from "../dates/local";
 import type { CaptureKind, ParsedCapture } from "../parser/parse";
 import { describeRule, toRRule, type SimpleRule } from "../recurrence/rule";
+import type { WorkoutInput } from "../workouts/convert";
 
 /** Ciò che verrà salvato: l'interpretazione del parser con le correzioni fatte dai chip. */
 export type CaptureDraft = Omit<ParsedCapture, "spans" | "confidence">;
@@ -17,6 +18,7 @@ export type LogEntryInput = {
 export type CapturePlan =
   | { kind: "task"; input: TaskInput; repeat: RepeatInput }
   | { kind: "event"; input: EventInput }
+  | { kind: "workout"; input: WorkoutInput }
   | { kind: "shopping"; name: string }
   | { kind: "wishlist"; name: string; url: string | null }
   | { kind: "log"; entry: LogEntryInput };
@@ -24,6 +26,7 @@ export type CapturePlan =
 export const KIND_LABEL: Record<CaptureKind, string> = {
   task: "Attività",
   event: "Evento",
+  workout: "Allenamento",
   shopping: "Spesa",
   wishlist: "Wishlist",
   log: "Log",
@@ -50,6 +53,27 @@ export function planCapture(draft: CaptureDraft, today: LocalDate, tz: string): 
         time: draft.time,
         category_id: draft.categoryId,
         is_sensitive: draft.sensitive,
+      },
+    };
+  }
+
+  if (draft.kind === "workout") {
+    // In un giorno già passato è un allenamento fatto: lo si sta annotando, non pianificando.
+    const date = draft.date ?? today;
+    const done = date < today;
+    return {
+      kind: "workout",
+      input: {
+        activity: title,
+        date,
+        time: draft.time,
+        duration_min: draft.durationMin,
+        notes: null,
+        status: done ? "done" : "planned",
+        completed_at: done ? atLocalTime(date, draft.time ?? "12:00", tz).toISOString() : null,
+        distance_m: null,
+        energy_kcal: null,
+        avg_hr: null,
       },
     };
   }
@@ -126,9 +150,9 @@ export function describeDraft(draft: CaptureDraft, today: LocalDate): string {
     draft.date || draft.windowEnd ? whenLabel(draft, today) : null,
     draft.time,
     draft.durationMin ? formatDuration(draft.durationMin) : null,
-    draft.repeat ? describeRule(draft.repeat).toLowerCase() : null,
+    draft.repeat && draft.kind !== "workout" ? describeRule(draft.repeat).toLowerCase() : null,
   ].filter(Boolean);
-  const head = draft.kind === "event" ? "Evento aggiunto" : "Attività aggiunta";
+  const head = draft.kind === "event" ? "Evento aggiunto" : draft.kind === "workout" ? "Allenamento aggiunto" : "Attività aggiunta";
   return details.length ? `${head} · ${details.join(" · ")}` : head;
 }
 
