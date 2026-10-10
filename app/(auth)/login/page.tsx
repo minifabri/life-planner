@@ -26,7 +26,11 @@ export default function LoginPage() {
     setError(null);
     const { error } = await getSupabase().auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        // Il link nell'email riporta qui; il codice nella stessa email resta valido.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
     setBusy(false);
     if (error) {
@@ -65,8 +69,8 @@ export default function LoginPage() {
         </h1>
         <p className="text-[15px] leading-relaxed text-text-2">
           {step === "email"
-            ? "Inserisci la tua email: ti mando un codice per entrare."
-            : `Ho inviato un codice a ${email}. Scrivilo qui sotto.`}
+            ? "Inserisci la tua email: ti mando un link e un codice per entrare."
+            : `Ho scritto a ${email}. Apri il link, oppure scrivi qui il codice: sull’app installata su iPhone usa il codice.`}
         </p>
       </div>
 
@@ -91,7 +95,7 @@ export default function LoginPage() {
             disabled={busy || !email}
             className="mt-4 min-h-12 rounded-[14px] bg-accent-fill text-[15px] font-medium text-on-accent transition-opacity disabled:opacity-40"
           >
-            {busy ? "Invio…" : "Inviami il codice"}
+            {busy ? "Invio…" : "Inviami link e codice"}
           </button>
         </form>
       ) : (
