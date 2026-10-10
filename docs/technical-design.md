@@ -151,8 +151,9 @@ all_day boolean default false, start_date date null, end_date date null,
 tz text not null default 'Europe/Rome',
 rrule text null,                                          -- ricorrenza RFC 5545
 area_id uuid null, attention text check in ('low','medium','high') default 'low',
-source text check in ('app','gcal') default 'app',
+source text check in ('app','gcal','icloud') default 'app',
 gcal_calendar_id text null, gcal_event_id text null, gcal_etag text null,
+icloud_calendar_id uuid null, icloud_href text null, icloud_etag text null,
 deleted_at
 unique (owner_id, gcal_calendar_id, gcal_event_id)
 ```
@@ -231,7 +232,7 @@ use_count int default 0, last_used_at timestamptz
 unique (owner_id, name_normalized)
 ```
 Aggiornata quando un articolo viene spuntato (`use_count + 1`, `last_used_at = now()`). Punteggio dei suggerimenti: `use_count + max(0, 30 - giorni dall'ultimo uso) / 3` (lo stesso del prototipo, da tarare).
-Implementazione (incremento 4): la aggiorna il trigger `shopping_items_learn` nella stessa transazione dell'articolo (migrazione `20261010100000_shopping_memory.sql`, verifica in `supabase/tests/shopping_memory_check.sql`), così resta coerente anche con le modifiche sincronizzate dalla outbox.
+Implementazione (incremento 4): la aggiorna il trigger `shopping_items_learn` nella stessa transazione dell'articolo (migrazione `20261010110000_shopping_memory.sql`, verifica in `supabase/tests/shopping_memory_check.sql`), così resta coerente anche con le modifiche sincronizzate dalla outbox.
 - Nuovo articolo senza reparto → eredita quello imparato per lo stesso nome (`normalize_product_name`: minuscolo, senza accenti).
 - Nome o reparto modificati → il catalogo impara il nuovo reparto (anche "nessuno").
 - Spunta → `use_count + 1` e `last_used_at = checked_at`; spunta tolta → `use_count - 1`. "Svuota completati" è un soft delete e non tocca il catalogo.
@@ -296,6 +297,12 @@ created_at, last_success_at
 ```
 id, owner_id, gcal_calendar_id text, summary, color, selected boolean,
 sync_token text null, last_synced_at timestamptz null
+```
+**icloud_accounts** e **icloud_calendars** (sezione 9.6)
+```
+icloud_accounts:  owner_id pk, apple_id text, home_url text null, last_synced_at, last_error text null
+icloud_calendars: id, owner_id, url text, name, color, selected boolean, ctag text null, last_synced_at
+                  unique (owner_id, url)
 ```
 **private.google_tokens** (schema non esposto)
 ```
@@ -424,6 +431,26 @@ Da definire quando sapremo quali dati espone. Nel frattempo le lezioni sono even
 - **Da tenere presente per la sync Google (9.1)**: l'`iCalUID` di un evento Google coincide con l'UID dell'export. La sync deve riconoscere gli eventi già importati (stesso id deterministico) e collegarli invece di duplicarli, e non deve riscriverli su GCal.
 - Limiti noti: la ripetizione dei `VTODO` non viene importata; le occorrenze modificate di una serie mantengono titolo e luogo della serie; i fusi con nome non IANA (alcuni export di Outlook) vengono letti nel fuso del profilo, con avviso nell'anteprima.
 
+### 9.6 Calendario iCloud via CalDAV [APPROVATO il 10 ottobre 2026: sola lettura, in aggiunta a Google]
+- **Perché così**: una PWA non può leggere il calendario dell'iPhone (EventKit è riservato alle app native). Gli eventi di Bibi stanno in parte su iCloud e in parte su Google: quelli iCloud si leggono via CalDAV, quelli Google con la sync 9.1.
+- **Credenziali**: Apple ID + **password per app** generata da Bibi su account.apple.com (richiede l'autenticazione a due fattori). Inserite una volta in Impostazioni → Calendari → Calendario iCloud (`/settings/icloud`), verificate contro iCloud e custodite in Vault (segreto `icloud:<owner_id>`); il client non le rilegge mai. La password per app si revoca da Apple senza toccare quella dell'account.
+- **Edge Function `icloud-caldav`**: porta d'accesso autenticata con il token dell'utente. Azioni: `connect` (verifica e salva le credenziali), `disconnect` (elimina credenziali, calendari ed eventi iCloud), `dav` (inoltra una richiesta aggiungendo le credenziali). Inoltra solo `PROPFIND` e `REPORT`, solo in https verso `caldav.icloud.com` e `pNN-caldav.icloud.com`, senza seguire redirect: la sola lettura è garantita dal server e le credenziali non possono finire altrove.
+- **Logica nel client**, in moduli di `lib/icloud/`: `caldav.ts` (puro, con test: costruzione delle richieste, lettura delle risposte multistatus, confronto degli etag) e `sync.ts` (orchestrazione). Il contenuto `.ics` di ogni evento passa dal parser di 9.5 (`lib/import/ics.ts`), senza copie.
+- **Scoperta**: `current-user-principal` → `calendar-home-set` (memorizzato in `icloud_accounts.home_url`) → elenco dei calendari di eventi con nome, colore e `ctag`. Bibi sceglie quali seguire; di default nessuno (il calendario di lavoro resta escluso, D10).
+- **Sync in lettura** per ogni calendario seguito: se il `ctag` non è cambiato e la sync è già avvenuta oggi non si fa nulla; altrimenti `calendar-query` sugli eventi da 30 giorni fa a 12 mesi avanti, confronto degli `etag` e `calendar-multiget` dei soli eventi cambiati (40 per richiesta).
+- **Eliminazioni**: un evento che iCloud non elenca più viene segnato `deleted_at`, tranne quando è semplicemente uscito dal periodo perché passato: in quel caso resta come storico.
+- **Quando**: all'apertura dell'app e al ritorno in primo piano (al massimo ogni 10 minuti), più il pulsante "Aggiorna ora". Non c'è sync in background: un evento aggiunto sull'iPhone compare alla successiva apertura dell'app. **[FUTURO]** sync lato server nella manutenzione giornaliera, se servirà per le notifiche.
+- **Dati**: `events.source = 'icloud'` con `icloud_calendar_id`, `icloud_href`, `icloud_etag`; tabelle `icloud_accounts` e `icloud_calendars` (RLS e quattro policy). Le ricorrenze restano come `rrule` + `event_exceptions`, come nell'import. Area e attenzione non vengono toccate dalla sync.
+- **Proprietà unica**: gli eventi `source = 'icloud'` non si modificano nell'app; si modificano nel Calendario dell'iPhone e la sync successiva porta le modifiche. Nessuna scrittura verso iCloud.
+- **Duplicati**: l'id deriva dall'UID (`ics:<UID>`), come nell'import da file: un evento già importato viene collegato alla sync (diventa `source = 'icloud'`, in sola lettura), non duplicato. I promemoria di Apple (`VTODO`) non sono esposti via CalDAV da iOS 13 e restano fuori.
+- **[DA VERIFICARE]** con l'account reale: scoperta dei calendari condivisi da altri, comportamento con molti eventi ricorrenti, limiti di frequenza di iCloud.
+
+### 9.7 Cose da fare ed eventi dalle mail [PROPOSTA, non pianificata]
+- Richiesta di Bibi del 10 ottobre 2026: leggere le mail e ricavarne attività ed eventi.
+- Idea: lettura in sola lettura (Gmail via OAuth `gmail.readonly`, posta iCloud via IMAP con password per app) delle mail recenti della casella principale. Prima fase a regole: inviti `.ics` allegati e conferme strutturate (schema.org: voli, prenotazioni, appuntamenti). Seconda fase con modello AI lato server per le mail scritte a mano (oggi [FUTURO]: il testo delle mail passerebbe da un servizio AI, con costo a consumo).
+- Vincolo: nessuna creazione automatica. Le mail producono **proposte** in una lista "Da confermare" con mittente e frase d'origine; Bibi accetta, corregge o scarta.
+- Alternativa leggera: un indirizzo a cui inoltrare solo le mail rilevanti, senza accesso alla casella.
+
 ---
 
 ## 10. Export, backup, eliminazione
@@ -512,6 +539,10 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 
 **Incremento 1c — Google Calendar** *(anticipato dal 12 il 10 ottobre 2026)*
 - Sync continua come da sezione 9.1. Richiede prima il progetto Google Cloud con client OAuth creato da Bibi.
+
+**Incremento 1d — Calendario iCloud** *(aggiunto il 10 ottobre 2026)*
+- Sync in sola lettura via CalDAV come da sezione 9.6. Richiede prima la password per app creata da Bibi.
+- Criteri: test dei moduli puri (lettura delle risposte CalDAV, confronto etag); un evento creato, spostato ed eliminato sull'iPhone compare, si sposta e sparisce nell'app; nessun duplicato con gli eventi già importati da file.
 
 **Incremento 2 — Quick Capture**
 - Parser con suite di test, foglio di cattura con chip correggibili, prefissi.

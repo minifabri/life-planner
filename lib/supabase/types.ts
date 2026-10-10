@@ -55,7 +55,10 @@ export type EventRow = {
   rrule: string | null;
   area_id: string | null;
   attention: Attention;
-  source: "app" | "gcal";
+  source: "app" | "gcal" | "icloud";
+  icloud_calendar_id: string | null;
+  icloud_href: string | null;
+  icloud_etag: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -126,4 +129,22 @@ export type ProductMemory = {
   department: string | null;
   use_count: number;
   last_used_at: string | null;
+};
+
+export type IcloudAccount = {
+  owner_id: string;
+  apple_id: string;
+  home_url: string | null;
+  last_synced_at: string | null;
+  last_error: string | null;
+};
+
+export type IcloudCalendar = {
+  id: string;
+  url: string;
+  name: string;
+  color: string | null;
+  selected: boolean;
+  ctag: string | null;
+  last_synced_at: string | null;
 };

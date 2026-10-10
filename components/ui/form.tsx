@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
+// 16 px su mobile: sotto questa soglia iOS ingrandisce la pagina al focus.
 export const inputClass =
-  "min-h-11 w-full rounded-xl border border-line-2 bg-bg px-3 text-[15px] text-text placeholder:text-text-3 disabled:opacity-40";
+  "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3 text-base md:text-[15px] text-text placeholder:text-text-3 disabled:opacity-40";
 
 export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return (
