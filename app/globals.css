@@ -84,6 +84,23 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* iOS Safari: i campi data/ora hanno una larghezza intrinseca e non si
+   restringono in una riga flex, finendo sopra al campo accanto. */
+@layer base {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+  input::-webkit-date-and-time-value {
+    min-height: 1.5em;
+    text-align: left;
+  }
+}
+
 /* Etichetta di sezione: mono, maiuscolo, spaziato */
 .label-mono {
   font-family: var(--font-mono);

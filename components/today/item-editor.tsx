@@ -328,7 +328,7 @@ export function ItemEditor({
                 <Field label="Entro" htmlFor="item-due">
                   <input id="item-due" type="date" required min={today} value={f.due} onChange={(e) => set("due", e.target.value)} className={inputClass} />
                 </Field>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button onClick={() => set("due", endOfWeek(today))}>Entro domenica</Button>
                   <Button onClick={() => set("due", endOfMonth(today))}>Entro fine mese</Button>
                 </div>

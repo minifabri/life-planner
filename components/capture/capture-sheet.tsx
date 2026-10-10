@@ -331,7 +331,7 @@ export function CaptureSheet({
                 ) : null}
 
                 {panel === "time" ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <label htmlFor="capture-time" className="text-xs text-text-2">
                       Ora
                     </label>
@@ -340,7 +340,7 @@ export function CaptureSheet({
                       type="time"
                       value={draft.time ?? ""}
                       onChange={(e) => set({ time: e.target.value || null }, false)}
-                      className={`${inputClass} w-auto flex-1`}
+                      className={`${inputClass} w-auto min-w-24 flex-1`}
                     />
                     <Option selected={!draft.time} onPress={() => set({ time: null })}>
                       {kind === "event" ? "Tutto il giorno" : "Senza orario"}
