@@ -232,6 +232,11 @@ use_count int default 0, last_used_at timestamptz
 unique (owner_id, name_normalized)
 ```
 Aggiornata quando un articolo viene spuntato (`use_count + 1`, `last_used_at = now()`). Punteggio dei suggerimenti: `use_count + max(0, 30 - giorni dall'ultimo uso) / 3` (lo stesso del prototipo, da tarare).
+Implementazione (incremento 4): la aggiorna il trigger `shopping_items_learn` nella stessa transazione dell'articolo (migrazione `20261010110000_shopping_memory.sql`, verifica in `supabase/tests/shopping_memory_check.sql`), così resta coerente anche con le modifiche sincronizzate dalla outbox.
+- Nuovo articolo senza reparto → eredita quello imparato per lo stesso nome (`normalize_product_name`: minuscolo, senza accenti).
+- Nome o reparto modificati → il catalogo impara il nuovo reparto (anche "nessuno").
+- Spunta → `use_count + 1` e `last_used_at = checked_at`; spunta tolta → `use_count - 1`. "Svuota completati" è un soft delete e non tocca il catalogo.
+- I suggerimenti mostrano solo prodotti comprati almeno una volta (`use_count > 0`), per non riproporre errori di battitura.
 
 **wishlist_items**
 ```
@@ -549,6 +554,10 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 
 **Incremento 4 — Spesa**
 - Lista con reparti appresi, suggerimenti da product_memory, storico, svuota completati, Realtime.
+- Realizzato il 10 ottobre 2026 sul livello dati online: l'aggancio alla outbox arriva con l'unione dell'incremento 3 (le scritture della Spesa sono tutte in `lib/data/shopping.ts`).
+- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto resta [PROPOSTA] e non è incluso.
+- La quantità si può scrivere insieme al nome ("2 latte", "latte x2", "500 g farina"), anche dal Quick Capture (`lib/shopping/entry.ts`).
+- Criteri: test di `lib/shopping`; verifica SQL del catalogo; dal telefono: aggiungi, assegna un reparto, spunta, svuota, riaggiungi dallo storico e ritrova il reparto; con telefono e computer aperti insieme la lista si aggiorna da sola.
 
 **Incremento 5 — Planner pasti**
 - Settimana, quattro pasti, ricorrenti per pasto, Pronto/Da preparare, attività del giorno prima sincronizzata.
