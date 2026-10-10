@@ -604,7 +604,12 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 4 — Spesa**
 - Lista con reparti appresi, suggerimenti da product_memory, storico, svuota completati, Realtime.
 - Realizzato il 10 ottobre 2026 sul livello dati online: l'aggancio alla outbox arriva con l'unione dell'incremento 3 (le scritture della Spesa sono tutte in `lib/data/shopping.ts`).
-- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto resta [PROPOSTA] e non è incluso.
+- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto è arrivato con la revisione qui sotto.
+- Revisione dell'esperienza (10 ottobre 2026, su richiesta di Bibi):
+  - **Reparto riconosciuto dal nome** (`lib/shopping/catalog.ts`): un dizionario italiano prodotto → reparto e icona. Vale solo in visualizzazione, quando l'articolo non ha un reparto scelto o imparato (`departmentOf`), quindi non scrive nulla nel database e il reparto imparato vince sempre. Conta la prima parola riconosciuta ("cioccolato al latte" è cioccolato), a pari posizione la frase più lunga ("latte detergente" batte "latte"); "surgelato" nel nome porta tra i Surgelati.
+  - **Quadratini al posto delle righe** (`components/shopping/item-tile.tsx`): icona che evoca il prodotto (lucide-react, stesso tratto delle icone dell'app; se il nome non dice nulla, l'icona del reparto), nome, quantità. Tocco = spunta, tre puntini = modifica.
+  - **Una sfumatura per reparto**: token `--dept-*` in `app/globals.css`, con luminosità e saturazione delle aree; l'oro resta riservato all'attenzione alta.
+  - **Suggerimenti come nel prototipo**: elenco sotto il campo con icona e "24 volte · 6 g fa", frecce e Invio da tastiera; riga "Compri spesso" (stesso punteggio dei suggerimenti) in cima; i presi stanno in "Nel carrello". A differenza del prototipo, Invio senza un suggerimento evidenziato aggiunge ciò che è scritto, non il primo suggerimento.
 - La quantità si può scrivere insieme al nome ("2 latte", "latte x2", "500 g farina"), anche dal Quick Capture (`lib/shopping/entry.ts`).
 - Criteri: test di `lib/shopping`; verifica SQL del catalogo; dal telefono: aggiungi, assegna un reparto, spunta, svuota, riaggiungi dallo storico e ritrova il reparto; con telefono e computer aperti insieme la lista si aggiorna da sola.
 
