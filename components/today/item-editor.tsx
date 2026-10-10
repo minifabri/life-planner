@@ -151,7 +151,7 @@ export function ItemEditor({
   const task = target.kind === "task" ? target.task : null;
   const occurrence = target.kind === "event" ? target.occurrence : null;
   const event = occurrence?.event ?? null;
-  const readOnly = event?.source === "gcal";
+  const readOnly = event?.source === "gcal" || event?.source === "icloud";
   // Una serie con una regola che l'interfaccia non sa mostrare si lascia com'è.
   const lockedRule = event?.rrule && !parseRRule(event.rrule) ? event.rrule : null;
 
@@ -246,7 +246,11 @@ export function ItemEditor({
         <p className="text-[17px] leading-snug">{event.title}</p>
         {event.location ? <p className="text-sm text-text-2">{event.location}</p> : null}
         {event.notes ? <p className="whitespace-pre-wrap text-sm text-text-2">{event.notes}</p> : null}
-        <p className="text-xs text-text-3">Questo evento arriva da Google Calendar e si modifica lì.</p>
+        <p className="text-xs text-text-3">
+          {event.source === "icloud"
+            ? "Questo evento arriva dal calendario dell’iPhone (iCloud) e si modifica lì."
+            : "Questo evento arriva da Google Calendar e si modifica lì."}
+        </p>
       </Sheet>
     );
   }
@@ -321,7 +325,7 @@ export function ItemEditor({
                 <Field label="Entro" htmlFor="item-due">
                   <input id="item-due" type="date" required min={today} value={f.due} onChange={(e) => set("due", e.target.value)} className={inputClass} />
                 </Field>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button onClick={() => set("due", endOfWeek(today))}>Entro domenica</Button>
                   <Button onClick={() => set("due", endOfMonth(today))}>Entro fine mese</Button>
                 </div>

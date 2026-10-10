@@ -9,6 +9,7 @@ import { forgetCachedData } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
+import { useIcloudAccount } from "@/lib/icloud/hooks";
 import {
   checkPushSupport,
   currentSubscription,
@@ -33,6 +34,7 @@ export default function SettingsPage() {
       <ThemeSection />
       <NotificationsSection />
       <LockSection />
+      <CalendarsSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -258,6 +260,37 @@ function LockSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Calendari ---------------- */
+function CalendarsSection() {
+  const { data: account } = useIcloudAccount();
+  return (
+    <Section title="Calendari" note="Gli eventi del calendario dell'iPhone compaiono qui da soli e si modificano dall'iPhone.">
+      <Row
+        label="Calendario iCloud"
+        value={
+          account ? (
+            account.last_error ? (
+              <span className="text-gold">Da ricollegare</span>
+            ) : (
+              <span className="text-accent">Collegato</span>
+            )
+          ) : (
+            <span className="text-text-3">Non collegato</span>
+          )
+        }
+      />
+      <div>
+        <Link
+          href="/settings/icloud"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          {account ? "Gestisci" : "Collega il calendario iCloud"}
+        </Link>
+      </div>
     </Section>
   );
 }
