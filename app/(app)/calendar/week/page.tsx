@@ -5,12 +5,15 @@ import { getISOWeek } from "date-fns";
 import { CalendarError, CalendarHeader } from "@/components/calendar/calendar-header";
 import { useCalendar } from "@/components/calendar/use-calendar";
 import { TaskChip, WeekGrid, type Dragged } from "@/components/calendar/week-grid";
+import { AreaDot } from "@/components/today/task-row";
 import { ItemEditor } from "@/components/today/item-editor";
 import { Icon } from "@/components/ui/icon";
-import { canMoveEvent, dayHighlights, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
-import { addDays, dueLabel, formatDuration, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { Diamond } from "@/components/ui/marks";
+import { useToast } from "@/components/ui/toast";
+import { canMoveEvent, dayHighlights, freeLabel, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
+import { addDays, dueLabel, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { useTimezone, useToday } from "@/lib/data/hooks";
-import { LOAD_LABEL } from "@/lib/tasks/load";
+import { updateTask } from "@/lib/data/api";
 
 export default function WeekPage() {
   const tz = useTimezone();
@@ -18,6 +21,7 @@ export default function WeekPage() {
   // Finché non si sceglie una settimana si segue quella corrente.
   const [anchor, setAnchor] = useState<LocalDate | null>(null);
   const [dragged, setDragged] = useState<Dragged | null>(null);
+  const toast = useToast();
   const from = anchor ?? weekStart(today);
   const days = weekDays(from);
   const cal = useCalendar(days);
@@ -31,10 +35,21 @@ export default function WeekPage() {
     const item = dragged;
     setDragged(null);
     if (!item) return;
+    // Conferma dello spostamento, con il tempo per annullarlo.
+    const moved = (title: string, undo: () => void) =>
+      toast({ message: `Spostata: ${title} → ${weekdayName(day).slice(0, 3)} ${Number(day.slice(8))}`, actionLabel: "Annulla", onAction: undo });
     if ("task" in item) {
-      if (item.task.date !== day) actions.moveTo(item.task, day);
+      const { task } = item;
+      if (task.date === day) return;
+      void actions.moveTo(task, day).then((ok) => {
+        if (ok) moved(task.title, () => void updateTask({ ...task, date: day }, { date: task.date, original_date: task.original_date }));
+      });
     } else if (canMoveEvent(item.occurrence.event) && item.fromDay !== day) {
-      void cal.moveEvent(item.occurrence.event, moveEventPatch(item.occurrence.event, item.fromDay, day));
+      const { event } = item.occurrence;
+      const patch = moveEventPatch(event, item.fromDay, day);
+      void cal.moveEvent(event, patch).then(() =>
+        moved(event.title, () => void cal.moveEvent({ ...event, ...patch }, { start_date: event.start_date, end_date: event.end_date, start_at: event.start_at, end_at: event.end_at })),
+      );
     }
   }
 
@@ -83,44 +98,51 @@ export default function WeekPage() {
           ) : null}
 
           {/* Mobile: elenco dei sette giorni; il tocco apre il giorno. */}
-          <ul className="flex flex-col gap-2 md:hidden">
+          <ul className="flex flex-col md:hidden">
             {views.map((view) => {
               const { items, more } = dayHighlights(view);
               const isToday = view.day === today;
               return (
-                <li key={view.day}>
+                <li key={view.day} className="border-b border-line last:border-b-0">
                   <button
                     type="button"
                     onClick={() => cal.openDay(view.day)}
-                    className="flex w-full flex-col gap-2 rounded-[14px] border border-line bg-surface px-4 py-3 text-left hover:bg-surface-2"
+                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}: ${freeLabel(view)}`}
+                    className={`flex w-full gap-3.5 rounded-xl py-3.5 pr-1 text-left hover:bg-surface ${isToday ? "bg-accent-soft" : ""}`}
                   >
-                    <span className="flex items-baseline justify-between gap-3">
-                      <span className="flex items-baseline gap-2">
-                        <span className={`text-[17px] capitalize ${isToday ? "text-accent" : "text-text"}`}>{weekdayName(view.day)}</span>
-                        <span className="text-sm text-text-3">{shortDate(view.day)}</span>
-                      </span>
-                      <span className="text-xs text-text-3">
-                        {LOAD_LABEL[view.load.level].replace("Giornata ", "")}
-                        {view.load.minutes ? ` · ${formatDuration(view.load.minutes)}` : ""}
+                    <span className="flex w-[46px] shrink-0 flex-col items-center gap-1 pt-0.5">
+                      <span className={`font-mono text-[10.5px] uppercase tracking-[0.1em] ${isToday ? "text-accent" : "text-text-3"}`}>{weekdayName(view.day).slice(0, 3)}</span>
+                      <span className={`flex size-[34px] items-center justify-center rounded-full text-[17px] ${isToday ? "bg-accent-fill font-semibold text-on-accent" : "text-text"}`}>
+                        {Number(view.day.slice(8))}
                       </span>
                     </span>
-                    <span aria-hidden className="h-[3px] overflow-hidden rounded-full bg-line">
-                      <span className="block h-full rounded-full bg-accent" style={{ width: `${view.load.ratio * 100}%` }} />
-                    </span>
-                    {items.length > 0 ? (
-                      <span className="flex flex-col gap-1">
-                        {items.map((item) => (
-                          <span key={item.key} className="flex items-baseline gap-2.5 text-sm">
+                    <span className="flex min-w-0 flex-1 flex-col gap-2">
+                      <span className="flex items-center gap-2.5">
+                        <span aria-hidden className="h-[3px] flex-1 overflow-hidden rounded-full bg-line">
+                          <span className={`block h-full rounded-full ${view.load.level === "full" ? "bg-accent" : "bg-text-3"}`} style={{ width: `${view.load.ratio * 100}%` }} />
+                        </span>
+                        <span className="whitespace-nowrap font-mono text-[11px] text-text-3">{freeLabel(view)}</span>
+                      </span>
+                      {items.map((item) => {
+                        const gold = (item.deadline || item.important) && !item.done;
+                        return (
+                          <span key={item.key} className="flex min-w-0 items-center gap-2.5 text-sm">
                             <span className="w-10 shrink-0 font-mono text-[11.5px] text-text-3">{item.time ?? "—"}</span>
-                            <span className={`min-w-0 break-words ${item.done ? "text-text-3 line-through" : "text-text-2"}`}>{item.title}</span>
-                            {item.important && !item.done ? <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-gold">Importante</span> : null}
+                            {gold ? (
+                              <Diamond label={item.deadline ? "Scadenza" : "Importante"} />
+                            ) : item.kind === "event" ? (
+                              <AreaDot area={areaById.get(item.areaId ?? "")} fallback />
+                            ) : (
+                              <span aria-hidden className="size-2 shrink-0 rounded-full border-[1.3px] border-text-3" />
+                            )}
+                            <span className={`min-w-0 truncate ${item.done ? "text-text-3 line-through" : gold ? "text-gold" : item.kind === "event" ? "text-text" : "text-text-2"}`}>
+                              {item.title}
+                            </span>
                           </span>
-                        ))}
-                        {more > 0 ? <span className="pl-[50px] text-xs text-text-3">{more === 1 ? "e un'altra cosa" : `e altre ${more}`}</span> : null}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-text-3">Niente in programma</span>
-                    )}
+                        );
+                      })}
+                      {more > 0 ? <span className="pl-[50px] text-xs text-text-3">+ {more} {more === 1 ? "altra" : "altre"}</span> : null}
+                    </span>
                   </button>
                 </li>
               );

@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { Button, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
-import { KIND_LABEL, quickDays, whenLabel, type CaptureDraft } from "@/lib/capture/plan";
+import { KIND_LABEL, destinationLabel, quickDays, whenLabel, type CaptureDraft } from "@/lib/capture/plan";
 import { formatDuration, type LocalDate } from "@/lib/dates/local";
 import { parseCapture, type CaptureKind } from "@/lib/parser/parse";
 import { describeRule } from "@/lib/recurrence/rule";
@@ -29,14 +29,19 @@ function keepFocus(e: React.MouseEvent) {
   e.preventDefault();
 }
 
+const captionClass = "font-mono text-[10.5px] uppercase tracking-[0.06em] text-text-3";
+
 function Chip({
   children,
+  caption,
   onPress,
   label,
   expanded,
   tone = "set",
 }: {
   children: ReactNode;
+  /** Nome del campo, in piccolo prima del valore. */
+  caption?: string;
   onPress: () => void;
   /** Testo per gli screen reader, quando il contenuto visibile non basta. */
   label?: string;
@@ -58,6 +63,7 @@ function Chip({
       aria-expanded={expanded}
       className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] ${styles} ${expanded ? "outline-1 outline-accent" : ""}`}
     >
+      {caption ? <span className={captionClass}>{caption}</span> : null}
       {children}
     </button>
   );
@@ -212,6 +218,7 @@ export function CaptureSheet({
 
                 <div role="group" aria-label="Interpretazione, tocca per correggere" className="flex flex-wrap gap-1.5">
                   <Chip
+                    caption="Tipo"
                     onPress={() => toggle("kind")}
                     expanded={panel === "kind"}
                     tone={confidence === "low" && !overrides.kind ? "unsure" : "set"}
@@ -222,6 +229,7 @@ export function CaptureSheet({
 
                   {dated ? (
                     <Chip
+                      caption="Quando"
                       onPress={() => toggle("when")}
                       expanded={panel === "when"}
                       tone={draft.date || draft.windowEnd || kind !== "task" ? "set" : "empty"}
@@ -233,23 +241,25 @@ export function CaptureSheet({
 
                   {dated ? (
                     <Chip
+                      caption="Ora"
                       onPress={() => toggle("time")}
                       expanded={panel === "time"}
                       tone={draft.time ? "set" : "empty"}
                       label={draft.time ? `Ora: ${draft.time}` : "Aggiungi un orario"}
                     >
-                      {draft.time ?? (kind === "event" ? "tutto il giorno" : "+ ora")}
+                      {draft.time ?? (kind === "event" ? "tutto il giorno" : "nessuna")}
                     </Chip>
                   ) : null}
 
                   {planned ? (
                     <Chip
+                      caption="Durata"
                       onPress={() => toggle("duration")}
                       expanded={panel === "duration"}
                       tone={draft.durationMin ? "set" : "empty"}
                       label={draft.durationMin ? `Durata: ${formatDuration(draft.durationMin)}` : "Aggiungi una durata"}
                     >
-                      {draft.durationMin ? formatDuration(draft.durationMin) : "+ durata"}
+                      {draft.durationMin ? formatDuration(draft.durationMin) : "nessuna"}
                     </Chip>
                   ) : null}
 
@@ -272,14 +282,20 @@ export function CaptureSheet({
 
                   {kind === "log" ? (
                     <Chip
+                      caption="Categoria"
                       onPress={() => toggle("category")}
                       expanded={panel === "category"}
                       tone={category ? "set" : "empty"}
                       label={category ? `Categoria: ${category.name}` : "Scegli una categoria"}
                     >
-                      {category?.name ?? "+ categoria"}
+                      {category?.name ?? "nessuna"}
                     </Chip>
                   ) : null}
+
+                  <span className="flex min-h-11 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] text-text-2">
+                    <span className={captionClass}>In</span>
+                    {destinationLabel(draft, today)}
+                  </span>
                 </div>
 
                 {panel === "kind" ? (
@@ -376,6 +392,12 @@ export function CaptureSheet({
 
                 {kind === "task" && !draft.date && !draft.windowEnd && !draft.time && !draft.repeat ? (
                   <p className="text-xs text-text-3">Senza data non compare in Oggi: la ritroverai nella ricerca.</p>
+                ) : null}
+                {kind === "task" && !draft.date && draft.windowEnd ? (
+                  <p className="text-xs text-text-3">Resta discreta in “Nel periodo” e sale in “Da fare oggi” l’ultimo giorno.</p>
+                ) : null}
+                {kind === "log" && draft.sensitive ? (
+                  <p className="text-xs text-text-3">Categoria riservata: nel calendario e nelle notifiche comparirà un titolo neutro.</p>
                 ) : null}
                 {kind === "wishlist" && draft.url ? (
                   <p className="break-all text-xs text-text-3">Link: {draft.url}</p>

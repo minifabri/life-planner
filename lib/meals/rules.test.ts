@@ -9,6 +9,7 @@ import {
   rememberMealOp,
   reminderDate,
   reminderRemovedOps,
+  reminderRestoredOps,
   reminderTitle,
   reminderToggledOps,
   removeMealOps,
@@ -149,6 +150,14 @@ describe("attività → pasto", () => {
     let w = withMeal("to_prep");
     w = run(w, reminderRemovedOps(w.tasks[0]));
     expect(w.meals[0]).toMatchObject({ prep_mode: "to_prep", prepared: false, reminder_task_id: null });
+  });
+
+  it("annullare l'eliminazione ricollega il promemoria al pasto", () => {
+    let w = withMeal("to_prep");
+    const reminder = w.tasks[0];
+    w = run(w, reminderRemovedOps(reminder));
+    w = run(w, reminderRestoredOps(reminder));
+    expect(w.meals[0].reminder_task_id).toBe(reminder.id);
   });
 
   it("dopo l'eliminazione, segnare Preparato non ricrea né tocca alcuna attività", () => {

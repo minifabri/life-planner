@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AreaDot } from "@/components/today/task-row";
+import { AttentionMark, Diamond } from "@/components/ui/marks";
 import type { EditorTarget } from "@/components/today/item-editor";
 import { canMoveEvent, hourRange, layoutBlocks, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
@@ -82,14 +83,14 @@ export function WeekGrid({
                 type="button"
                 onClick={() => onOpenDay(view.day)}
                 aria-label={`Apri ${weekdayName(view.day)} ${shortDate(view.day)}: ${LOAD_LABEL[view.load.level].toLowerCase()}`}
-                className="flex min-h-11 flex-col gap-1.5 px-2 pb-2 pt-2.5 text-left hover:bg-surface-2"
+                className={`flex min-h-11 flex-col gap-1.5 px-2 pb-2 pt-2.5 text-left hover:bg-surface-2 ${isToday ? "bg-accent-soft" : ""}`}
               >
                 <span className="flex items-baseline gap-1.5">
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-3">{weekdayName(view.day).slice(0, 3)}</span>
-                  <span className={`text-[15px] ${isToday ? "text-accent" : "text-text"}`}>{Number(view.day.slice(8))}</span>
+                  <span className={`font-mono text-[10.5px] uppercase tracking-[0.08em] ${isToday ? "text-accent" : "text-text-3"}`}>{weekdayName(view.day).slice(0, 3)}</span>
+                  <span className={`text-xl ${isToday ? "font-medium text-accent" : "font-light text-text"}`}>{Number(view.day.slice(8))}</span>
                 </span>
                 <span className="h-[3px] overflow-hidden rounded-full bg-line">
-                  <span className="block h-full rounded-full bg-accent" style={{ width: `${view.load.ratio * 100}%` }} />
+                  <span className={`block h-full rounded-full ${view.load.level === "full" ? "bg-accent" : "bg-text-3"}`} style={{ width: `${view.load.ratio * 100}%` }} />
                 </span>
               </button>
 
@@ -123,7 +124,8 @@ export function WeekGrid({
                 ))}
               </ul>
 
-              <div className="relative" style={{ height: hours.length * HOUR_PX }}>
+              {/* I giorni già passati restano leggibili ma in secondo piano. */}
+              <div className={`relative ${view.day < today ? "opacity-60" : ""}`} style={{ height: hours.length * HOUR_PX }}>
                 {hours.map((h, i) => (
                   <div key={h} aria-hidden className="absolute inset-x-0 border-t border-line" style={{ top: i * HOUR_PX }}>
                     {index === 0 ? (
@@ -132,7 +134,9 @@ export function WeekGrid({
                   </div>
                 ))}
                 {isToday && timeToMinutes(nowTime) >= startHour * 60 && timeToMinutes(nowTime) <= endHour * 60 ? (
-                  <div aria-label={`Adesso, ${nowTime}`} role="img" className="absolute inset-x-0 z-10 h-px bg-accent" style={{ top: top(timeToMinutes(nowTime)) }} />
+                  <div aria-label={`Adesso, ${nowTime}`} role="img" className="absolute inset-x-0 z-10 h-px bg-accent" style={{ top: top(timeToMinutes(nowTime)) }}>
+                    <span className="absolute -left-1 -top-[3px] size-[7px] rounded-full bg-accent" />
+                  </div>
                 ) : null}
                 <ul>
                   {placed.map((b) => {
@@ -156,8 +160,9 @@ export function WeekGrid({
                             className="flex size-full flex-col overflow-hidden rounded-[10px] border border-line bg-surface px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2"
                           >
                             <span className="flex items-center gap-1.5">
-                              <span className="min-w-0 truncate">{o.event.title}</span>
                               <AreaDot area={areaById.get(o.event.area_id ?? "")} />
+                              <span className="min-w-0 flex-1 truncate font-medium">{o.event.title}</span>
+                              <AttentionMark level={o.event.attention} />
                             </span>
                             <span className="truncate text-[11.5px] text-text-3">{o.endTime ? `${time}–${o.endTime}` : time}</span>
                           </button>
@@ -223,14 +228,14 @@ export function TaskChip({
       onClick={() => onEdit({ kind: "task", task })}
       className={`${chipClass} border-dashed border-line-2`}
     >
-      {deadline ? (
-        <span className="size-1.5 shrink-0 rounded-full border border-accent" title="Scadenza">
-          <span className="sr-only">Scadenza: </span>
-        </span>
-      ) : null}
-      <span className={`min-w-0 break-words ${done ? "text-text-3 line-through" : ""}`}>{task.title}</span>
+      {deadline && !done ? (
+        <Diamond label="Scadenza" />
+      ) : (
+        <span aria-hidden className="size-[9px] shrink-0 rounded-full border-[1.3px] border-text-3" />
+      )}
+      <span className={`min-w-0 break-words ${done ? "text-text-3 line-through" : deadline ? "text-gold" : ""}`}>{task.title}</span>
       <AreaDot area={area} />
-      {task.attention === "high" && !done ? <span className="size-1.5 shrink-0 rounded-full bg-gold" title="Importante" /> : null}
+      {done || deadline ? null : <AttentionMark level={task.attention} />}
       {meta ? <span className="ml-auto shrink-0 text-[11.5px] text-text-3">{meta}</span> : null}
     </button>
   );

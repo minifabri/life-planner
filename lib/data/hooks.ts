@@ -17,6 +17,7 @@ import {
   fetchRecurrences,
   fetchTasks,
   removeTask,
+  restoreTask,
   reopenTask,
   updateTask,
 } from "./api";
@@ -131,7 +132,11 @@ export function useTaskActions(today: LocalDate, tz: string) {
     moveTo: (task: Task, date: LocalDate) => patch(task, movePatch(task, date)),
     moveToToday: (task: Task) => patch(task, movePatch(task, today)),
     dismiss: (task: Task) => patch(task, dismissPatch()),
-    remove: (task: Task) => apply(() => removeTask(task)),
+    remove: async (task: Task) => {
+      const ok = await apply(() => removeTask(task));
+      if (ok) toast({ message: "Attività eliminata", actionLabel: "Annulla", onAction: () => apply(() => restoreTask(task)) });
+      return ok;
+    },
   };
 }
 

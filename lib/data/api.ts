@@ -3,7 +3,7 @@ import { localDateString } from "../dates/today";
 import { deterministicId, uuidv7 } from "../ids";
 import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
-import { reminderRemovedOps, reminderToggledOps } from "../meals/rules";
+import { reminderRemovedOps, reminderRestoredOps, reminderToggledOps } from "../meals/rules";
 import { getSupabase } from "../supabase/client";
 import { commit, withPendingEvents, withPendingRecurrences, withPendingTasks } from "../sync/engine";
 import { byId, type DayEvents, type Op, type Row, type Table } from "../sync/ops";
@@ -243,6 +243,11 @@ export async function completeTask(task: Task, completedAt: Date, tz: string): P
 /** Elimina un'attività (reversibile). Se era la preparazione di un pasto, il pasto resta da preparare senza promemoria. */
 export async function removeTask(task: Task): Promise<void> {
   await commit([taskUpdate(task, { deleted_at: new Date().toISOString() }), ...reminderRemovedOps(task)]);
+}
+
+/** Annulla un'eliminazione appena fatta. */
+export async function restoreTask(task: Task): Promise<void> {
+  await commit([taskUpdate(task, { deleted_at: null }), ...reminderRestoredOps(task)]);
 }
 
 /** Rimette da fare un'attività; l'attività successiva della ricorrenza si toglie, se è ancora intatta. */

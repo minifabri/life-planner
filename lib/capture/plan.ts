@@ -106,6 +106,17 @@ export function whenLabel(draft: Pick<CaptureDraft, "kind" | "date" | "windowEnd
   return draft.kind === "task" ? "senza data" : "oggi";
 }
 
+/** Dove finisce ciò che si sta aggiungendo: il chip "In" del Quick Capture. */
+export function destinationLabel(draft: Pick<CaptureDraft, "kind" | "date" | "windowEnd" | "time" | "repeat">, today: LocalDate): string {
+  if (draft.kind === "shopping") return "Lista spesa";
+  if (draft.kind === "wishlist") return "Wishlist";
+  if (draft.kind === "log") return "Log";
+  const day = draft.date ?? (draft.repeat || draft.time || draft.kind === "event" ? today : null);
+  if (!day) return draft.windowEnd ? "Nel periodo" : "Senza data";
+  const where = draft.kind === "event" || draft.time ? "Agenda" : "Da fare";
+  return day === today ? `Oggi · ${where}` : where;
+}
+
 /** Riassunto letto dagli screen reader e mostrato nel toast di conferma. */
 export function describeDraft(draft: CaptureDraft, today: LocalDate): string {
   if (draft.kind === "shopping") return "Aggiunto alla spesa";

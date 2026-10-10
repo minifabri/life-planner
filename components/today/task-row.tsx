@@ -2,13 +2,14 @@
 
 import type { ReactNode } from "react";
 import { Icon } from "@/components/ui/icon";
+import { AttentionMark } from "@/components/ui/marks";
 import { formatDuration, trimTime } from "@/lib/dates/local";
 import type { Area, Task } from "@/lib/supabase/types";
 import { readTheme } from "@/lib/theme";
 
-/** Punto da 6 px con il colore dell'area di vita. */
-export function AreaDot({ area }: { area: Area | undefined }) {
-  if (!area) return null;
+/** Punto da 6 px con il colore dell'area di vita. Con `fallback` resta un punto neutro anche senza area. */
+export function AreaDot({ area, fallback = false }: { area: Area | undefined; fallback?: boolean }) {
+  if (!area) return fallback ? <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-text-2" /> : null;
   return (
     <span
       title={area.name}
@@ -27,6 +28,7 @@ export function TaskRow({
   showTime = false,
   onToggle,
   onOpen,
+  onRemove,
   actions,
 }: {
   task: Task;
@@ -36,12 +38,15 @@ export function TaskRow({
   showTime?: boolean;
   onToggle: () => void;
   onOpen: () => void;
+  /** Mostra una X per togliere l'attività senza aprirla (preparazioni dei pasti). */
+  onRemove?: () => void;
   actions?: ReactNode;
 }) {
   const done = task.status === "done";
   const details = [
     showTime && task.time ? trimTime(task.time) : null,
     task.duration_min ? formatDuration(task.duration_min) : null,
+    area?.name,
     meta,
   ].filter(Boolean);
 
@@ -56,23 +61,28 @@ export function TaskRow({
           aria-label={done ? `Rimetti da fare: ${task.title}` : `Completa: ${task.title}`}
         />
         <span
-          className={`flex size-[22px] items-center justify-center rounded-[7px] border transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
-            done ? "border-accent-fill bg-accent-fill text-on-accent" : "border-line-2 text-transparent"
+          className={`flex size-[22px] items-center justify-center rounded-full border-[1.5px] transition-[background-color,border-color,scale] duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-active:scale-[0.86] ${
+            done ? "border-accent-fill bg-accent-fill text-on-accent" : "border-text-3 text-transparent"
           }`}
         >
           <Icon name="check" size={14} strokeWidth={2.2} />
         </span>
       </label>
       <button type="button" onClick={onOpen} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 text-left">
-        <span className={`flex items-center gap-2 text-[15px] leading-snug ${done ? "text-text-3 line-through" : "text-text"}`}>
-          <span className="min-w-0 break-words">{task.title}</span>
-          <AreaDot area={area} />
-          {task.attention === "high" && !done ? (
-            <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-[0.1em] text-gold">Importante</span>
-          ) : null}
-        </span>
+        <span className={`min-w-0 break-words text-[15px] leading-snug ${done ? "text-text-3 line-through" : "text-text"}`}>{task.title}</span>
         {details.length ? <span className="text-xs text-text-3">{details.join(" · ")}</span> : null}
       </button>
+      {done ? null : <AttentionMark level={task.attention} className="mx-1.5" />}
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Elimina: ${task.title}`}
+          className="-mr-2.5 flex size-11 shrink-0 items-center justify-center rounded-xl text-text-3 hover:bg-surface-2 hover:text-text"
+        >
+          <Icon name="close" size={15} />
+        </button>
+      ) : null}
       {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
     </li>
   );

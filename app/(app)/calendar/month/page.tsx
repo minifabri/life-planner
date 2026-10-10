@@ -7,6 +7,7 @@ import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor } from "@/components/today/item-editor";
 import { TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { Diamond } from "@/components/ui/marks";
 import { dayMarks, monthGrid, monthStart, type DayMarks } from "@/lib/calendar/view";
 import { useTimezone, useToday } from "@/lib/data/hooks";
 import { useOpenEntries, usePrivateStubs } from "@/lib/data/log-hooks";
@@ -23,6 +24,7 @@ function monthTitle(month: LocalDate) {
 function describe(marks: DayMarks): string {
   const parts = [
     marks.events ? (marks.events === 1 ? "1 evento" : `${marks.events} eventi`) : null,
+    marks.lessons ? (marks.lessons === 1 ? "1 lezione" : `${marks.lessons} lezioni`) : null,
     marks.tasks ? (marks.tasks === 1 ? "1 attività" : `${marks.tasks} attività`) : null,
     marks.deadlines ? (marks.deadlines === 1 ? "1 scadenza" : `${marks.deadlines} scadenze`) : null,
     marks.important ? "cose importanti" : null,
@@ -103,31 +105,33 @@ export default function MonthPage() {
                       active ? "border-line-2 bg-surface-2" : "border-transparent hover:bg-surface-2"
                     } ${inMonth ? "" : "opacity-45"}`}
                   >
-                    <span className={view.day === today ? "text-accent" : "text-text"}>{Number(view.day.slice(8))}</span>
-                    {/* Segni minimi, mai testo nelle celle: evento, attività, scadenza, importante. */}
+                    <span className={`flex size-[26px] items-center justify-center rounded-full ${view.day === today ? "bg-accent-fill font-semibold text-on-accent" : "text-text"}`}>
+                      {Number(view.day.slice(8))}
+                    </span>
+                    {/* Segni minimi, mai testo nelle celle. */}
                     <span aria-hidden className="flex h-1.5 items-center gap-[3px]">
-                      {marks.events ? <span className="size-1.5 rounded-full bg-text-3" /> : null}
-                      {marks.tasks ? <span className="size-1.5 rounded-full bg-accent" /> : null}
-                      {marks.deadlines ? <span className="size-1.5 rounded-full border border-accent" /> : null}
-                      {marks.important ? <span className="size-1.5 rounded-full bg-gold" /> : null}
+                      {marks.deadlines || marks.important ? <Diamond size={5} /> : null}
+                      {marks.events ? <span className="size-[5px] rounded-full bg-text-2" /> : null}
+                      {marks.lessons ? <span className="size-[5px] rounded-full bg-[var(--area-teach)]" /> : null}
+                      {marks.tasks ? <span className="size-1.5 rounded-full border-[1.2px] border-text-3" /> : null}
                       {hasLog ? <span className="h-px w-1.5 bg-text-2" /> : null}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-text-3">
+            <p className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pt-1 text-[11.5px] text-text-3">
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full bg-text-3" /> eventi
+                <span aria-hidden className="size-[5px] rounded-full bg-text-2" /> Appuntamenti
               </span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full bg-accent" /> attività
+                <span aria-hidden className="size-[5px] rounded-full bg-[var(--area-teach)]" /> Lezioni
               </span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full border border-accent" /> scadenze
+                <span aria-hidden className="size-1.5 rounded-full border-[1.2px] border-text-3" /> Attività
               </span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full bg-gold" /> importante
+                <Diamond size={5} /> Scadenze e importanti
               </span>
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="h-px w-1.5 bg-text-2" /> Log

@@ -50,7 +50,7 @@ export function MealSheet({
     <Sheet title={`${SLOT_LABEL[slot]} · ${dayLabel}`} isOpen onClose={onClose}>
       {!meal && suggestions.length > 0 ? (
         <section className="flex flex-col gap-1.5">
-          <h3 className="text-xs text-text-2">I tuoi ricorrenti</h3>
+          <h3 className="label-mono">Ricorrenti</h3>
           <ul className="flex flex-col rounded-xl border border-line bg-bg px-3">
             {suggestions.slice(0, 6).map((s) => (
               <li key={s.id} className="border-b border-line last:border-b-0">
@@ -59,8 +59,11 @@ export function MealSheet({
                   onClick={() => onAdd(s.display_name, s.default_prep_mode)}
                   className="flex min-h-11 w-full items-center justify-between gap-3 text-left text-[15px]"
                 >
-                  <span className="min-w-0 break-words">{s.display_name}</span>
-                  <span className="shrink-0 text-xs text-text-3">{s.default_prep_mode === "to_prep" ? "Da preparare" : "Pronto"}</span>
+                  <span className="flex min-w-0 flex-col gap-0.5 py-1.5">
+                    <span className="break-words">{s.display_name}</span>
+                    <span className="text-xs text-text-3">{s.default_prep_mode === "to_prep" ? "Da preparare" : "Pronto"}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-text-3">{s.use_count === 1 ? "1 volta" : `${s.use_count} volte`}</span>
                 </button>
               </li>
             ))}
