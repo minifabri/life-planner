@@ -65,7 +65,30 @@ export function buildDay(
   return { day, occurrences, timed, untimed, workouts: ofDay, load };
 }
 
-export type Highlight = { key: string; time: string | null; title: string; kind: "event" | "task" | "workout"; important: boolean; done: boolean };
+export type Highlight = {
+  key: string;
+  time: string | null;
+  title: string;
+  kind: "event" | "task" | "workout";
+  important: boolean;
+  /** Attività nel periodo arrivata all'ultimo giorno utile. */
+  deadline: boolean;
+  done: boolean;
+  areaId: string | null;
+};
+
+function taskHighlight(t: Task, day: LocalDate): Highlight {
+  return {
+    key: t.id,
+    time: t.time ? t.time.slice(0, 5) : null,
+    title: t.title,
+    kind: "task",
+    important: t.attention === "high",
+    deadline: !t.date && t.due_date === day,
+    done: t.status === "done",
+    areaId: t.area_id,
+  };
+}
 
 /**
  * Gli elementi principali di un giorno per l'elenco della settimana su mobile:
@@ -79,20 +102,15 @@ export function dayHighlights(view: DayView, max = 3): { items: Highlight[]; mor
       title: o.event.title,
       kind: "event" as const,
       important: o.event.attention === "high",
+      deadline: false,
       done: false,
+      areaId: o.event.area_id,
     })),
-    ...view.timed.map((t) => ({
-      key: t.id,
-      time: t.time ? t.time.slice(0, 5) : null,
-      title: t.title,
-      kind: "task" as const,
-      important: t.attention === "high",
-      done: t.status === "done",
-    })),
+    ...view.timed.map((t) => taskHighlight(t, view.day)),
     ...view.workouts.filter((w) => w.time).map(workoutHighlight),
   ].sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
   const untimed: Highlight[] = [
-    ...view.untimed.map((t) => ({ key: t.id, time: null, title: t.title, kind: "task" as const, important: t.attention === "high", done: t.status === "done" })),
+    ...view.untimed.map((t) => taskHighlight(t, view.day)),
     ...view.workouts.filter((w) => !w.time).map(workoutHighlight),
   ].sort((a, b) => Number(a.done) - Number(b.done) || Number(b.important) - Number(a.important));
   const all = [...timed, ...untimed];
@@ -100,17 +118,37 @@ export function dayHighlights(view: DayView, max = 3): { items: Highlight[]; mor
 }
 
 function workoutHighlight(w: Workout): Highlight {
-  return { key: w.id, time: w.time ? w.time.slice(0, 5) : null, title: w.activity, kind: "workout", important: false, done: w.status === "done" };
+  return { key: w.id, time: w.time ? w.time.slice(0, 5) : null, title: w.activity, kind: "workout", important: false, deadline: false, done: w.status === "done", areaId: null };
 }
 
-/** Segni minimi di un giorno nella griglia del mese. */
-export type DayMarks = { events: number; tasks: number; deadlines: number; workouts: number; important: boolean };
+/**
+ * Quanto resta libero in un giorno, in poche parole: "giornata libera", "libera dalle 18", "4 h libere".
+ * Le ore libere sono quelle che mancano alle otto di una giornata piena.
+ */
+export function freeLabel(view: DayView): string {
+  if (view.load.level === "empty") return "giornata libera";
+  if (view.load.level === "light") return "giornata leggera";
+  const blocks = timedBlocks(view);
+  const lastEnd = blocks.reduce((max, b) => Math.max(max, b.endMin), 0);
+  const untimedMin = view.untimed.filter((t) => t.status === "open").reduce((sum, t) => sum + (t.duration_min ?? 0), 0);
+  if (blocks.length && !untimedMin && lastEnd <= 18 * 60) {
+    const hour = Math.ceil(lastEnd / 60);
+    return `libera dalle ${hour}`;
+  }
+  const free = Math.floor((480 - view.load.minutes) / 60);
+  return free >= 1 ? `${free} h libere` : "giornata piena";
+}
+
+/** Segni minimi di un giorno nella griglia del mese. Le lezioni (imayoga) hanno un segno a parte e non contano tra gli eventi. */
+export type DayMarks = { events: number; lessons: number; tasks: number; deadlines: number; workouts: number; important: boolean };
 
 export function dayMarks(view: DayView, tasks: Task[]): DayMarks {
   const open = [...view.timed, ...view.untimed].filter((t) => t.status === "open");
   const deadlines = tasks.filter((t) => t.status === "open" && !t.deleted_at && t.due_date === view.day).length;
+  const lessons = view.occurrences.filter((o) => o.event.source === "imayoga").length;
   return {
-    events: view.occurrences.length,
+    events: view.occurrences.length - lessons,
+    lessons,
     tasks: open.filter((t) => t.due_date !== view.day || t.date !== null).length,
     deadlines,
     workouts: view.workouts.length,

@@ -73,6 +73,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        {pathname.startsWith("/calendar/week") ? (
+          <ul aria-label="Legenda" className="flex flex-col gap-2.5 px-2.5 text-xs text-text-3">
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="h-2.5 w-[18px] rounded-[3px] border border-line-2 bg-surface-2" />
+              Evento
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="h-2.5 w-[18px] rounded-[3px] border border-dashed border-text-3" />
+              Attività con orario
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="mx-[5px] size-2 rotate-45 bg-gold" />
+              Scadenza o importante
+            </li>
+          </ul>
+        ) : null}
         <div className="flex-1" />
         <Link
           href="/settings"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCapture } from "../parser/parse";
-import { describeDraft, planCapture, quickDays, whenLabel, type CaptureDraft } from "./plan";
+import { describeDraft, destinationLabel, planCapture, quickDays, whenLabel, type CaptureDraft } from "./plan";
 
 const TODAY = "2026-10-10";
 const TZ = "Europe/Rome";
@@ -91,6 +91,16 @@ describe("planCapture", () => {
       kind: "log",
       entry: { title: "Visita", date: TODAY, time: null, category_id: "c1", is_sensitive: true },
     });
+  });
+});
+
+describe("destinationLabel", () => {
+  it("dice dove finisce ciò che si aggiunge", () => {
+    expect(destinationLabel(draft("comprare tofu"), TODAY)).toBe("Lista spesa");
+    expect(destinationLabel(draft("oggi chiamare l'idraulico"), TODAY)).toBe("Oggi · Da fare");
+    expect(destinationLabel(draft("domani alle 20 mettere in ammollo le lenticchie"), TODAY)).toBe("Agenda");
+    expect(destinationLabel(draft("restituire il libro entro domenica"), TODAY)).toBe("Nel periodo");
+    expect(destinationLabel(draft("prenotare unghie"), TODAY)).toBe("Senza data");
   });
 });
 

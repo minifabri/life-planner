@@ -7,6 +7,7 @@ import {
   canMoveEvent,
   dayHighlights,
   dayMarks,
+  freeLabel,
   hourRange,
   layoutBlocks,
   monthGrid,
@@ -101,7 +102,33 @@ describe("dayMarks", () => {
     ];
     const events = [event({ id: "e", start_at: "2026-10-12T13:00:00.000Z" })];
     const view = buildDay(tasks, events, [], "2026-10-12", TODAY, TZ);
-    expect(dayMarks(view, tasks)).toEqual({ events: 1, tasks: 2, deadlines: 1, workouts: 0, important: true });
+    expect(dayMarks(view, tasks)).toEqual({ events: 1, lessons: 0, tasks: 2, deadlines: 1, workouts: 0, important: true });
+  });
+
+  it("le lezioni di imayoga hanno un segno a parte", () => {
+    const events = [event({ id: "e", start_at: "2026-10-12T13:00:00.000Z" }), event({ id: "lezione", start_at: "2026-10-12T16:00:00.000Z", source: "imayoga" })];
+    const marks = dayMarks(buildDay([], events, [], "2026-10-12", TODAY, TZ), []);
+    expect(marks.events).toBe(1);
+    expect(marks.lessons).toBe(1);
+  });
+});
+
+describe("freeLabel", () => {
+  const day = "2026-10-12";
+  const label = (tasks: Task[]) => freeLabel(buildDay(tasks, [], [], day, TODAY, TZ));
+
+  it("giornate vuote e leggere si dicono così", () => {
+    expect(label([])).toBe("giornata libera");
+    expect(label([task({ id: "a", date: day, time: "09:00:00", duration_min: 60 })])).toBe("giornata leggera");
+  });
+
+  it("se tutto finisce entro le 18 dice da che ora è libera", () => {
+    expect(label([task({ id: "a", date: day, time: "09:00:00", duration_min: 240 }), task({ id: "b", date: day, time: "15:00:00", duration_min: 90 })])).toBe("libera dalle 17");
+  });
+
+  it("altrimenti conta le ore che restano", () => {
+    expect(label([task({ id: "a", date: day, time: "09:00:00", duration_min: 180 }), task({ id: "b", date: day, time: "19:00:00", duration_min: 60 })])).toBe("4 h libere");
+    expect(label([task({ id: "a", date: day, time: "09:00:00", duration_min: 300 }), task({ id: "b", date: day, time: "19:00:00", duration_min: 180 })])).toBe("giornata piena");
   });
 });
 

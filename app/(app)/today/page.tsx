@@ -39,7 +39,8 @@ import { todayHeading } from "@/lib/dates/today";
 import { takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
-import { LOAD_LABEL, dayLoad } from "@/lib/tasks/load";
+import { timeToMinutes } from "@/lib/calendar/view";
+import { LOAD_LABEL, PART_LABEL, dayLoad, loadSplit } from "@/lib/tasks/load";
 import { eveningHeading, morningOverview, overviewMode } from "@/lib/today/overview";
 import type { Task, Workout } from "@/lib/supabase/types";
 import { shownStatus, summarize, summaryLabel, workoutsOfDay } from "@/lib/workouts/summary";
@@ -129,11 +130,19 @@ export default function TodayPage() {
   const workouts = workoutsOfDay(weekWorkouts, day);
   const weekSummary = summarize(weekWorkouts, weekStart(day), endOfWeek(day));
 
-  const load = dayLoad([
-    ...occurrences.map((o) => o.durationMin),
-    ...[...sections.agenda, ...sections.todo].filter((t) => t.status === "open").map((t) => t.duration_min),
-    ...workouts.filter((w) => shownStatus(w, today) === "planned").map((w) => w.duration_min),
-  ]);
+  const loadItems = [
+    ...occurrences.map((o) => ({ startMin: o.allDay || !o.startTime ? null : timeToMinutes(o.startTime), minutes: o.durationMin })),
+    ...[...sections.agenda, ...sections.todo]
+      .filter((t) => t.status === "open")
+      .map((t) => ({ startMin: t.time ? timeToMinutes(trimTime(t.time)) : null, minutes: t.duration_min })),
+    ...workouts
+      .filter((w) => shownStatus(w, today) === "planned")
+      .map((w) => ({ startMin: w.time ? timeToMinutes(trimTime(w.time)) : null, minutes: w.duration_min })),
+  ];
+  const load = dayLoad(loadItems.map((i) => i.minutes));
+  // La barra distingue ciò che è già passato da ciò che resta: un giorno passato è tutto alle spalle, uno futuro tutto davanti.
+  const split = loadSplit(loadItems, isToday ? timeToMinutes(nowTime) : day < today ? 24 * 60 : 0);
+  const loadText = [LOAD_LABEL[load.level], split.peak ? PART_LABEL[split.peak] : null].filter(Boolean).join(" · ");
 
   const h = todayHeading(atLocalTime(day, "12:00", tz), tz);
   const eyebrow = isToday ? "Oggi" : relativeDay(day, today);
@@ -164,9 +173,12 @@ export default function TodayPage() {
       : null;
 
   const nowLine = (
-    <li aria-label={`Adesso, ${nowTime}`} className="flex items-center gap-2 py-1">
-      <span className="font-mono text-[10.5px] tracking-[0.08em] text-accent">{nowTime}</span>
-      <span className="h-px flex-1 bg-accent" />
+    <li aria-label={`Adesso, ${nowTime}`} className="flex h-6 items-center gap-3">
+      <span className="w-11 shrink-0 font-mono text-[11px] text-accent">{nowTime}</span>
+      <span className="flex flex-1 items-center">
+        <span className="-ml-[3px] size-[7px] rounded-full bg-accent shadow-[0_0_0_4px_var(--accent-soft)]" />
+        <span className="h-px flex-1 bg-accent opacity-45" />
+      </span>
     </li>
   );
 
@@ -198,23 +210,26 @@ export default function TodayPage() {
             </Link>
           </div>
         </div>
-        <div className="flex min-h-6 items-center gap-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex min-h-6 items-baseline justify-between gap-3">
+            <span className="text-[13px] text-text-2">{loadText}</span>
+            <span className="flex items-baseline gap-1">
+              {load.minutes ? <span className="font-mono text-xs text-text-3">{formatDuration(load.minutes)} pianificate</span> : null}
+              {!isToday ? (
+                <button type="button" onClick={() => setSelected(null)} className="-my-2.5 -mr-2.5 min-h-11 rounded-lg px-2.5 text-[13px] text-accent hover:bg-surface-2">
+                  Torna a oggi
+                </button>
+              ) : null}
+            </span>
+          </div>
           <div
             role="img"
-            aria-label={`${LOAD_LABEL[load.level]}${load.minutes ? `: ${formatDuration(load.minutes)} impegnati` : ""}`}
-            className="h-[3px] flex-1 overflow-hidden rounded-full bg-line"
+            aria-label={`${loadText}${load.minutes ? `: ${formatDuration(load.minutes)} pianificate` : ""}`}
+            className="flex h-1 gap-0.5 overflow-hidden rounded-full bg-line"
           >
-            <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${load.ratio * 100}%` }} />
+            {split.past > 0 ? <div className="rounded-full bg-text-3 opacity-45 transition-[width] duration-300" style={{ width: `${split.past * 100}%` }} /> : null}
+            {split.rest > 0 ? <div className="rounded-full bg-accent transition-[width] duration-300" style={{ width: `${split.rest * 100}%` }} /> : null}
           </div>
-          <span className="text-xs text-text-3">
-            {LOAD_LABEL[load.level]}
-            {load.minutes ? ` · ${formatDuration(load.minutes)}` : ""}
-          </span>
-          {!isToday ? (
-            <button type="button" onClick={() => setSelected(null)} className="-my-2.5 min-h-11 rounded-lg px-2.5 text-[13px] text-accent hover:bg-surface-2">
-              Torna a oggi
-            </button>
-          ) : null}
         </div>
       </header>
 
@@ -307,6 +322,7 @@ export default function TodayPage() {
                       <EventBlock
                         occurrence={item.occurrence}
                         area={areaById.get(item.occurrence.event.area_id ?? "")}
+                        past={isToday && !item.occurrence.allDay && (item.occurrence.endTime ?? item.occurrence.startTime ?? "99") <= nowTime}
                         onOpen={() => setEditor({ kind: "event", occurrence: item.occurrence! })}
                       />
                     ) : (
@@ -340,6 +356,7 @@ export default function TodayPage() {
                     meta={t.source === "meal" && t.notes ? t.notes : t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
                     onToggle={() => actions.toggle(t)}
                     onOpen={() => openTask(t)}
+                    onRemove={t.source === "meal" && t.status === "open" ? () => actions.remove(t) : undefined}
                   />
                 ))}
               </ul>

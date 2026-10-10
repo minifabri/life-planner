@@ -75,6 +75,7 @@ export default function LogPage() {
   const groups = groupByMonth(rows);
   const tags = tagsOf(readable);
   const hiddenCount = unlocked ? 0 : stubs.length;
+  const lastSeen = lastSeenByCategory(categories, readable, today, unlocked).filter((c) => c.category.track_last);
   const missing = openQuery.data === undefined;
   const failed = missing && (offline || openQuery.isError);
 
@@ -199,6 +200,33 @@ export default function LogPage() {
             ) : null}
             <Segmented label="Periodo" value={filter.period} options={PERIODS} onChange={(period) => setFilter({ ...filter, period })} />
           </div>
+
+          {/* "Ultima volta" in testa alla cronologia, finché non si cerca o filtra. */}
+          {!isFiltering(filter) && lastSeen.length > 0 ? (
+            <section className="flex flex-col gap-2">
+              <h2 className="label-mono">Ultima volta</h2>
+              <ul className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {lastSeen.map(({ category, last, hidden }) => (
+                  <li key={category.id}>
+                    <button
+                      type="button"
+                      onClick={() => setFilter({ ...NO_FILTER, categoryId: category.id })}
+                      aria-label={`${category.name}: ${hidden ? "riservata" : last ? daysAgoLabel(last, today) : "mai registrata"}. Apri le registrazioni`}
+                      className="flex min-h-[64px] w-full flex-col justify-center gap-1 rounded-xl border border-line bg-surface px-3.5 py-3 text-left hover:bg-surface-2"
+                    >
+                      <span className="flex items-center gap-1.5 text-[13px] text-text-2">
+                        {category.is_sensitive ? <Icon name="lock" size={12} className="shrink-0" /> : null}
+                        <span className="min-w-0 truncate">{category.name}</span>
+                      </span>
+                      <span className={`text-[17px] first-letter:uppercase ${hidden || !last ? "text-text-3" : "text-text"}`}>
+                        {hidden ? "Riservata" : last ? daysAgoLabel(last, today) : "Mai"}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {hiddenCount > 0 ? (
             <button

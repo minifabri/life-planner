@@ -142,6 +142,12 @@ export function reminderRemovedOps(task: ReminderTask): Op[] {
   ];
 }
 
+/** Eliminazione annullata: il promemoria torna collegato al suo pasto. */
+export function reminderRestoredOps(task: ReminderTask): Op[] {
+  if (!isReminder(task)) return [];
+  return [{ kind: "update", table: "meal_plans", patch: { reminder_task_id: task.id }, where: byId(task.meal_plan_id) }];
+}
+
 /** Il planner impara: una volta in più per questo piatto in questo momento, con la modalità scelta. */
 export function rememberMealOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, now: string): Op {
   return {

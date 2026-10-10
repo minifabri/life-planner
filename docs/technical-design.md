@@ -647,7 +647,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - **Settimana, mobile**: elenco dei sette giorni con barra di carico e fino a tre elementi; il tocco apre il Giorno. Per spostare un elemento si apre e si cambia la data.
   - **Settimana, desktop**: sette colonne con attività senza orario in testa e blocchi posizionati sull'orario (8–20, allargato a ciò che c'è). Si trascinano tra i giorni le attività e gli eventi nati nell'app e non ricorrenti; serie ed eventi di Google o iCloud restano fermi. Un evento spostato mantiene ora locale e durata.
   - **Fascia Periodo** (D33): attività nel periodo ancora aperte la cui finestra tocca la settimana; trascinate su un giorno prendono quella data. Nell'ultimo giorno utile compaiono anche nella colonna, con il segno di scadenza.
-  - **Mese**: solo segni nelle celle (evento, attività, scadenza, importante) con legenda; un tocco mostra l'anteprima del giorno sotto la griglia, il doppio tocco o "Apri il giorno" apre il Giorno. I segni del Log arrivano con l'incremento 7.
+  - **Mese**: solo segni nelle celle (appuntamento, lezione di imayoga, attività, rombo oro per scadenze e cose importanti) con legenda; un tocco mostra l'anteprima del giorno sotto la griglia, il doppio tocco o "Apri il giorno" apre il Giorno. I segni del Log arrivano con l'incremento 7.
   - Il giorno scelto passa alla vista Giorno in memoria (`lib/nav/day-handoff.ts`), non nell'URL.
   - Non incluso: trascinamento verticale per cambiare orario; filtro "Senza data" (ancora [PROPOSTA] nella Product Definition 6).
 
@@ -696,6 +696,14 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - La chiusura vale per il giorno e per il dispositivo (`localStorage`), non è sincronizzata.
   - Impostazioni → "Mattino e sera": nome usato nel saluto (`display_name`) e ora della review, solo con la rete.
   - Non incluso: notifica facoltativa che accompagna le card (incremento 9); `morning_overview_time` resta inutilizzato fino ad allora.
+
+**Allineamento al prototipo** *(10 ottobre 2026)*
+- Segni comuni in `components/ui/marks.tsx`: rombo oro per attenzione alta e scadenze, punto viola per l'attenzione media (al posto della scritta "Importante").
+- **Oggi**: caselle tonde; area di vita scritta nel dettaglio della riga (il punto colorato resta sugli eventi); barra di carico in due parti, passato e resto, con la parte più piena della giornata (`loadSplit` in `lib/tasks/load.ts`); eventi già finiti attenuati; X sulle preparazioni dei pasti. Ogni eliminazione di un'attività si può annullare dal toast (`restoreTask`).
+- **Quick Capture**: chip con il nome del campo, chip "In" con la destinazione (`destinationLabel`), note su "Nel periodo" e categorie riservate. Dopo "Aggiungi" il foglio si chiude, come prima.
+- **Settimana**: su mobile numero del giorno, tempo libero (`freeLabel`) e segni distinti per evento, attività e scadenza; su desktop legenda nella barra laterale, giorni passati attenuati e conferma dello spostamento con Annulla.
+- **Log**: tessere "Ultima volta" in testa alla cronologia. Nel Mese il Log resta un trattino neutro (D24).
+- Non toccata la Spesa: le sue differenze sono sul ramo `claude/shopping-list-ux-4ae3ef`.
 
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 
