@@ -232,6 +232,11 @@ use_count int default 0, last_used_at timestamptz
 unique (owner_id, name_normalized)
 ```
 Aggiornata quando un articolo viene spuntato (`use_count + 1`, `last_used_at = now()`). Punteggio dei suggerimenti: `use_count + max(0, 30 - giorni dall'ultimo uso) / 3` (lo stesso del prototipo, da tarare).
+Implementazione (incremento 4): la aggiorna il trigger `shopping_items_learn` nella stessa transazione dell'articolo (migrazione `20261010110000_shopping_memory.sql`, verifica in `supabase/tests/shopping_memory_check.sql`), così resta coerente anche con le modifiche sincronizzate dalla outbox.
+- Nuovo articolo senza reparto → eredita quello imparato per lo stesso nome (`normalize_product_name`: minuscolo, senza accenti).
+- Nome o reparto modificati → il catalogo impara il nuovo reparto (anche "nessuno").
+- Spunta → `use_count + 1` e `last_used_at = checked_at`; spunta tolta → `use_count - 1`. "Svuota completati" è un soft delete e non tocca il catalogo.
+- I suggerimenti mostrano solo prodotti comprati almeno una volta (`use_count > 0`), per non riproporre errori di battitura.
 
 **wishlist_items**
 ```
@@ -351,7 +356,7 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 ### 6.4 Come è stato realizzato (incremento 3, 10 ottobre 2026)
 - **Modifiche come dati** (`lib/sync/ops.ts`, puro e testato): ogni scrittura è un'operazione `insert` / `update` / `delete` su una tabella. La stessa descrizione serve a inviarla a Supabase e ad applicarla ai dati in cache. Gli inserimenti partono come upsert che ignora i doppioni: rimandare una modifica la cui risposta è andata persa non crea nulla due volte.
 - **Outbox** (`lib/sync/outbox.ts`, Dexie, database `planner`): le modifiche si inviano una alla volta, in ordine. Senza rete, con errori 5xx o con la sessione da rinnovare (401) l'invio si ferma e riprova al giro successivo; un rifiuto vero del server (4xx) scarta la modifica, avvisa con un toast e rilegge i dati.
-- **Cache** (`lib/sync/engine.ts`): il risultato di ogni lettura è "dati del server + modifiche ancora in attesa", quindi un refetch non cancella ciò che non è ancora partito. La cache di TanStack Query è salvata in IndexedDB (7 giorni) per profilo, aree, categorie, liste, ricorrenze, attività ed eventi. Il Log non viene salvato.
+- **Cache** (`lib/sync/engine.ts`): il risultato di ogni lettura è "dati del server + modifiche ancora in attesa", quindi un refetch non cancella ciò che non è ancora partito. La cache di TanStack Query è salvata in IndexedDB (7 giorni) per profilo, aree, categorie, liste, ricorrenze, attività, eventi, lista della spesa e catalogo dei prodotti. Il Log non viene salvato.
 - **Giorni disponibili offline**: oggi, ieri e domani vengono scaricati a ogni apertura; gli altri giorni solo se già visitati.
 - **Conflitti**: vince l'ultima modifica che arriva al server, campo per campo (le azioni rapide inviano solo i campi cambiati). Non si confronta `updated_at`: con un confronto per riga, completare un'attività offline verrebbe annullato da una modifica al titolo fatta più tardi su un altro dispositivo. **[APPROVATO il 10 ottobre 2026]**: sostituisce il confronto su `updated_at` del punto 5 della 6.1.
 - **Ricorrenze**: la prossima attività "N giorni dopo" nasce offline insieme al completamento (id deterministico). Le occorrenze a calendario fisso si creano solo con la rete: a ogni apertura, al cambio di giorno e dopo ogni invio riuscito.
@@ -556,11 +561,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Criteri: tutte le frasi della suite interpretate correttamente; cattura sotto i 3 secondi per frasi semplici.
 
 **Incremento 3 — Offline per Today e Spesa**
-- Persistenza cache, outbox, svuotamento al ritorno in primo piano (realizzazione: sezione 6.4). La lista della Spesa arriva con l'incremento 4 e userà la stessa outbox; da subito funzionano offline Today e il Quick Capture, compresi gli articoli aggiunti alla spesa.
+- Persistenza cache, outbox, svuotamento al ritorno in primo piano (realizzazione: sezione 6.4). Funzionano offline Today, il Quick Capture e la Spesa (aggiungi, spunta, modifica, svuota; il catalogo dei prodotti lo aggiorna il database alla sincronizzazione).
 - Criteri: modalità aereo sull'iPhone → modifiche → riattivazione → dati coerenti su desktop.
 
 **Incremento 4 — Spesa**
 - Lista con reparti appresi, suggerimenti da product_memory, storico, svuota completati, Realtime.
+- Realizzato il 10 ottobre 2026 sul livello dati online: l'aggancio alla outbox arriva con l'unione dell'incremento 3 (le scritture della Spesa sono tutte in `lib/data/shopping.ts`).
+- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto resta [PROPOSTA] e non è incluso.
+- La quantità si può scrivere insieme al nome ("2 latte", "latte x2", "500 g farina"), anche dal Quick Capture (`lib/shopping/entry.ts`).
+- Criteri: test di `lib/shopping`; verifica SQL del catalogo; dal telefono: aggiungi, assegna un reparto, spunta, svuota, riaggiungi dallo storico e ritrova il reparto; con telefono e computer aperti insieme la lista si aggiorna da sola.
 
 **Incremento 5 — Planner pasti**
 - Settimana, quattro pasti, ricorrenti per pasto, Pronto/Da preparare, attività del giorno prima sincronizzata.

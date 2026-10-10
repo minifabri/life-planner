@@ -50,6 +50,13 @@ const PATHS = {
   ),
   check: <path d="M5 12.5l4.2 4L19 7" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="0.9" />
+      <circle cx="12" cy="12" r="0.9" />
+      <circle cx="18.5" cy="12" r="0.9" />
+    </>
+  ),
   chevronLeft: <path d="M15 6l-6 6 6 6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
 };

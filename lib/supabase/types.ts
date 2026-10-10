@@ -111,6 +111,26 @@ export type List = {
   name: string;
 };
 
+export type ShoppingItem = {
+  id: string;
+  list_id: string;
+  name: string;
+  quantity: string | null;
+  department: string | null;
+  checked: boolean;
+  checked_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+};
+
+export type ProductMemory = {
+  id: string;
+  display_name: string;
+  department: string | null;
+  use_count: number;
+  last_used_at: string | null;
+};
+
 export type IcloudAccount = {
   owner_id: string;
   apple_id: string;

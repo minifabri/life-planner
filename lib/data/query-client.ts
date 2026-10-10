@@ -19,4 +19,4 @@ export const queryClient = new QueryClient({
 });
 
 /** Le query salvate sul dispositivo. Il Log non c'è: resta solo online (technical-design.md, 6.2). */
-export const PERSISTED_QUERIES = ["profile", "areas", "log-categories", "lists", "recurrences", "tasks", "events"];
+export const PERSISTED_QUERIES = ["profile", "areas", "log-categories", "lists", "recurrences", "tasks", "events", "shopping-items", "product-memory"];

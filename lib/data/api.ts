@@ -296,16 +296,11 @@ export async function fetchLists(): Promise<List[]> {
   return check(await getSupabase().from("lists").select("id, kind, name").order("created_at"));
 }
 
-async function listId(kind: List["kind"]): Promise<string> {
+/** L'id della lista, dalla cache: si trova anche senza rete. */
+export async function listId(kind: List["kind"]): Promise<string> {
   const list = (await queryClient.ensureQueryData(listsQuery)).find((l) => l.kind === kind);
   if (!list) throw new Error(`Lista mancante: ${kind}`);
   return list.id;
-}
-
-export async function createShoppingItem(name: string): Promise<string> {
-  const id = uuidv7();
-  await commit([insert("shopping_items", { id, list_id: await listId("shopping"), name })]);
-  return id;
 }
 
 /** Con un link l'articolo nasce con `source = 'link'`: i metadati si recuperano dopo (incremento 8). */

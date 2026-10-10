@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventRow, Task } from "../supabase/types";
-import { applyToDayEvents, applyToRecurrences, applyToTasks, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
+import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
 
 const AT = "2026-10-10T08:00:00.000Z";
 const TZ = "Europe/Rome";
@@ -162,6 +162,24 @@ describe("applyToRecurrences", () => {
     expect(created[0]).toMatchObject({ id: "r", active: true, until: null, interval_days: 30 });
     const stopped = applyToRecurrences(created, { kind: "update", table: "recurrences", patch: { active: false }, where: byId("r") });
     expect(stopped[0].active).toBe(false);
+  });
+});
+
+describe("applyToShopping", () => {
+  const add: Op = { kind: "insert", table: "shopping_items", row: { id: "s", list_id: "l", name: "Latte" } };
+
+  it("aggiunge, spunta e toglie un articolo", () => {
+    const added = applyToShopping([], add, AT);
+    expect(added[0]).toMatchObject({ id: "s", name: "Latte", checked: false, quantity: null, created_at: AT });
+    const checked = applyToShopping(added, { kind: "update", table: "shopping_items", patch: { checked: true, checked_at: AT }, where: byId("s") }, AT);
+    expect(checked[0].checked).toBe(true);
+    expect(applyToShopping(checked, { kind: "update", table: "shopping_items", patch: { deleted_at: AT }, where: byId("s") }, AT)).toEqual([]);
+  });
+
+  it("annullare un'eliminazione rimette l'articolo in lista", () => {
+    const [item] = applyToShopping([], add, AT);
+    const undo: Op = { kind: "update", table: "shopping_items", patch: { deleted_at: null }, where: byId("s"), snapshot: { ...item, deleted_at: null } };
+    expect(applyToShopping([], undo, AT)).toEqual([item]);
   });
 });
 

@@ -1,5 +1,5 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
-import type { EventException, EventRow, Recurrence, Task } from "../supabase/types";
+import type { EventException, EventRow, Recurrence, ShoppingItem, Task } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -167,6 +167,17 @@ export function applyToDayEvents(data: DayEvents, op: Op, at: string, day: Local
 export function applyToRecurrences(recurrences: Recurrence[], op: Op): Recurrence[] {
   if (op.table !== "recurrences") return recurrences;
   return applyToRows(recurrences, op, (row) => ({ active: true, until: null, rrule: null, interval_days: null, ...row }) as Recurrence);
+}
+
+/** La lista della spesa dopo una modifica in attesa. */
+export function applyToShopping(items: ShoppingItem[], op: Op, at: string): ShoppingItem[] {
+  if (op.table !== "shopping_items") return items;
+  return applyToRows(
+    items,
+    op,
+    (row) =>
+      ({ quantity: null, department: null, checked: false, checked_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
+  ).filter((i) => !i.deleted_at);
 }
 
 /** Esito di un invio, dal codice HTTP della risposta (0 = la richiesta non è partita o non è arrivata). */

@@ -2,9 +2,9 @@ import { queryClient } from "../data/query-client";
 import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
-import type { Profile, Recurrence, Task } from "../supabase/types";
+import type { Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToRecurrences, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 async function currentOwner(): Promise<string | null> {
@@ -40,6 +40,8 @@ function applyToCache(op: Op, at: string) {
     }
   } else if (op.table === "recurrences") {
     queryClient.setQueryData<Recurrence[]>(["recurrences"], (old) => old && applyToRecurrences(old, op));
+  } else if (op.table === "shopping_items") {
+    queryClient.setQueryData<ShoppingItem[]>(["shopping-items"], (old) => old && applyToShopping(old, op, at));
   }
 }
 
@@ -76,6 +78,10 @@ export async function withPendingEvents(data: DayEvents, day: LocalDate, tz: str
 
 export async function withPendingRecurrences(recurrences: Recurrence[]): Promise<Recurrence[]> {
   return (await pending()).reduce((acc, e) => applyToRecurrences(acc, e.op), recurrences);
+}
+
+export async function withPendingShopping(items: ShoppingItem[]): Promise<ShoppingItem[]> {
+  return (await pending()).reduce((acc, e) => applyToShopping(acc, e.op, e.at), items);
 }
 
 export type SyncState = {
@@ -136,10 +142,9 @@ async function runSync() {
     const result = await flush(owner, send);
     setState({ pending: result.pending, stalled: result.pending > 0 });
     if (result.sent || result.rejected) {
-      // Si rilegge dal server: è lui la fonte di verità, anche per ciò che ha rifiutato.
-      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      void queryClient.invalidateQueries({ queryKey: ["events"] });
-      void queryClient.invalidateQueries({ queryKey: ["recurrences"] });
+      // Si rilegge tutto dal server: è lui la fonte di verità, anche per ciò che ha rifiutato
+      // e per ciò che calcola da solo (es. il catalogo della spesa).
+      void queryClient.invalidateQueries();
       for (const listener of syncedListeners) listener(result);
     }
     if (result.pending > 0 && !again) return;
