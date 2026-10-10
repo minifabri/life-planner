@@ -8,6 +8,7 @@ export type Profile = {
   display_name: string | null;
   timezone: string;
   theme: "dark" | "light";
+  evening_review_time: string;
 };
 
 export type Area = {
