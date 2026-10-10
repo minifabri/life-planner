@@ -12,14 +12,14 @@ import { useImayogaAutoSync } from "@/lib/imayoga/hooks";
 type NavItem = { href: string; label: string; icon: IconName; match: string[] };
 
 const MOBILE_NAV: NavItem[] = [
-  { href: "/today", label: "Oggi", icon: "sun", match: ["/today"] },
+  { href: "/today", label: "Oggi", icon: "sun", match: ["/today", "/workouts"] },
   { href: "/calendar/week", label: "Calendario", icon: "calendar", match: ["/calendar"] },
   { href: "/lists/shopping", label: "Liste", icon: "list", match: ["/lists"] },
   { href: "/log", label: "Log", icon: "journal", match: ["/log"] },
 ];
 
 const DESKTOP_NAV: NavItem[] = [
-  { href: "/today", label: "Oggi", icon: "sun", match: ["/today"] },
+  { href: "/today", label: "Oggi", icon: "sun", match: ["/today", "/workouts"] },
   { href: "/calendar/week", label: "Calendario", icon: "calendar", match: ["/calendar"] },
   { href: "/lists/shopping", label: "Spesa", icon: "list", match: ["/lists/shopping"] },
   { href: "/lists/meals", label: "Pasti", icon: "meal", match: ["/lists/meals"] },

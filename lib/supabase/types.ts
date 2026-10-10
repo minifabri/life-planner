@@ -41,6 +41,30 @@ export type Task = {
   updated_at: string;
 };
 
+export type WorkoutStatus = "planned" | "done" | "skipped";
+
+/** Allenamento: si pianifica e si completa, ma se salta non resta indietro. */
+export type Workout = {
+  id: string;
+  /** Disciplina, testo libero: "Corsa", "Forza". */
+  activity: string;
+  date: string;
+  time: string | null;
+  duration_min: number | null;
+  notes: string | null;
+  status: WorkoutStatus;
+  completed_at: string | null;
+  distance_m: number | null;
+  energy_kcal: number | null;
+  avg_hr: number | null;
+  source: "app" | "health";
+  /** Identificativo dell'allenamento in Salute di Apple: evita i duplicati. */
+  health_id: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EventRow = {
   id: string;
   title: string;

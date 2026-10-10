@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { weekStart } from "../dates/local";
-import type { EventRow, Task } from "../supabase/types";
-import { applyToDayEvents, applyToTasks } from "../sync/ops";
+import type { EventRow, Task, Workout } from "../supabase/types";
+import { applyToDayEvents, applyToTasks, applyToWorkouts } from "../sync/ops";
 import {
   buildDay,
   canMoveEvent,
@@ -101,7 +101,7 @@ describe("dayMarks", () => {
     ];
     const events = [event({ id: "e", start_at: "2026-10-12T13:00:00.000Z" })];
     const view = buildDay(tasks, events, [], "2026-10-12", TODAY, TZ);
-    expect(dayMarks(view, tasks)).toEqual({ events: 1, tasks: 2, deadlines: 1, important: true });
+    expect(dayMarks(view, tasks)).toEqual({ events: 1, tasks: 2, deadlines: 1, workouts: 0, important: true });
   });
 });
 
@@ -195,5 +195,43 @@ describe("griglia oraria", () => {
       ["e", 900, 960],
       ["t", 570, 600],
     ]);
+  });
+});
+
+function workout(over: Partial<Workout> & { id: string; date: string }): Workout {
+  return applyToWorkouts([], { kind: "insert", table: "workouts", row: { activity: over.id, ...over } }, AT, "2026-01-01", "2026-12-31")[0];
+}
+
+describe("allenamenti nel calendario", () => {
+  const workouts = [
+    workout({ id: "corsa", date: "2026-10-12", time: "18:00:00", duration_min: 45 }),
+    workout({ id: "stretching", date: "2026-10-12" }),
+    workout({ id: "forza", date: "2026-10-12", status: "done", duration_min: 60 }),
+    workout({ id: "altro giorno", date: "2026-10-13", duration_min: 30 }),
+  ];
+  const view = buildDay([], [], [], "2026-10-12", TODAY, TZ, workouts);
+
+  it("un giorno raccoglie i suoi allenamenti, prima quelli con orario", () => {
+    expect(view.workouts.map((w) => w.id)).toEqual(["corsa", "stretching", "forza"]);
+  });
+
+  it("nel carico del giorno contano solo quelli ancora in programma", () => {
+    expect(view.load.minutes).toBe(45);
+    // Uno pianificato in un giorno passato è saltato: non occupa più tempo.
+    const past = buildDay([], [], [], "2026-10-08", TODAY, TZ, [workout({ id: "saltato", date: "2026-10-08", duration_min: 40 })]);
+    expect(past.load.minutes).toBe(0);
+  });
+
+  it("compaiono tra gli elementi principali e nei segni del mese", () => {
+    expect(dayHighlights(view, 5).items.map((i) => [i.title, i.kind, i.time, i.done])).toEqual([
+      ["corsa", "workout", "18:00", false],
+      ["stretching", "workout", null, false],
+      ["forza", "workout", null, true],
+    ]);
+    expect(dayMarks(view, []).workouts).toBe(3);
+  });
+
+  it("quelli con orario diventano blocchi della griglia", () => {
+    expect(timedBlocks(view).map((b) => [b.key, b.startMin, b.endMin])).toEqual([["corsa", 1080, 1125]]);
   });
 });
