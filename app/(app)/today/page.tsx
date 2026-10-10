@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EventBlock } from "@/components/today/event-block";
+import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
+import { QuickAdd } from "@/components/today/quick-add";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
@@ -14,6 +16,7 @@ import {
   useAreas,
   useEvents,
   useOffline,
+  useProfile,
   useTaskActions,
   useTasks,
   useTimezone,
@@ -37,6 +40,7 @@ import { takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { LOAD_LABEL, dayLoad } from "@/lib/tasks/load";
+import { eveningHeading, morningOverview, overviewMode } from "@/lib/today/overview";
 import type { Task, Workout } from "@/lib/supabase/types";
 import { shownStatus, summarize, summaryLabel, workoutsOfDay } from "@/lib/workouts/summary";
 
@@ -49,8 +53,7 @@ function isTyping(target: EventTarget | null) {
 export default function TodayPage() {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
-  // Arrivando da Settimana o Mese si apre il giorno scelto lì.
-  const [selected, setSelected] = useState<LocalDate | null>(takeRequestedDay);
+  const [selected, setSelected] = useState<LocalDate | null>(null);
   const day = selected ?? today;
   const isToday = day === today;
 
@@ -67,6 +70,18 @@ export default function TodayPage() {
   const [rescheduling, setRescheduling] = useState<Task | null>(null);
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [windowOpen, setWindowOpen] = useState(false);
+  const profile = useProfile();
+  const [morningClosed, closeMorning] = useDismissedToday("planner-overview-closed", today);
+  const [eveningClosed, closeEvening] = useDismissedToday("planner-review-closed", today);
+
+  // Arrivando da Settimana o Mese si apre il giorno scelto lì. La pagina resta montata tra una
+  // navigazione e l'altra (Activity): lo stato iniziale non basta, gli effetti invece ripartono a ogni ritorno.
+  useLayoutEffect(() => {
+    const requested = takeRequestedDay();
+    // La richiesta si legge una volta sola, al ritorno sulla pagina: non è uno stato derivabile durante il render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (requested) setSelected(requested);
+  }, []);
 
   const go = (delta: number) => setSelected(addDays(day, delta));
   const goRef = useRef(go);
@@ -128,6 +143,25 @@ export default function TodayPage() {
   const failed = missing && (offline || tasksQuery.isError || eventsQuery.isError);
   const loading = missing && !failed;
   const openTask = (task: Task) => setEditor({ kind: "task", task });
+
+  // Panoramica del mattino e revisione della sera: solo guardando oggi, con i dati già arrivati.
+  const openToday = [...sections.agenda, ...sections.todo].filter((t) => t.status === "open");
+  const mode = overviewMode(nowTime, profile?.evening_review_time);
+  const card = !isToday || missing ? null : mode === "morning" ? (morningClosed ? null : "morning") : eveningClosed ? null : "evening";
+  const morning =
+    card === "morning"
+      ? morningOverview({
+          name: profile?.display_name,
+          nowTime,
+          eveningTime: profile?.evening_review_time,
+          events: occurrences.length,
+          openTasks: openToday,
+          overdue: sections.overdue.length,
+          loadLabel: LOAD_LABEL[load.level],
+          allTasks: tasksQuery.data ?? [],
+          today,
+        })
+      : null;
 
   const nowLine = (
     <li aria-label={`Adesso, ${nowTime}`} className="flex items-center gap-2 py-1">
@@ -198,6 +232,18 @@ export default function TodayPage() {
             Riprova
           </button>
         </div>
+      ) : null}
+
+      {morning ? <MorningOverview text={morning.text} note={morning.note} onClose={closeMorning} /> : null}
+      {card === "evening" ? (
+        <EveningReview
+          heading={eveningHeading(profile?.display_name, openToday.length)}
+          tasks={openToday}
+          onComplete={actions.complete}
+          onTomorrow={(t) => actions.moveTo(t, addDays(today, 1))}
+          onPickDate={setRescheduling}
+          onClose={closeEvening}
+        />
       ) : null}
 
       {isToday && sections.overdue.length > 0 ? (
@@ -282,7 +328,7 @@ export default function TodayPage() {
             {loading ? (
               <Skeleton />
             ) : sections.todo.length === 0 ? (
-              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Tocca + per aggiungere qualcosa." />
+              <EmptyState title={isToday ? "Giornata libera." : "Niente da fare."} hint="Scrivi qui sotto e premi Invio per aggiungere." />
             ) : (
               <ul className="flex flex-col">
                 {sections.todo.map((t) => (
@@ -298,14 +344,7 @@ export default function TodayPage() {
                 ))}
               </ul>
             )}
-            <button
-              type="button"
-              onClick={() => setEditor({ kind: "new", day })}
-              className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
-            >
-              <Icon name="plus" size={16} />
-              Aggiungi
-            </button>
+            <QuickAdd day={day} today={today} onDetails={(title) => setEditor({ kind: "new", day, draft: { title } })} />
           </Section>
 
           {weekSummary.total > 0 ? (

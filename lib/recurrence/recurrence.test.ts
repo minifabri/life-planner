@@ -11,6 +11,14 @@ describe("RRULE semplici", () => {
     expect(parseRRule("RRULE:FREQ=MONTHLY")).toEqual({ freq: "monthly", interval: 1 });
   });
 
+  it("legge e scrive la fine della serie", () => {
+    expect(toRRule({ freq: "weekly", interval: 1, byDay: [1], until: "2026-12-14" })).toBe("FREQ=WEEKLY;BYDAY=MO;UNTIL=20261214T235959Z");
+    expect(parseRRule("FREQ=WEEKLY;BYDAY=MO;UNTIL=20261214T235959Z")).toEqual({ freq: "weekly", interval: 1, byDay: [1], until: "2026-12-14" });
+    expect(parseRRule("FREQ=DAILY;UNTIL=20261214")).toEqual({ freq: "daily", interval: 1, until: "2026-12-14" });
+    expect(parseRRule("FREQ=DAILY;UNTIL=domani")).toBeNull();
+    expect(describeRRule("FREQ=MONTHLY;UNTIL=20261214T235959Z")).toBe("Ogni mese, fino al 14 dic 2026");
+  });
+
   it("non interpreta regole che non sa mostrare", () => {
     expect(parseRRule("FREQ=YEARLY")).toBeNull();
     expect(parseRRule("FREQ=MONTHLY;BYDAY=1MO")).toBeNull();
@@ -56,6 +64,11 @@ describe("occurrenceDates", () => {
       "2026-11-15",
       "2026-12-15",
     ]);
+  });
+
+  it("include l'ultimo giorno della serie e si ferma lì", () => {
+    const rrule = toRRule({ freq: "weekly", interval: 1, byDay: [1], until: "2026-10-19" });
+    expect(occurrenceDates(rrule, "2026-10-05", "2026-10-01", "2026-11-30")).toEqual(["2026-10-05", "2026-10-12", "2026-10-19"]);
   });
 
   it("non restituisce nulla prima dell'inizio", () => {

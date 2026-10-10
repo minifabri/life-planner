@@ -27,7 +27,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 export async function fetchProfile(): Promise<Profile | null> {
-  return check(await getSupabase().from("profiles").select("owner_id, display_name, timezone, theme").maybeSingle());
+  return check(await getSupabase().from("profiles").select("owner_id, display_name, timezone, theme, evening_review_time").maybeSingle());
 }
 
 export async function fetchAreas(): Promise<Area[]> {
@@ -103,8 +103,8 @@ export type TaskInput = Pick<
 
 export type RepeatInput =
   | { kind: "none" }
-  | { kind: "fixed"; rrule: string }
-  | { kind: "after_completion"; intervalDays: number };
+  | { kind: "fixed"; rrule: string; until?: LocalDate | null }
+  | { kind: "after_completion"; intervalDays: number; until?: LocalDate | null };
 
 function templateFrom(input: TaskInput, startDate: LocalDate): RecurrenceTemplate {
   return {
@@ -128,6 +128,7 @@ function recurrenceInsert(id: string, input: TaskInput, repeat: Exclude<RepeatIn
     kind: repeat.kind,
     rrule: repeat.kind === "fixed" ? repeat.rrule : null,
     interval_days: repeat.kind === "after_completion" ? repeat.intervalDays : null,
+    until: repeat.until ?? null,
     template: templateFrom(input, startDate),
   });
 }

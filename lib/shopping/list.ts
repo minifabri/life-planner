@@ -1,19 +1,18 @@
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
+import { DEPARTMENTS, recognizeProduct } from "./catalog";
 import { normalizeName } from "./entry";
 
-/** Reparti proposti, nell'ordine in cui compaiono nella lista. Chi non ne ha finisce in "Altro". */
-export const DEPARTMENTS = [
-  "Frutta e verdura",
-  "Frigo",
-  "Pane e forno",
-  "Dispensa",
-  "Surgelati",
-  "Bevande",
-  "Casa",
-  "Cura della persona",
-] as const;
+export { DEPARTMENTS };
 
 export const NO_DEPARTMENT = "Altro";
+
+/**
+ * Il reparto in cui mostrare un articolo: quello scelto o imparato, altrimenti quello
+ * riconosciuto dal nome. `null` quando non si sa (finisce in "Altro").
+ */
+export function departmentOf(name: string, department: string | null): string | null {
+  return department?.trim() || recognizeProduct(name)?.department || null;
+}
 
 export type DepartmentGroup = { department: string; items: ShoppingItem[] };
 
@@ -30,7 +29,7 @@ export function groupItems(items: ShoppingItem[]): { groups: DepartmentGroup[]; 
   const byDepartment = new Map<string, ShoppingItem[]>();
   for (const item of items) {
     if (item.checked) continue;
-    const key = item.department?.trim() || NO_DEPARTMENT;
+    const key = departmentOf(item.name, item.department) ?? NO_DEPARTMENT;
     byDepartment.set(key, [...(byDepartment.get(key) ?? []), item]);
   }
   const groups = [...byDepartment.entries()]
@@ -82,6 +81,23 @@ export function suggestProducts(query: string, memory: ProductMemory[], items: S
     )
     .slice(0, limit)
     .map(({ product }) => product);
+}
+
+/** "Compri spesso": i prodotti con il punteggio più alto che non sono in lista. */
+export function frequentProducts(memory: ProductMemory[], items: ShoppingItem[], now: Date, limit = 8): ProductMemory[] {
+  const present = onList(items);
+  return memory
+    .filter((p) => p.use_count > 0 && !present.has(normalizeName(p.display_name)))
+    .sort((a, b) => suggestionScore(b, now) - suggestionScore(a, now) || a.display_name.localeCompare(b.display_name, "it"))
+    .slice(0, limit);
+}
+
+/** "24 volte · 6 g fa": quanto e quando è stato comprato un prodotto. */
+export function usageLabel(product: Pick<ProductMemory, "use_count" | "last_used_at">, now: Date): string {
+  const times = product.use_count === 1 ? "1 volta" : `${product.use_count} volte`;
+  if (!product.last_used_at) return times;
+  const days = Math.max(0, Math.floor((now.getTime() - new Date(product.last_used_at).getTime()) / DAY_MS));
+  return `${times} · ${days === 0 ? "oggi" : days === 1 ? "ieri" : `${days} g fa`}`;
 }
 
 /** Storico: gli ultimi prodotti comprati che non sono in lista, dal più recente. */

@@ -1,5 +1,5 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
-import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, Workout } from "../supabase/types";
+import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -214,6 +214,35 @@ export function applyToLog(entries: LogEntry[], op: Op, at: string): LogEntry[] 
   )
     .filter((e) => !e.deleted_at && !e.is_sensitive)
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** La wishlist dopo una modifica in attesa: gli articoli nuovi in testa, come li ordina la lettura dal server. */
+export function applyToWishlist(items: WishlistItem[], op: Op, at: string): WishlistItem[] {
+  if (op.table !== "wishlist_items") return items;
+  return applyToRows(
+    items,
+    op,
+    (row) =>
+      ({
+        brand: null,
+        category: null,
+        url: null,
+        price_amount: null,
+        price_currency: null,
+        price_is_estimate: false,
+        image_url: null,
+        notes: null,
+        interest: 2,
+        status: "wanted",
+        source: "manual",
+        metadata_fetched_at: null,
+        deleted_at: null,
+        created_at: at,
+        ...(row as Partial<WishlistItem> & { id: string }),
+      }) as WishlistItem,
+  )
+    .filter((i) => !i.deleted_at)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 /** Gli allenamenti dei giorni da `from` a `to` (inclusi) dopo una modifica in attesa. */

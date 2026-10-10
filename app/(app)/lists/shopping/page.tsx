@@ -2,15 +2,18 @@
 
 import { useRef, useState } from "react";
 import { ItemEditor } from "@/components/shopping/item-editor";
-import { ItemRow } from "@/components/shopping/item-row";
-import { Button, inputClass } from "@/components/ui/form";
+import { ItemTile } from "@/components/shopping/item-tile";
+import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
+import { Button } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useNow } from "@/lib/data/hooks";
 import { useProductMemory, useShoppingActions, useShoppingItems } from "@/lib/data/shopping-hooks";
 import { parseEntry } from "@/lib/shopping/entry";
-import { groupItems, recentProducts, suggestProducts } from "@/lib/shopping/list";
+import { departmentOf, frequentProducts, groupItems, recentProducts, suggestProducts, usageLabel } from "@/lib/shopping/list";
 import type { ProductMemory } from "@/lib/supabase/types";
+
+const GRID = "grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2";
 
 export default function ShoppingPage() {
   const itemsQuery = useShoppingItems();
@@ -19,6 +22,8 @@ export default function ShoppingPage() {
   const now = useNow();
 
   const [text, setText] = useState("");
+  // Suggerimento evidenziato con le frecce; -1 = nessuno, Invio aggiunge ciò che è scritto.
+  const [active, setActive] = useState(-1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -29,12 +34,20 @@ export default function ShoppingPage() {
 
   const entry = parseEntry(text);
   const suggestions = suggestProducts(entry.name, memory, items, now);
-  const recent = text.trim() ? [] : recentProducts(memory, items);
+  const typing = text.trim() !== "";
+  const frequent = typing ? [] : frequentProducts(memory, items, now);
+  const recent = typing ? [] : recentProducts(memory, items).filter((p) => !frequent.includes(p));
+  const typedDepartment = entry.name ? departmentOf(entry.name, null) : null;
+
+  function write(value: string) {
+    setText(value);
+    setActive(-1);
+  }
 
   function add(product?: ProductMemory) {
     const next = product ? { name: product.display_name, quantity: entry.quantity } : entry;
     if (!next.name) return;
-    setText("");
+    write("");
     input.current?.focus();
     void actions.add(next);
   }
@@ -43,27 +56,44 @@ export default function ShoppingPage() {
     <>
       <PageHeader eyebrow="Liste" title="Spesa" muted={toBuy > 0 ? String(toBuy) : undefined} />
 
-      <div className="flex flex-col gap-1.5">
+      <div className="relative z-10">
         <form
-          className="flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            add();
+            add(suggestions[active]);
           }}
+          style={departmentStyle(typedDepartment)}
+          className="flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-line bg-surface pl-3.5 pr-1 focus-within:border-line-2"
         >
+          <span className={`flex shrink-0 ${typedDepartment ? "text-(--dept)" : "text-text-3"}`}>
+            {typedDepartment ? <ProductIcon name={entry.name} department={null} size={20} /> : <Icon name="plus" size={20} />}
+          </span>
           <label htmlFor="shopping-add" className="sr-only">
             Aggiungi un articolo
           </label>
           <input
             id="shopping-add"
             ref={input}
+            role="combobox"
+            aria-expanded={suggestions.length > 0}
+            aria-controls="shopping-suggestions"
+            aria-autocomplete="list"
+            aria-activedescendant={active >= 0 ? `shopping-suggestion-${active}` : undefined}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Aggiungi un articolo"
+            onChange={(e) => write(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") write("");
+              if (!suggestions.length || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+              e.preventDefault();
+              const step = e.key === "ArrowDown" ? 1 : -1;
+              // Da -1 (nessuno) si entra dal primo o dall'ultimo, e si torna a -1 dopo un giro.
+              setActive(((active + 1 + step + suggestions.length + 1) % (suggestions.length + 1)) - 1);
+            }}
+            placeholder="Aggiungi… prova “2 latte”"
             autoComplete="off"
             autoCapitalize="none"
             enterKeyHint="done"
-            className={inputClass}
+            className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text outline-none placeholder:text-text-3 md:text-[15px]"
           />
           <Button type="submit" variant="primary" disabled={!entry.name} className="shrink-0">
             Aggiungi
@@ -71,18 +101,57 @@ export default function ShoppingPage() {
         </form>
 
         {suggestions.length > 0 ? (
-          <ul aria-label="Suggerimenti" className="flex flex-col rounded-xl border border-line bg-surface px-3">
-            {suggestions.map((p) => (
-              <li key={p.id} className="border-b border-line last:border-b-0">
-                <button type="button" onClick={() => add(p)} className="flex min-h-11 w-full items-center justify-between gap-3 text-left text-[15px]">
-                  <span className="min-w-0 break-words">{p.display_name}</span>
-                  {p.department ? <span className="shrink-0 text-xs text-text-3">{p.department}</span> : null}
+          <ul
+            id="shopping-suggestions"
+            role="listbox"
+            aria-label="Suggerimenti"
+            className="rise absolute inset-x-0 top-[58px] rounded-[14px] border border-line-2 bg-surface py-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+          >
+            {suggestions.map((p, i) => (
+              <li key={p.id} role="presentation" style={departmentStyle(departmentOf(p.display_name, p.department))}>
+                <button
+                  type="button"
+                  id={`shopping-suggestion-${i}`}
+                  role="option"
+                  aria-selected={i === active}
+                  tabIndex={-1}
+                  onClick={() => add(p)}
+                  className={`flex min-h-[46px] w-full items-center gap-3 px-3.5 text-left text-[15px] hover:bg-surface-2 ${i === active ? "bg-surface-2" : ""}`}
+                >
+                  <span className="flex shrink-0 text-(--dept)">
+                    <ProductIcon name={p.display_name} department={p.department} size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1 break-words">{p.display_name}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-text-3">{usageLabel(p, now)}</span>
                 </button>
               </li>
             ))}
           </ul>
         ) : null}
       </div>
+
+      {frequent.length > 0 ? (
+        <section aria-label="Compri spesso" className="flex flex-col gap-2">
+          <h2 className="label-mono">Compri spesso</h2>
+          <ul className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-10 md:px-10">
+            {frequent.map((p) => (
+              <li key={p.id} className="shrink-0" style={departmentStyle(departmentOf(p.display_name, p.department))}>
+                <button
+                  type="button"
+                  onClick={() => add(p)}
+                  aria-label={`Aggiungi ${p.display_name}`}
+                  className="flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border border-line-2 pl-3 pr-3.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+                >
+                  <span className="flex text-(--dept)">
+                    <ProductIcon name={p.display_name} department={p.department} size={16} />
+                  </span>
+                  {p.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {itemsQuery.isError && itemsQuery.data === undefined ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
@@ -96,24 +165,28 @@ export default function ShoppingPage() {
           Carico la lista…
         </p>
       ) : items.length === 0 ? (
-        <EmptyState title="La lista è vuota." hint="Scrivi cosa ti serve: anche “2 latte” o “500 g farina”." />
+        <EmptyState title="La lista è vuota." hint="Scrivi cosa ti serve: anche “2 latte” o “500 g farina”. Il reparto lo trovo io." />
       ) : null}
 
       {groups.map((group) => (
-        <section key={group.department} aria-label={group.department} className="flex flex-col gap-1">
-          <h2 className="label-mono">{group.department}</h2>
-          <ul className="flex flex-col">
+        <section key={group.department} aria-label={group.department} className="flex flex-col gap-2" style={departmentStyle(group.department)}>
+          <h2 className="label-mono flex items-center gap-2">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-(--dept)" />
+            {group.department}
+            <span className="font-normal">· {group.items.length}</span>
+          </h2>
+          <ul className={GRID}>
             {group.items.map((item) => (
-              <ItemRow key={item.id} item={item} onToggle={() => actions.toggle(item)} onEdit={() => setEditingId(item.id)} />
+              <ItemTile key={item.id} item={item} onToggle={() => actions.toggle(item)} onEdit={() => setEditingId(item.id)} />
             ))}
           </ul>
         </section>
       ))}
 
       {checked.length > 0 ? (
-        <section aria-label="Presi" className="flex flex-col gap-1">
+        <section aria-label="Nel carrello" className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="label-mono">Presi · {checked.length}</h2>
+            <h2 className="label-mono">Nel carrello · {checked.length}</h2>
             <button
               type="button"
               onClick={() => actions.clearChecked(checked)}
@@ -122,9 +195,9 @@ export default function ShoppingPage() {
               Svuota completati
             </button>
           </div>
-          <ul className="flex flex-col">
+          <ul className={GRID}>
             {checked.map((item) => (
-              <ItemRow key={item.id} item={item} onToggle={() => actions.toggle(item)} onEdit={() => setEditingId(item.id)} />
+              <ItemTile key={item.id} item={item} onToggle={() => actions.toggle(item)} onEdit={() => setEditingId(item.id)} />
             ))}
           </ul>
         </section>

@@ -8,7 +8,10 @@ import { getSupabase } from "@/lib/supabase/client";
 import { sync } from "@/lib/sync/engine";
 import { forgetCachedData } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
+import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
+import { useProfile } from "@/lib/data/hooks";
+import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
 import { useImayogaAccount } from "@/lib/imayoga/hooks";
@@ -35,6 +38,7 @@ export default function SettingsPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-5 py-5 md:px-10 md:py-7">
       <PageHeader eyebrow="Impostazioni" title="Preferenze" />
       <ThemeSection />
+      <DaySection />
       <NotificationsSection />
       <LockSection />
       <CalendarsSection />
@@ -113,6 +117,70 @@ function ThemeSection() {
           </button>
         ))}
       </div>
+    </Section>
+  );
+}
+
+/* ---------------- Mattino e sera ---------------- */
+function DaySection() {
+  const profile = useProfile();
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<{ name?: string; evening?: string }>({});
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  const name = draft.name ?? profile?.display_name ?? "";
+  const evening = draft.evening ?? profile?.evening_review_time?.slice(0, 5) ?? DEFAULT_EVENING_TIME;
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus(null);
+    const { error } = await getSupabase()
+      .from("profiles")
+      .update({ display_name: name.trim() || null, evening_review_time: evening })
+      .eq("owner_id", profile!.owner_id);
+    if (error) return setStatus({ text: "Non salvato: serve la connessione.", tone: "warn" });
+    await qc.invalidateQueries({ queryKey: ["profile"] });
+    setDraft({});
+    setStatus({ text: "Salvato.", tone: "ok" });
+  }
+
+  return (
+    <Section
+      title="Mattino e sera"
+      note="In cima a Oggi trovi la panoramica della giornata; dall'ora indicata, la revisione di ciò che è rimasto aperto. Chiuse, tornano il giorno dopo."
+    >
+      <form onSubmit={save} className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-3">
+          <Field label="Come ti chiamo" htmlFor="profile-name">
+            <input
+              id="profile-name"
+              type="text"
+              autoComplete="given-name"
+              maxLength={40}
+              value={name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Revisione della sera dalle" htmlFor="profile-evening">
+            <input
+              id="profile-evening"
+              type="time"
+              required
+              value={evening}
+              onChange={(e) => setDraft({ ...draft, evening: e.target.value })}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <button
+          type="submit"
+          disabled={!profile}
+          className="min-h-11 self-start rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2 disabled:opacity-40"
+        >
+          Salva
+        </button>
+      </form>
+      <Status text={status?.text ?? null} tone={status?.tone} />
     </Section>
   );
 }

@@ -468,11 +468,19 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - Campi non trovati restano vuoti, con l'indicazione nell'interfaccia di cosa non è stato recuperato. Mai valori inventati.
 - **Limite noto**: Amazon, Zalando, Sephora e Douglas spesso bloccano richieste automatiche o rendono i dati via JavaScript. Ci aspettiamo risultati parziali; vanno misurati su link reali di Bibi (incremento 7).
 - Le immagini restano come URL esterni (nessuna copia in Storage nell'MVP).
+- **Come è stato realizzato (incremento 8, 10 ottobre 2026)**:
+  - La route è `POST /api/link-preview` con l'indirizzo nel corpo JSON, non `?url=`: così il link non finisce nei log delle richieste. Risponde solo a chi ha una sessione valida dell'app (token verificato su Supabase Auth): non è un proxy aperto.
+  - Anti-SSRF in due tempi: controllo dell'indirizzo (`lib/wishlist/ssrf.ts`: solo http/https, porte 80 e 443, niente credenziali, niente host interni o IP non pubblici) e controllo degli indirizzi risolti **dentro la connessione stessa** (`lookup` personalizzato in `lib/wishlist/fetch-page.ts`), così un nome che cambia risposta tra controllo e richiesta non passa. Ogni redirect viene ricontrollato.
+  - Lettura dei metadati in `lib/wishlist/metadata.ts` (JSON-LD `Product` anche dentro `@graph`, poi Open Graph, poi `<title>`); solo immagini https.
+  - I dati del link riempiono solo i campi vuoti; ciò che è scritto a mano non viene toccato. L'interfaccia dice cosa non è arrivato ("Dal link non è arrivato: prezzo").
+  - Un articolo salvato con un link ma senza dati (dal Quick Capture o senza rete) viene completato alla prima apertura della wishlist con la connessione; il tentativo viene segnato anche se fallisce, per non riprovare a ogni apertura ("Rileggi il link" dall'articolo).
+  - **Prima misura, dal computer di sviluppo** (non da Vercel, e senza i link reali di Bibi): pagine prodotto di Apple Store e The Ordinary complete di nome, immagine, prezzo e marca; Amazon e Zalando raggiungibili (provate solo pagine non di prodotto); Sephora e Douglas rispondono 403 alle richieste automatiche, quindi per loro il link resta salvato e i dati si scrivono a mano. Da ripetere dal deploy con link veri.
 
 ### 9.4 Import da ChatGPT [APPROVATO: incolla + formato guidato]
 - Parser client per righe `Nome | Marca | Categoria | Prezzo | Nota`, con fallback tollerante per elenchi puntati e numerati.
 - Prezzi con `~` o "circa" → `price_is_estimate = true`.
 - Righe non riconosciute restano nell'anteprima come testo modificabile.
+- Realizzazione (incremento 8): `lib/wishlist/chatgpt.ts` e `lib/wishlist/price.ts`. Accetta anche tabelle Markdown; con il formato guidato le frasi senza barre sono commento e si saltano. Di un intervallo di prezzo ("25-30 €") si tiene il valore più basso, come indicativo; un prezzo illeggibile resta nella nota. Nell'anteprima si corregge il nome e si sceglie cosa importare; gli altri campi si modificano dopo, dall'articolo.
 
 ### 9.5 Import da file .ics [APPROVATO il 10 ottobre 2026: import una tantum, prima della sync]
 - Da Impostazioni → Dati → Importa da calendario (`/settings/import`). Uno o più file `.ics` (export di Google Calendar, Calendario Apple, Outlook), letti nel browser: nessun dato passa da un server diverso da Supabase.
@@ -618,7 +626,12 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 4 — Spesa**
 - Lista con reparti appresi, suggerimenti da product_memory, storico, svuota completati, Realtime.
 - Realizzato il 10 ottobre 2026 sul livello dati online: l'aggancio alla outbox arriva con l'unione dell'incremento 3 (le scritture della Spesa sono tutte in `lib/data/shopping.ts`).
-- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto resta [PROPOSTA] e non è incluso.
+- Reparti proposti, in ordine di lista: Frutta e verdura, Frigo, Pane e forno, Dispensa, Surgelati, Bevande, Casa, Cura della persona; senza reparto → "Altro". Il dizionario iniziale prodotto → reparto è arrivato con la revisione qui sotto.
+- Revisione dell'esperienza (10 ottobre 2026, su richiesta di Bibi):
+  - **Reparto riconosciuto dal nome** (`lib/shopping/catalog.ts`): un dizionario italiano prodotto → reparto e icona. Vale solo in visualizzazione, quando l'articolo non ha un reparto scelto o imparato (`departmentOf`), quindi non scrive nulla nel database e il reparto imparato vince sempre. Conta la prima parola riconosciuta ("cioccolato al latte" è cioccolato), a pari posizione la frase più lunga ("latte detergente" batte "latte"); "surgelato" nel nome porta tra i Surgelati.
+  - **Quadratini al posto delle righe** (`components/shopping/item-tile.tsx`): icona che evoca il prodotto (lucide-react, stesso tratto delle icone dell'app; se il nome non dice nulla, l'icona del reparto), nome, quantità. Tocco = spunta, tre puntini = modifica.
+  - **Una sfumatura per reparto**: token `--dept-*` in `app/globals.css`, con luminosità e saturazione delle aree; l'oro resta riservato all'attenzione alta.
+  - **Suggerimenti come nel prototipo**: elenco sotto il campo con icona e "24 volte · 6 g fa", frecce e Invio da tastiera; riga "Compri spesso" (stesso punteggio dei suggerimenti) in cima; i presi stanno in "Nel carrello". A differenza del prototipo, Invio senza un suggerimento evidenziato aggiunge ciò che è scritto, non il primo suggerimento.
 - La quantità si può scrivere insieme al nome ("2 latte", "latte x2", "500 g farina"), anche dal Quick Capture (`lib/shopping/entry.ts`).
 - Criteri: test di `lib/shopping`; verifica SQL del catalogo; dal telefono: aggiungi, assegna un reparto, spunta, svuota, riaggiungi dallo storico e ritrova il reparto; con telefono e computer aperti insieme la lista si aggiorna da sola.
 
@@ -668,7 +681,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Come da sezione 9.8. Si comincia dallo spike sull'iPhone.
 
 **Incremento 8 — Wishlist**
-- Inserimento manuale, recupero da link con test su link reali, import da ChatGPT.
+- Inserimento manuale, recupero da link con test su link reali, import da ChatGPT. Realizzazione: sezioni 9.3 e 9.4. Elenco per stato (desiderati, acquistati, scartati) e categoria, ordinato per interesse; passa dalla outbox e resta in cache come le altre liste (il recupero dal link richiede la rete).
 
 **Incremento 9 — Notifiche**
 - Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni.
@@ -676,6 +689,13 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 10 — Ricerca globale e command palette**
 
 **Incremento 11 — Morning overview, Evening review, Templates**
+- Morning overview ed Evening review anticipate il 10 ottobre 2026 (i Templates restano da fare):
+  - Logica pura con test in `lib/today/overview.ts` (quale card mostrare, saluto, frase di sintesi, prossima scadenza); card in `components/today/overview-card.tsx`.
+  - **Mattino**: frase del prototipo ("Buongiorno, Bibi. Oggi 3 appuntamenti e 8 attività; una scade oggi.") con carico, rimaste indietro e, a parte, la scadenza più vicina dei prossimi sei giorni. Resta fino all'ora della review o alla chiusura.
+  - **Sera**: dall'ora di `profiles.evening_review_time` (20:30), le attività di oggi ancora aperte con Completa · Domani · Scegli data; ciò che si lascia finisce tra le rimaste indietro.
+  - La chiusura vale per il giorno e per il dispositivo (`localStorage`), non è sincronizzata.
+  - Impostazioni → "Mattino e sera": nome usato nel saluto (`display_name`) e ora della review, solo con la rete.
+  - Non incluso: notifica facoltativa che accompagna le card (incremento 9); `morning_overview_time` resta inutilizzato fino ad allora.
 
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 

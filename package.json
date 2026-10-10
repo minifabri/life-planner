@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "build:functions": "node scripts/build-functions.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
@@ -19,6 +20,7 @@
     "date-fns": "4.4.0",
     "dexie": "4.4.6",
     "geist": "1.7.2",
+    "lucide-react": "1.54.0",
     "motion": "14.0.0",
     "next": "16.4.0",
     "react": "19.3.0",
