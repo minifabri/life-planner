@@ -618,6 +618,18 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 
 **Incremento 7 — Personal Log**
 - Categorie, timeline, "ultima volta", blocco Face ID/PIN, titoli neutri.
+- Come è stato realizzato (10 ottobre 2026):
+  - Logica pura con test: `lib/log/timeline.ts` (cronologia, filtri, gruppi per mese, "ultima volta", tag, giorni con registrazioni), `lib/lock/pin.ts` (hash e verifica del PIN, attese dopo gli errori). Stato dello sblocco in `lib/lock/session.ts`.
+  - **Riservate, a Log bloccato**: dal server si chiedono solo `id` e `date`. Titolo, note, tag e categoria non arrivano al dispositivo; in cronologia compare "Registrazione riservata" e le categorie riservate non mostrano l'"ultima volta". Cercando o filtrando, i segnaposto spariscono (non si può sapere se corrispondono).
+  - **Riservate, a Log sbloccato**: il contenuto sta solo in memoria e viene tolto al blocco. Non entra nella cache salvata né nella outbox: per scriverle serve la connessione.
+  - **Non riservate**: passano dalla outbox come le altre modifiche e restano in cache sul dispositivo (lettura e scrittura offline).
+  - **PIN** (4–6 cifre): hash PBKDF2-SHA-256 con sale casuale e 210.000 iterazioni in `profiles.log_lock_pin_hash`; vale su tutti i dispositivi. Dopo tre errori si aspetta 30 secondi, poi il doppio a ogni errore, fino a 15 minuti (conteggio sul dispositivo).
+  - **Face ID / Touch ID**: facoltativo, per dispositivo, in aggiunta al PIN (WebAuthn, credenziale locale come nello spike S2).
+  - **Scadenza dello sblocco**: 5 minuti senza attività, oppure app in secondo piano per più di un minuto (non subito: la finestra di Face ID manda l'app in secondo piano per qualche secondo). Ricaricando l'app il Log torna bloccato; anche all'uscita dall'account.
+  - **Categorie**: creazione, modifica (nome, colore, riservata, "ultima volta", parole per il Quick Capture) ed eliminazione dalla vista Categorie, solo con la rete. Rendere riservata una categoria vale per le registrazioni nuove.
+  - **Mese**: un trattino neutro nei giorni con almeno una registrazione, riservata o no (D24).
+  - Si tengono in vista le ultime 2.000 registrazioni per tipo.
+  - Non incluso: sezione "Da ricordare" di Today con i segni del Log; titoli neutri in notifiche (incremento 9) e ricerca globale (incremento 10).
 
 **Incremento 8 — Wishlist**
 - Inserimento manuale, recupero da link con test su link reali, import da ChatGPT.

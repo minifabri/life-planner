@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
+import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -50,6 +50,8 @@ function applyToCache(op: Op, at: string) {
       const from = key[1] as LocalDate;
       if (data) queryClient.setQueryData(key, applyToMeals(data, op, from, addDays(from, 6)));
     }
+  } else if (op.table === "log_entries") {
+    queryClient.setQueryData<LogEntry[]>(["log-entries"], (old) => old && applyToLog(old, op, at));
   } else if (op.table === "meal_memory") {
     queryClient.setQueryData<MealMemory[]>(["meal-memory"], (old) => old && applyToMealMemory(old, op));
   }
@@ -100,6 +102,10 @@ export async function withPendingMeals(meals: MealPlan[], from: LocalDate): Prom
 
 export async function withPendingMealMemory(memory: MealMemory[]): Promise<MealMemory[]> {
   return (await pending()).reduce((acc, e) => applyToMealMemory(acc, e.op), memory);
+}
+
+export async function withPendingLog(entries: LogEntry[]): Promise<LogEntry[]> {
+  return (await pending()).reduce((acc, e) => applyToLog(acc, e.op, e.at), entries);
 }
 
 export type SyncState = {

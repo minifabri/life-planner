@@ -316,23 +316,6 @@ export async function createWishlistItem(name: string, url: string | null): Prom
   return id;
 }
 
-/**
- * Le registrazioni riservate non passano dalla outbox, che è salvata in chiaro sul dispositivo:
- * si scrivono solo con la rete (technical-design.md, 6.2).
- */
-export async function createLogEntry(entry: {
-  title: string;
-  date: LocalDate;
-  time: string | null;
-  category_id: string | null;
-  is_sensitive: boolean;
-}): Promise<string> {
-  const id = uuidv7();
-  if (entry.is_sensitive) check(await getSupabase().from("log_entries").insert({ id, ...entry }).select("id"));
-  else await commit([insert("log_entries", { id, ...entry })]);
-  return id;
-}
-
 /** Eliminazione reversibile (soft delete), usata dall'annullamento. */
 export async function softDelete(
   table: "tasks" | "events" | "shopping_items" | "wishlist_items" | "log_entries",
