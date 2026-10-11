@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "vitest run && node scripts/build-functions.mjs --check",
     "typecheck": "next typegen && tsc --noEmit",
     "build:functions": "node scripts/build-functions.mjs"
   },

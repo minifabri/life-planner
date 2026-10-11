@@ -9,6 +9,21 @@ export type Profile = {
   timezone: string;
   theme: "dark" | "light";
   evening_review_time: string;
+} & NotificationPrefs;
+
+/** Preferenze delle notifiche (technical-design.md, 7.2). Gli orari sono "HH:mm:ss". */
+export type NotificationPrefs = {
+  morning_overview_time: string;
+  quiet_start: string;
+  quiet_end: string;
+  meal_prep_reminder_time: string;
+  notify_medium: boolean;
+  notify_high: boolean;
+  /** Le notifiche di attenzione alta arrivano anche nella fascia di silenzio. */
+  quiet_allow_high: boolean;
+  notify_meal_prep: boolean;
+  notify_morning: boolean;
+  notify_evening: boolean;
 };
 
 export type Area = {

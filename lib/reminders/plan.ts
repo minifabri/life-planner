@@ -1,7 +1,7 @@
 import { addDays, atLocalTime, localTimeString, relativeDay, trimTime, type LocalDate } from "../dates/local";
 import { localDateString } from "../dates/today";
 import { eventsForDay } from "../events/day";
-import type { Attention, EventException, EventRow, Task } from "../supabase/types";
+import type { Attention, EventException, EventRow, NotificationPrefs, Profile, Task } from "../supabase/types";
 import { groupTasks } from "../tasks/classify";
 import { eveningHeading, morningOverview } from "../today/overview";
 
@@ -13,21 +13,7 @@ import { eveningHeading, morningOverview } from "../today/overview";
  */
 
 /** Preferenze del profilo che governano le notifiche. Gli orari sono "HH:mm" o "HH:mm:ss". */
-export type ReminderSettings = {
-  timezone: string;
-  morning_overview_time: string;
-  evening_review_time: string;
-  quiet_start: string;
-  quiet_end: string;
-  meal_prep_reminder_time: string;
-  notify_medium: boolean;
-  notify_high: boolean;
-  /** Le notifiche di attenzione alta arrivano anche nella fascia di silenzio. */
-  quiet_allow_high: boolean;
-  notify_meal_prep: boolean;
-  notify_morning: boolean;
-  notify_evening: boolean;
-};
+export type ReminderSettings = NotificationPrefs & Pick<Profile, "timezone" | "evening_review_time">;
 
 export type PlanTask = Pick<
   Task,
