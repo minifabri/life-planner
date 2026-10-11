@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
 import { WardrobeTile } from "@/components/wardrobe/item-tile";
 import { Button } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
-import { useOffline } from "@/lib/data/hooks";
+import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, updateWardrobeItem } from "@/lib/data/wardrobe";
 import { useWardrobeItems } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
@@ -53,6 +54,7 @@ function FilterRow({
 export default function WardrobePage() {
   const toast = useToast();
   const offline = useOffline();
+  const { today } = useToday(useTimezone());
   const query = useWardrobeItems();
   const items = query.data ?? [];
 
@@ -154,6 +156,9 @@ export default function WardrobePage() {
           </Button>
         }
       />
+
+      {/* Com'è fatta la settimana (ufficio, viaggio, allenamento): aiuta a scegliere cosa mettere. */}
+      <UpcomingDays today={today} />
 
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" onClick={() => setEditing("new")}>

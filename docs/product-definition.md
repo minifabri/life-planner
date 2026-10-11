@@ -106,6 +106,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D43 | **In casa**: nei Pasti, sezione chiusa di default con gli ingredienti comprati (spuntati nella Spesa) e non ancora finiti, anche dopo "Svuota completati". "Finito" li toglie. Il collegamento con i pasti è in D45 | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D44 | Wishlist: sui desiderati, un tocco sulla spunta della card sposta l'articolo in **Acquistati** (con annulla) | [APPROVATO l'11 ottobre 2026] |
 | D45 | **Ingredienti in uso**: un ingrediente in casa è "in uso" quando il suo nome compare in un pasto da oggi in avanti (testo libero, singolare e plurale coincidono). "In casa" mostra prima quelli da usare, poi quelli già nei pasti con giorno e momento; sotto il pasto compaiono gli ingredienti riconosciuti e, a pasto cucinato o arrivato, la domanda "Finito?"; nel foglio del pasto gli ingredienti da usare si aggiungono al nome con un tocco. Una lista di ingredienti per ogni piatto resta [FUTURO] | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
+| D46 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.15) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -505,6 +506,15 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Trasforma in allenamento**: su attività ed eventi, tranne attività ricorrenti o nate da un pasto, serie ed eventi di altri calendari.
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
+
+### 7.15 Segni dei giorni [APPROVATO, D46; dettagli PROPOSTA]
+- **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
+- **Aspetto**: icone piccole e grigie, mai colore né testo nelle strisce dei giorni. Niente notifiche, niente effetto sul carico del giorno.
+- **Segnare**: riga discreta sotto il titolo del giorno ("Segna il giorno", poi "Ufficio · Corsa 18:00"); un tocco apre il foglio con Ufficio e Viaggio, che si mettono e si tolgono.
+- **Pasti**: icone sotto i puntini di ogni giorno della striscia; riga del giorno con segni e allenamenti.
+- **Guardaroba**: in alto i prossimi sette giorni da oggi con i loro segni; un tocco su un giorno lo segna.
+- **Oggi**: riga sotto la data, solo ufficio e viaggio (gli allenamenti hanno già la loro sezione). **Settimana**: icone accanto alla data, mobile e desktop.
+- Non incluso per ora: segnare più giorni insieme (un viaggio si segna giorno per giorno), altri tipi di segno, icone nelle celle del Mese, ricerca.
 
 ---
 

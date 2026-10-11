@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -17,6 +17,7 @@ export type Table =
   | "wishlist_items"
   | "log_entries"
   | "workouts"
+  | "day_marks"
   | "wardrobe_items";
 
 export type Row = Record<string, unknown>;
@@ -321,6 +322,12 @@ export function applyToWorkouts(workouts: Workout[], op: Op, at: string, from: L
       }) as Workout,
     inRange,
   ).filter((w) => !w.deleted_at && inRange(w));
+}
+
+/** I segni dei giorni da `from` a `to` (inclusi) dopo una modifica in attesa. */
+export function applyToDayMarks(marks: DayMark[], op: Op, from: LocalDate, to: LocalDate): DayMark[] {
+  if (op.table !== "day_marks") return marks;
+  return applyToRows(marks, op, (row) => row as DayMark, (m) => m.date >= from && m.date <= to);
 }
 
 /** Esito di un invio, dal codice HTTP della risposta (0 = la richiesta non è partita o non è arrivata). */
