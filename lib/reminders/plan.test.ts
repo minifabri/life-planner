@@ -61,6 +61,7 @@ function event(patch: Partial<EventRow>): EventRow {
     icloud_calendar_id: null,
     icloud_href: null,
     icloud_etag: null,
+    lesson: null,
     deleted_at: null,
     created_at: "2026-10-01T08:00:00Z",
     updated_at: "2026-10-01T08:00:00Z",

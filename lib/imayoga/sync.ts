@@ -3,7 +3,8 @@ import { localDateString } from "../dates/today";
 import { deterministicId } from "../ids";
 import { getSupabase } from "../supabase/client";
 import type { ImayogaAccount } from "../supabase/types";
-import { IMAYOGA_TZ, planSync, toLessonEvents, type FeedItem, type LocalLesson, type WantedLesson } from "./map";
+import { IMAYOGA_TZ, planSync, toLessonEvents, type FeedItem, type LocalLesson, type SyncPlan, type WantedLesson } from "./map";
+import { followLessons, type PrepTask } from "./prep";
 
 /** Periodo letto da imayoga: da 30 giorni fa a 12 mesi avanti. */
 const WINDOW_BACK_DAYS = 30;
@@ -67,6 +68,16 @@ export async function disconnectImayoga(): Promise<void> {
       .is("deleted_at", null)
       .select("id"),
   );
+  // Senza le lezioni non restano preparazioni da fare.
+  check(
+    await supabase
+      .from("tasks")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("source", "lesson")
+      .eq("status", "open")
+      .is("deleted_at", null)
+      .select("id"),
+  );
   check(await supabase.from("imayoga_accounts").delete().not("owner_id", "is", null).select("owner_id"));
 }
 
@@ -90,11 +101,36 @@ function eventFields(w: WantedLesson) {
     tz: w.tz,
     rrule: null,
     source: "imayoga" as const,
+    lesson: w.lesson,
     deleted_at: null,
   };
 }
 
-export type SyncResult = { updated: number; removed: number };
+/** Le preparazioni ancora aperte seguono la lezione: spariscono con lei e si spostano se cambia giorno. */
+async function syncPrepTasks(local: LocalLesson[], plan: SyncPlan, today: string, now: string): Promise<number> {
+  const touched = [...plan.remove, ...plan.update.map((w) => w.id)];
+  if (!touched.length) return 0;
+  const supabase = getSupabase();
+  const tasks: PrepTask[] = check(
+    await supabase
+      .from("tasks")
+      .select("id, event_id, title, notes, date")
+      .eq("source", "lesson")
+      .eq("status", "open")
+      .is("deleted_at", null)
+      .in("event_id", touched),
+  );
+  const follow = followLessons(tasks, local, plan.update, plan.remove, today);
+  if (follow.remove.length) {
+    check(await supabase.from("tasks").update({ deleted_at: now }).in("id", follow.remove).select("id"));
+  }
+  for (const { id, patch } of follow.update) {
+    check(await supabase.from("tasks").update(patch).eq("id", id).select("id"));
+  }
+  return follow.remove.length + follow.update.length;
+}
+
+export type SyncResult = { updated: number; removed: number; tasks: number };
 
 let running: Promise<SyncResult | null> | null = null;
 
@@ -111,7 +147,7 @@ async function run(): Promise<SyncResult | null> {
       toLessonEvents(feed).map(async (lesson) => ({ ...lesson, id: await deterministicId(lesson.key) })),
     );
     const local: LocalLesson[] = check(
-      await supabase.from("events").select("id, title, location, start_at, end_at, deleted_at").eq("source", "imayoga"),
+      await supabase.from("events").select("id, title, location, start_at, end_at, lesson, deleted_at").eq("source", "imayoga"),
     );
     const plan = planSync(local, wanted, windowStart);
 
@@ -134,8 +170,9 @@ async function run(): Promise<SyncResult | null> {
     if (plan.remove.length) {
       check(await supabase.from("events").update({ deleted_at: now.toISOString() }).in("id", plan.remove).select("id"));
     }
+    const tasks = await syncPrepTasks(local, plan, today, now.toISOString());
     await supabase.from("imayoga_accounts").update({ last_synced_at: now.toISOString(), last_error: null }).eq("owner_id", account.owner_id);
-    return { updated: plan.create.length + plan.update.length, removed: plan.remove.length };
+    return { updated: plan.create.length + plan.update.length, removed: plan.remove.length, tasks };
   } catch (e) {
     if (e instanceof ImayogaError && (e.code === "invalid_token" || e.code === "not_configured")) {
       await supabase.from("imayoga_accounts").update({ last_error: e.code }).eq("owner_id", account.owner_id);

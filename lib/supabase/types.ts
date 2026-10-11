@@ -1,5 +1,7 @@
 /** Righe delle tabelle usate dal client (vedi supabase/migrations). */
 
+import type { LessonDetails } from "../imayoga/map";
+
 export type Attention = "low" | "medium" | "high";
 export type TaskStatus = "open" | "done" | "dismissed";
 
@@ -50,8 +52,10 @@ export type Task = {
   completed_at: string | null;
   original_date: string | null;
   recurrence_id: string | null;
-  source: "manual" | "recurrence" | "template" | "meal";
+  source: "manual" | "recurrence" | "template" | "meal" | "lesson";
   meal_plan_id: string | null;
+  /** Lezione di imayoga da preparare (`source = 'lesson'`). */
+  event_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -99,6 +103,8 @@ export type EventRow = {
   icloud_calendar_id: string | null;
   icloud_href: string | null;
   icloud_etag: string | null;
+  /** Posti e prenotati di una lezione di imayoga. */
+  lesson: LessonDetails | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

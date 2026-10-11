@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEmptyIndividualSlot, lessonTitle, planSync, toLessonEvents, type FeedItem, type LocalLesson, type WantedLesson } from "./map";
+import { isEmptyIndividualSlot, lessonTitle, planSync, toLessonEvents, type FeedItem, type LessonDetails, type LocalLesson, type WantedLesson } from "./map";
 
 function item(over: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -27,7 +27,24 @@ describe("lezione → evento", () => {
       start_at: "2026-10-12T17:15:00.000Z",
       end_at: "2026-10-12T18:15:00.000Z",
       tz: "Europe/Rome",
+      lesson: { individual: false, capacity: null, booked: [], waitlist: [], assigned: null },
     });
+  });
+
+  it("porta con sé posti, prenotati e lista d'attesa, senza metterli nel titolo", () => {
+    const [event] = toLessonEvents([item({ capacity: 8, booked: ["Anna Bianchi", " Marta Verdi "], waitlist: ["Sara Neri"], booked_count: 2 })]);
+    expect(event.title).toBe("Ashtanga · Intermedio");
+    expect(event.lesson).toEqual({ individual: false, capacity: 8, booked: ["Anna Bianchi", "Marta Verdi"], waitlist: ["Sara Neri"], assigned: null });
+  });
+
+  it("una lezione individuale ricorda l'allieva assegnata", () => {
+    const [event] = toLessonEvents([item({ is_individual: true, assigned: true, assigned_name: "Anna Bianchi" })]);
+    expect(event.title).toBe("Lezione individuale");
+    expect(event.lesson?.assigned).toBe("Anna Bianchi");
+  });
+
+  it("un evento di imayoga non ha prenotazioni", () => {
+    expect(toLessonEvents([item({ kind: "event", title: "Ritiro" })])[0].lesson).toBeNull();
   });
 
   it("tiene conto del passaggio all'ora solare", () => {
@@ -82,6 +99,7 @@ describe("titoli", () => {
 });
 
 describe("confronto con gli eventi già nel planner", () => {
+  const DETAILS: LessonDetails = { individual: false, capacity: 8, booked: [], waitlist: [], assigned: null };
   const wanted = (over: Partial<WantedLesson> = {}): WantedLesson => ({
     id: "a",
     key: "imayoga:class:c1",
@@ -90,6 +108,7 @@ describe("confronto con gli eventi già nel planner", () => {
     start_at: "2026-10-12T17:15:00.000Z",
     end_at: "2026-10-12T18:15:00.000Z",
     tz: "Europe/Rome",
+    lesson: DETAILS,
     ...over,
   });
   const local = (over: Partial<LocalLesson> = {}): LocalLesson => ({
@@ -99,10 +118,18 @@ describe("confronto con gli eventi già nel planner", () => {
     // Il database restituisce lo stesso istante scritto in un altro modo.
     start_at: "2026-10-12T17:15:00+00:00",
     end_at: "2026-10-12T18:15:00+00:00",
+    lesson: DETAILS,
     deleted_at: null,
     ...over,
   });
   const START = "2026-09-10";
+
+  it("aggiorna una lezione quando cambiano i prenotati", () => {
+    const booked = wanted({ lesson: { ...DETAILS, booked: ["Anna Bianchi"] } });
+    expect(planSync([local()], [booked], START).update).toEqual([booked]);
+    // Una lezione letta prima che esistesse il dettaglio lo riceve alla prima sync.
+    expect(planSync([local({ lesson: null })], [wanted()], START).update).toEqual([wanted()]);
+  });
 
   it("crea le lezioni nuove", () => {
     expect(planSync([], [wanted()], START)).toEqual({ create: [wanted()], update: [], remove: [] });

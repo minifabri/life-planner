@@ -23,6 +23,7 @@ export function useImayogaAutoSync() {
       syncImayoga()
         .then((result) => {
           if (result && result.updated + result.removed > 0) qc.invalidateQueries({ queryKey: ["events"] });
+          if (result?.tasks) qc.invalidateQueries({ queryKey: ["tasks"] });
         })
         .catch(() => {
           // Senza rete o con imayoga irraggiungibile si riprova più tardi: le lezioni già lette restano visibili.

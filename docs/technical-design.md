@@ -177,8 +177,9 @@ status text check in ('open','done','dismissed') default 'open',
 completed_at timestamptz null,
 original_date date null,                                  -- per "Rimaste indietro"
 recurrence_id uuid null,
-source text check in ('manual','recurrence','template','meal') default 'manual',
+source text check in ('manual','recurrence','template','meal','lesson') default 'manual',
 meal_plan_id uuid null references meal_plans on delete set null,
+event_id uuid null references events on delete set null, -- lezione di imayoga da preparare
 deleted_at
 ```
 Stati derivati, calcolati nel client da funzioni pure (`lib/tasks/classify.ts`):
@@ -484,12 +485,14 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **Segreto**: `imayoga:<owner_id>` in Vault del planner, con indirizzo, chiave publishable di imayoga e token. È **per utente**: solo l'account che ha il segreto riceve le lezioni; gli altri account del planner ottengono `not_configured`. Creato a mano via SQL per l'account di Bibi; il token è stato generato dentro il database e non compare in nessun file. Per revocarlo basta eliminare la riga di `planner_feed_tokens`.
 - **Edge Function `imayoga-feed`** (JWT verificato nel codice, come `icloud-caldav`): autentica l'utente, legge il segreto con `imayoga_get_feed_config` (solo service role) e fa una sola chiamata https a `planner_feed` su `*.supabase.co`, senza seguire redirect. Risponde `{ ok, items }` oppure `not_configured`, `invalid_token`, `imayoga_unreachable`.
 - **Logica nel client**, in `lib/imayoga/`: `map.ts` (puro, con test: riga del feed → evento, filtro degli slot individuali vuoti, titoli, durata e fuso, piano di sync) e `sync.ts` (orchestrazione), più `hooks.ts`.
-- **Dati**: `events.source = 'imayoga'`; l'id dell'evento deriva da quello della lezione (`imayoga:class:<id>`, `imayoga:event:<id>`), quindi non servono colonne in più e una seconda sync non duplica. Tabella `imayoga_accounts` (RLS e quattro policy): la riga dice che le lezioni sono seguite e tiene `last_synced_at` e `last_error`.
+- **Dati**: `events.source = 'imayoga'`; l'id dell'evento deriva da quello della lezione (`imayoga:class:<id>`, `imayoga:event:<id>`), quindi non servono colonne di collegamento e una seconda sync non duplica. Tabella `imayoga_accounts` (RLS e quattro policy): la riga dice che le lezioni sono seguite e tiene `last_synced_at` e `last_error`.
 - **Titoli**: "Tipo · Livello" (es. "Ashtanga · Intermedio"); per le individuali "Lezione individuale", senza il nome dell'allieva. Area "Insegnamento yoga" alla creazione; area e attenzione non vengono poi toccate dalla sync.
 - **Sync**: periodo da 30 giorni fa a 12 mesi avanti; all'apertura dell'app e al ritorno in primo piano (al massimo ogni 10 minuti), più "Aggiorna ora" in Impostazioni → Lezioni imayoga. Si scrive solo ciò che è cambiato. Una lezione che il feed non elenca più (eliminata, tolta dalla pubblicazione, individuale rimasta senza prenotazioni) viene segnata `deleted_at`, tranne quando è solo uscita dal periodo perché passata; se torna nel feed, torna anche nell'app.
 - **Scollega**: gli eventi `source = 'imayoga'` vengono segnati `deleted_at` e la riga di `imayoga_accounts` eliminata; il segreto resta, quindi si può ricollegare.
 - **Proprietà unica**: gli eventi `source = 'imayoga'` non si modificano nell'app.
-- **[FUTURO]** numero di prenotati nel dettaglio dell'evento; sync lato server, se servirà per le notifiche.
+- **Prenotati (11 ottobre 2026)**: `planner_feed` restituisce anche `capacity`, `booked` e `waitlist` (nomi, in ordine di prenotazione) e `assigned_name`; delle persone esce solo il nome. La sync li salva in `events.lesson` (jsonb: `individual`, `capacity`, `booked`, `waitlist`, `assigned`), così il dettaglio si legge anche senza rete; un cambio nei prenotati conta come modifica della lezione. Il dettaglio è `components/today/lesson-sheet.tsx`.
+- **Da preparare (11 ottobre 2026)**: attività con `source = 'lesson'` ed `event_id`, id deterministico (`lesson-prep:<id evento>`), creata e tolta via outbox (`lib/data/lessons.ts`). Lo stato della lezione si legge dall'attività (assente = niente da preparare, aperta = da preparare, completata = preparata): nessuna colonna sull'evento e nessun trigger. Regole pure in `lib/imayoga/prep.ts` (con test): giorno prima della lezione, mai prima di oggi; dopo ogni sync le preparazioni aperte seguono la lezione (tolta → attività eliminata; altro giorno → attività spostata; nuovo nome o orario → titolo e dettaglio aggiornati). Scollegando imayoga le preparazioni aperte si eliminano.
+- **[FUTURO]** sync lato server, se servirà per le notifiche.
 
 ### 9.3 Recupero dati dai link (wishlist)
 - Route handler `/api/link-preview?url=` eseguito su Vercel.

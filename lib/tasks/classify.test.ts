@@ -22,6 +22,7 @@ function task(over: Partial<Task> = {}): Task {
     recurrence_id: null,
     source: "manual",
     meal_plan_id: null,
+    event_id: null,
     deleted_at: null,
     created_at: "2026-10-01T08:00:00Z",
     updated_at: "2026-10-01T08:00:00Z",
