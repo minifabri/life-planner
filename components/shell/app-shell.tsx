@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCapture } from "@/components/capture/capture-provider";
 import { SyncStatus } from "@/components/data/sync-status";
+import { useSearch } from "@/components/search/search-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { useIcloudAutoSync } from "@/lib/icloud/hooks";
 import { useImayogaAutoSync } from "@/lib/imayoga/hooks";
@@ -34,6 +35,7 @@ function isActive(pathname: string, item: NavItem) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const capture = useCapture();
+  const search = useSearch();
   useIcloudAutoSync();
   useImayogaAutoSync();
 
@@ -54,6 +56,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Icon name="plus" size={15} />
           <span className="flex-1">Aggiungi</span>
           <kbd className="rounded-[5px] border border-line-2 px-1.5 font-mono text-[10.5px]">N</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={search}
+          aria-keyshortcuts="Meta+K Control+K"
+          className="-mt-4 flex min-h-11 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 text-left text-[13px] text-text-3 hover:text-text"
+        >
+          <Icon name="search" size={15} />
+          <span className="flex-1">Cerca</span>
+          <kbd className="rounded-[5px] border border-line-2 px-1.5 font-mono text-[10.5px]">⌘K</kbd>
         </button>
         <nav aria-label="Sezioni" className="flex flex-col gap-0.5">
           {DESKTOP_NAV.map((item) => {
@@ -103,6 +115,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] md:pb-0">
           <SyncStatus />
+          {/* Mobile: la ricerca si apre dall'icona in alto, da qualsiasi schermata. */}
+          <div className="-mb-5 flex justify-end px-2.5 pt-1 md:hidden">
+            <button
+              type="button"
+              onClick={search}
+              aria-label="Cerca"
+              className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text"
+            >
+              <Icon name="search" size={20} />
+            </button>
+          </div>
           {children}
         </main>
 
