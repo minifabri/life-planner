@@ -2,7 +2,7 @@ import { uuidv7 } from "../ids";
 import { parseEntry } from "../shopping/entry";
 import { getSupabase } from "../supabase/client";
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
-import { commit, withPendingShopping } from "../sync/engine";
+import { commit, withPendingPantry, withPendingShopping } from "../sync/engine";
 import { byId } from "../sync/ops";
 import { listId } from "./api";
 
@@ -11,11 +11,18 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
   return result.data as T;
 }
 
-const ITEM_COLUMNS = "id, list_id, name, quantity, department, checked, checked_at, deleted_at, created_at";
+const ITEM_COLUMNS = "id, list_id, name, quantity, department, checked, checked_at, finished_at, deleted_at, created_at";
 
 export async function fetchShoppingItems(): Promise<ShoppingItem[]> {
   return withPendingShopping(
     check(await getSupabase().from("shopping_items").select(ITEM_COLUMNS).is("deleted_at", null).order("created_at")),
+  );
+}
+
+/** In casa: gli articoli comprati e non ancora finiti, compresi quelli già tolti dalla lista. */
+export async function fetchPantryItems(): Promise<ShoppingItem[]> {
+  return withPendingPantry(
+    check(await getSupabase().from("shopping_items").select(ITEM_COLUMNS).eq("checked", true).is("finished_at", null).order("created_at")),
   );
 }
 
@@ -42,7 +49,7 @@ export async function createShoppingItem(text: string): Promise<string> {
   return id;
 }
 
-export type ShoppingPatch = Partial<Pick<ShoppingItem, "name" | "quantity" | "department" | "checked" | "checked_at" | "deleted_at">>;
+export type ShoppingPatch = Partial<Pick<ShoppingItem, "name" | "quantity" | "department" | "checked" | "checked_at" | "finished_at" | "deleted_at">>;
 
 /** Modifica più articoli insieme. Passare gli articoli interi permette di rimetterli subito in lista (annulla). */
 export async function updateShoppingItems(items: (Pick<ShoppingItem, "id"> | ShoppingItem)[], patch: ShoppingPatch): Promise<void> {

@@ -12,6 +12,7 @@ import {
   suggestionScore,
   usageLabel,
 } from "./list";
+import { inPantry, pantryCount, pantryGroups } from "./pantry";
 
 let seq = 0;
 function item(name: string, over: Partial<ShoppingItem> = {}): ShoppingItem {
@@ -24,6 +25,7 @@ function item(name: string, over: Partial<ShoppingItem> = {}): ShoppingItem {
     department: null,
     checked: false,
     checked_at: null,
+    finished_at: null,
     deleted_at: null,
     created_at: `2026-10-10T08:00:${String(seq % 60).padStart(2, "0")}Z`,
     ...over,
@@ -206,5 +208,35 @@ describe("suggerimenti", () => {
     expect(learnedDepartment("LENTICCHIE", memory)).toBe("Dispensa");
     expect(learnedDepartment("lattuga", memory)).toBeNull();
     expect(learnedDepartment("mai visto", memory)).toBeNull();
+  });
+});
+
+describe("in casa", () => {
+  const bought = (name: string, over: Partial<ShoppingItem> = {}) => item(name, { checked: true, checked_at: "2026-10-10T09:00:00Z", ...over });
+
+  it("è in casa ciò che è stato comprato e non è finito, anche se tolto dalla lista", () => {
+    expect(inPantry(item("Latte"))).toBe(false);
+    expect(inPantry(bought("Latte"))).toBe(true);
+    expect(inPantry(bought("Latte", { deleted_at: "2026-10-10T10:00:00Z" }))).toBe(true);
+    expect(inPantry(bought("Latte", { finished_at: "2026-10-11T10:00:00Z" }))).toBe(false);
+  });
+
+  it("raggruppa per reparto nell'ordine della spesa, in ordine alfabetico", () => {
+    const groups = pantryGroups([bought("Zucchine"), bought("Qualcosa di strano"), bought("Latte"), bought("Carote"), item("Pane")]);
+    expect(groups.map((g) => [g.department, g.entries.map((e) => e.name)])).toEqual([
+      ["Frutta e verdura", ["Carote", "Zucchine"]],
+      ["Frigo", ["Latte"]],
+      ["Altro", ["Qualcosa di strano"]],
+    ]);
+    expect(pantryCount(groups)).toBe(4);
+  });
+
+  it("due acquisti dello stesso prodotto sono una voce sola, con i dati del più recente", () => {
+    const old = bought("latte", { quantity: "1" });
+    const recent = bought("Latte ", { quantity: "2", checked_at: "2026-10-11T09:00:00Z" });
+    const [group] = pantryGroups([recent, old, bought("Latte", { finished_at: "2026-10-11T12:00:00Z" })]);
+    expect(group.entries).toHaveLength(1);
+    expect(group.entries[0]).toMatchObject({ name: "Latte", quantity: "2" });
+    expect(group.entries[0].items.map((i) => i.id).sort()).toEqual([old.id, recent.id].sort());
   });
 });

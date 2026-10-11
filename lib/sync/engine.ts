@@ -5,7 +5,7 @@ import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
 import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToRecurrences, applyToShopping, applyToTasks, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -45,6 +45,7 @@ function applyToCache(op: Op, at: string) {
     queryClient.setQueryData<Recurrence[]>(["recurrences"], (old) => old && applyToRecurrences(old, op));
   } else if (op.table === "shopping_items") {
     queryClient.setQueryData<ShoppingItem[]>(["shopping-items"], (old) => old && applyToShopping(old, op, at));
+    queryClient.setQueryData<ShoppingItem[]>(["pantry-items"], (old) => old && applyToPantry(old, op, at));
   } else if (op.table === "meal_plans") {
     for (const [key, data] of queryClient.getQueriesData<MealPlan[]>({ queryKey: ["meals"] })) {
       const from = key[1] as LocalDate;
@@ -101,6 +102,10 @@ export async function withPendingRecurrences(recurrences: Recurrence[]): Promise
 
 export async function withPendingShopping(items: ShoppingItem[]): Promise<ShoppingItem[]> {
   return (await pending()).reduce((acc, e) => applyToShopping(acc, e.op, e.at), items);
+}
+
+export async function withPendingPantry(items: ShoppingItem[]): Promise<ShoppingItem[]> {
+  return (await pending()).reduce((acc, e) => applyToPantry(acc, e.op, e.at), items);
 }
 
 export async function withPendingMeals(meals: MealPlan[], from: LocalDate): Promise<MealPlan[]> {

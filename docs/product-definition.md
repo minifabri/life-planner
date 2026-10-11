@@ -103,6 +103,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D40 | Attività ed eventi ricavati dalle **mail**, sempre come proposte da confermare | [PROPOSTA] |
 | D41 | **Allenamento come tipo a sé**, accanto ad attività ed eventi: si pianifica e si completa, se salta resta "saltato" e non finisce in Rimaste indietro. L'area di vita "Allenamento" esce dalle predefinite; nessuna voce nuova nella navigazione | [APPROVATO il 10 ottobre 2026] |
 | D42 | Collegamento con **Salute di Apple** in sola lettura, tramite Comando rapido sull'iPhone (vedi 7.14) | [APPROVATO il 10 ottobre 2026; meccanismo DA VERIFICARE con uno spike] |
+| D43 | **In casa**: nei Pasti, sezione chiusa di default con gli ingredienti comprati (spuntati nella Spesa) e non ancora finiti, anche dopo "Svuota completati". "Finito" li toglie. Collegare gli ingredienti ai singoli pasti resta [FUTURO] | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
+| D44 | Wishlist: sui desiderati, un tocco sulla spunta della card sposta l'articolo in **Acquistati** (con annulla) | [APPROVATO l'11 ottobre 2026] |
 
 ---
 
@@ -484,6 +486,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Pasto vuoto → foglio con i **ricorrenti** di quel momento ordinati per frequenza (ognuno ricorda la sua modalità abituale), oppure un nome nuovo.
 - Pasto da preparare e non preparato → attività il giorno prima in Today; sotto il pasto una riga discreta indica dove si trova. Nessun banner di avviso.
 - Notifica dell'attività: orario configurabile, proposta 20:00 del giorno prima (vedi `technical-design.md`).
+- **In casa** (D43): in fondo, sezione chiusa di default con gli ingredienti comprati e non ancora finiti, per reparto. Un prodotto comprato più volte compare una volta sola. "Finito" lo toglie, con annulla.
 
 ### 7.14 Allenamenti [APPROVATO, D41–D42]
 - **Aggiungere**: da "Aggiungi" scegliendo Allenamento, oppure dal Quick Capture con una frase che comincia con una disciplina ("corsa domani alle 18 45 min"). In un giorno già passato nasce come fatto.

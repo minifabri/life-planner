@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MealSheet } from "@/components/meals/meal-sheet";
+import { PantrySection } from "@/components/meals/pantry-section";
 import { Segmented } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
@@ -167,6 +168,8 @@ export default function MealsPage() {
           })}
         </ul>
       )}
+
+      <PantrySection />
 
       {editing ? (
         <MealSheet
