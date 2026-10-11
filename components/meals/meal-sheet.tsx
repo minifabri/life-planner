@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
+import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Sheet } from "@/components/ui/sheet";
+import { addIngredient, ingredientsIn } from "@/lib/meals/ingredients";
 import { SLOT_LABEL, normalizeMealName } from "@/lib/meals/rules";
+import type { PantryEntry } from "@/lib/shopping/pantry";
 import type { MealMemory, MealPlan, MealSlot, PrepMode } from "@/lib/supabase/types";
 
 const MODES: { value: PrepMode; label: string }[] = [
@@ -17,6 +20,7 @@ export function MealSheet({
   dayLabel,
   meal,
   suggestions,
+  pantry,
   onAdd,
   onRename,
   onRemove,
@@ -26,6 +30,8 @@ export function MealSheet({
   dayLabel: string;
   meal: MealPlan | undefined;
   suggestions: MealMemory[];
+  /** Gli ingredienti in casa non ancora usati in un pasto: un tocco li mette nel nome. */
+  pantry: PantryEntry[];
   onAdd: (name: string, mode: PrepMode) => void;
   onRename: (name: string) => void;
   onRemove: () => void;
@@ -37,6 +43,8 @@ export function MealSheet({
   // Scrivendo un nome già noto si riprende la sua modalità abituale, finché non la si cambia a mano.
   const known = suggestions.find((s) => s.name_normalized === normalizeMealName(trimmed));
   const [modeTouched, setModeTouched] = useState(false);
+  const named = ingredientsIn(name, pantry);
+  const unused = pantry.filter((entry) => !named.includes(entry));
   const effectiveMode = !meal && !modeTouched && known ? known.default_prep_mode : mode;
 
   function submit(e: React.FormEvent) {
@@ -83,6 +91,29 @@ export function MealSheet({
             className={inputClass}
           />
         </Field>
+        {unused.length > 0 ? (
+          <section className="-mt-1 flex flex-col gap-1.5">
+            <h3 className="label-mono">In casa, da usare</h3>
+            <ul className="flex flex-wrap gap-1.5">
+              {unused.map((entry) => (
+                <li key={entry.key}>
+                  <button
+                    type="button"
+                    onClick={() => setName(addIngredient(name, entry.name))}
+                    aria-label={`Aggiungi al piatto: ${entry.name}`}
+                    style={departmentStyle(entry.department)}
+                    className="flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+                  >
+                    <span className="flex text-(--dept)">
+                      <ProductIcon name={entry.name} department={entry.department} size={16} />
+                    </span>
+                    {entry.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         {!meal ? (
           <Segmented
             label="Modalità"

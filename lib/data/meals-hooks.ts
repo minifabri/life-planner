@@ -2,11 +2,19 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { weekStart, type LocalDate } from "../dates/local";
+import { addDays, weekStart, type LocalDate } from "../dates/local";
 import { mealMemoryQuery, mealsQuery } from "./meals";
 
 export function useMeals(from: LocalDate) {
   return useQuery(mealsQuery(from));
+}
+
+/** I pasti da oggi alla fine della settimana prossima: quelli per cui servono gli ingredienti in casa. */
+export function useUpcomingMeals(today: LocalDate) {
+  const from = weekStart(today);
+  const thisWeek = useMeals(from).data;
+  const nextWeek = useMeals(addDays(from, 7)).data;
+  return [...(thisWeek ?? []), ...(nextWeek ?? [])].filter((m) => m.date >= today);
 }
 
 export function useMealMemory() {
