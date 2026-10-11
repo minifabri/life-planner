@@ -18,6 +18,21 @@ export type FeedItem = {
   is_individual: boolean;
   booked_count: number;
   assigned: boolean;
+  capacity?: number | null;
+  /** Nomi di chi ha prenotato, dal primo all'ultimo. */
+  booked?: string[] | null;
+  waitlist?: string[] | null;
+  /** Allieva a cui è assegnata una lezione individuale. */
+  assigned_name?: string | null;
+};
+
+/** Dettaglio di una lezione, salvato con l'evento (`events.lesson`). */
+export type LessonDetails = {
+  individual: boolean;
+  capacity: number | null;
+  booked: string[];
+  waitlist: string[];
+  assigned: string | null;
 };
 
 export type LessonEvent = {
@@ -28,6 +43,8 @@ export type LessonEvent = {
   start_at: string;
   end_at: string;
   tz: string;
+  /** Solo per le lezioni: gli eventi di imayoga non hanno prenotazioni. */
+  lesson: LessonDetails | null;
 };
 
 /** Uno slot individuale che nessuno ha prenotato non è un impegno: resta fuori dal planner. */
@@ -40,6 +57,37 @@ export function lessonTitle(item: FeedItem): string {
   if (item.kind === "event") return item.title?.trim() || "Evento imayoga";
   if (item.is_individual) return "Lezione individuale";
   return [item.title, item.level_name].map((part) => part?.trim()).filter(Boolean).join(" · ") || "Lezione di yoga";
+}
+
+function names(list: string[] | null | undefined): string[] {
+  return Array.isArray(list) ? list.map((n) => (typeof n === "string" ? n.trim() : "")).filter(Boolean) : [];
+}
+
+/** Posti, prenotati e lista d'attesa di una lezione. I nomi restano nel dettaglio: il titolo non li riporta. */
+export function lessonDetails(item: FeedItem): LessonDetails | null {
+  if (item.kind !== "class") return null;
+  return {
+    individual: item.is_individual,
+    capacity: typeof item.capacity === "number" ? item.capacity : null,
+    booked: names(item.booked),
+    waitlist: names(item.waitlist),
+    assigned: item.assigned_name?.trim() || null,
+  };
+}
+
+function sameList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((name, i) => name === b[i]);
+}
+
+export function sameLessonDetails(a: LessonDetails | null, b: LessonDetails | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.individual === b.individual &&
+    a.capacity === b.capacity &&
+    a.assigned === b.assigned &&
+    sameList(a.booked, b.booked) &&
+    sameList(a.waitlist, b.waitlist)
+  );
 }
 
 /** Feed di imayoga → eventi del planner. Le righe con data o ora illeggibili vengono saltate. */
@@ -56,6 +104,7 @@ export function toLessonEvents(items: FeedItem[]): LessonEvent[] {
       start_at: start.toISOString(),
       end_at: new Date(start.getTime() + LESSON_MINUTES * 60_000).toISOString(),
       tz: IMAYOGA_TZ,
+      lesson: lessonDetails(item),
     });
   }
   return out;
@@ -67,6 +116,7 @@ export type LocalLesson = {
   location: string | null;
   start_at: string | null;
   end_at: string | null;
+  lesson: LessonDetails | null;
   deleted_at: string | null;
 };
 
@@ -101,7 +151,8 @@ export function planSync(local: LocalLesson[], wanted: WantedLesson[], windowSta
       l.title !== w.title ||
       l.location !== w.location ||
       !sameInstant(l.start_at, w.start_at) ||
-      !sameInstant(l.end_at, w.end_at)
+      !sameInstant(l.end_at, w.end_at) ||
+      !sameLessonDetails(l.lesson, w.lesson)
     ) {
       plan.update.push(w);
     }

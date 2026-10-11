@@ -357,8 +357,8 @@ export default function TodayPage() {
                     key={t.id}
                     task={t}
                     area={areaById.get(t.area_id ?? "")}
-                    // Per le preparazioni dei pasti il dettaglio è il piatto.
-                    meta={t.source === "meal" && t.notes ? t.notes : t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
+                    // Per le preparazioni il dettaglio è il piatto, o il giorno e l'ora della lezione.
+                    meta={(t.source === "meal" || t.source === "lesson") && t.notes ? t.notes : t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
                     onToggle={() => actions.toggle(t)}
                     onOpen={() => openTask(t)}
                     onRemove={t.source === "meal" && t.status === "open" ? () => actions.remove(t) : undefined}

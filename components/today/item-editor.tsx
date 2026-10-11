@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
+import { LessonSheet } from "@/components/today/lesson-sheet";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
@@ -291,6 +292,10 @@ export function ItemEditor({
         ? "Modifica attività"
         : "Modifica evento";
 
+  if (occurrence && event?.source === "imayoga") {
+    return <LessonSheet occurrence={occurrence} today={today} onClose={onClose} />;
+  }
+
   if (readOnly && event) {
     return (
       <Sheet title={heading} isOpen onClose={onClose}>
@@ -300,9 +305,7 @@ export function ItemEditor({
         <p className="text-xs text-text-3">
           {event.source === "icloud"
             ? "Questo evento arriva dal calendario dell’iPhone (iCloud) e si modifica lì."
-            : event.source === "imayoga"
-              ? "Questa lezione arriva da imayoga e si modifica lì."
-              : "Questo evento arriva da Google Calendar e si modifica lì."}
+            : "Questo evento arriva da Google Calendar e si modifica lì."}
         </p>
       </Sheet>
     );

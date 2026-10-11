@@ -477,6 +477,8 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - imayoga registra solo l'ora di inizio: la durata è **un'ora**.
 - Le lezioni individuali compaiono **solo quando qualcuno le ha prenotate**; gli slot vuoti non si vedono. Il titolo non riporta il nome dell'allieva.
 - Una lezione eliminata o tolta dalla pubblicazione in imayoga sparisce dal planner alla sync successiva.
+- **[Aggiunto l'11 ottobre 2026, su richiesta di Bibi]** Toccando una lezione si apre il suo dettaglio: giorno e ora, **chi ha prenotato** (con i posti: "3 di 8"), la lista d'attesa e, per una lezione individuale, l'allieva. I nomi stanno solo nel dettaglio, mai nel titolo né nelle notifiche.
+- **[Aggiunto l'11 ottobre 2026, su richiesta di Bibi]** Una lezione si può segnare **Da preparare**, come un pasto: nasce l'attività "Preparare la lezione: …" il giorno prima (oggi, se la lezione è oggi o domani). Completarla segna la lezione come preparata; toglierla riporta la lezione a "Niente da preparare". Se la lezione cambia giorno l'attività la segue, se sparisce da imayoga sparisce anche l'attività ancora da fare.
 - Dettagli in `technical-design.md` 9.2.
 
 ### 7.13 Planner pasti [APPROVATO, D34–D37]
