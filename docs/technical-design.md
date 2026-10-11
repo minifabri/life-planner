@@ -696,6 +696,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - La chiusura vale per il giorno e per il dispositivo (`localStorage`), non è sincronizzata.
   - Impostazioni → "Mattino e sera": nome usato nel saluto (`display_name`) e ora della review, solo con la rete.
   - Non incluso: notifica facoltativa che accompagna le card (incremento 9); `morning_overview_time` resta inutilizzato fino ad allora.
+- Templates (11 ottobre 2026):
+  - Logica pura con test in `lib/templates/apply.ts`: pulizia e lettura delle voci, applicazione da un giorno di partenza, template ricavato da attività esistenti, etichette.
+  - **Impostazioni → Template** (`/settings/templates`): elenco, creazione, modifica ed eliminazione, solo con la rete come le altre impostazioni. Ogni voce ha titolo, giorni dopo la partenza, ora e durata facoltative, area, attenzione.
+  - **Applica**: si sceglie il giorno di partenza, si vede l'anteprima con le date e si conferma. Le attività nascono con `source = 'template'` e passano dalla outbox: i template restano in cache, quindi si applicano anche offline. Il toast permette di annullare tutte le attività create.
+  - **Crea da attività esistenti**: si sceglie un periodo, si spuntano le attività e il primo giorno diventa la partenza; poi si dà un nome e si ritocca.
+  - Un'area che non esiste più viene lasciata vuota all'applicazione. Le attività create non restano legate al template: modificarlo dopo non le cambia.
+  - Nessuna migrazione: la tabella `templates` esiste dallo schema iniziale.
+  - Non incluso: note e ripetizioni nelle voci; attività "nel periodo" o eventi dentro un template; applicazione dal Quick Capture o dalla command palette.
+- Criteri dei Templates: test di `lib/templates`; dal telefono: crea un template di tre voci su due giorni, applicalo da domani, ritrova le attività in Oggi e in Settimana, annulla dal toast; ripeti l'applicazione senza rete.
 
 **Allineamento al prototipo** *(10 ottobre 2026)*
 - Segni comuni in `components/ui/marks.tsx`: rombo oro per attenzione alta e scadenze, punto viola per l'attenzione media (al posto della scritta "Importante").

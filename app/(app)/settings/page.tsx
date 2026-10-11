@@ -44,6 +44,7 @@ export default function SettingsPage() {
       <CalendarsSection />
       <ImayogaSection />
       <WorkoutsSection />
+      <TemplatesSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -469,6 +470,22 @@ function WorkoutsSection() {
           className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
         >
           Storico e riepilogo
+        </Link>
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------- Template ---------------- */
+function TemplatesSection() {
+  return (
+    <Section title="Template" note="Gruppi di attività che tornano uguali, come la preparazione di una lezione: scegli il giorno di partenza e nascono tutte insieme.">
+      <div>
+        <Link
+          href="/settings/templates"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          Gestisci i template
         </Link>
       </div>
     </Section>

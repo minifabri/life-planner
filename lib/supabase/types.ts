@@ -243,3 +243,20 @@ export type WishlistItem = {
   deleted_at: string | null;
   created_at: string;
 };
+
+/** Una voce di un template: il giorno è la distanza dalla data di partenza. */
+export type TemplateItem = {
+  title: string;
+  day_offset: number;
+  /** "HH:mm", se l'attività ha un orario. */
+  time: string | null;
+  duration_min: number | null;
+  area_id: string | null;
+  attention: Attention;
+};
+
+export type Template = {
+  id: string;
+  name: string;
+  items: TemplateItem[];
+};
