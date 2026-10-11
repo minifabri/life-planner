@@ -27,13 +27,7 @@ export type ProductIcon =
   | "nut"
   | "milk"
   | "egg"
-  | "vegan"
-  | "meat"
-  | "poultry"
-  | "ham"
-  | "burger"
-  | "fish"
-  | "shrimp"
+  | "protein"
   | "wheat"
   | "croissant"
   | "sandwich"
@@ -93,13 +87,12 @@ const CATALOG: [Department, ProductIcon | null, string][] = [
   // Frigo
   ["Frigo", "milk", "latte, yogurt, yoghurt, kefir, skyr, panna, besciamella, burro, margarina, formagg*, mozzarell*, ricotta, parmigian*, grana, pecorino, stracchino, scamorza, feta, gorgonzola, mascarpone, philadelphia, burrata, provol*, fontina, emmental, robiola, crescenza, caprino, halloumi, fiocchi di latte, bevanda vegetale, bevanda di soia, bevanda di avena"],
   ["Frigo", "egg", "uova, uovo"],
-  ["Frigo", "vegan", "tofu, tempeh, seitan, hummus, burger vegetal*, burger di soia"],
-  ["Frigo", "meat", "carne, manzo, vitello, bistecc*, macinato, salsicc*, maiale, agnello, spezzatino, polpett*, fettine"],
-  ["Frigo", "burger", "hamburger, burger"],
-  ["Frigo", "poultry", "pollo, tacchino, cosce, fusi"],
-  ["Frigo", "ham", "prosciutto, salame, salami, speck, bresaola, mortadella, pancetta, guanciale, wurstel, affettat*, salumi"],
-  ["Frigo", "fish", "pesce, salmone, merluzzo, orata, branzino, spigola, sogliola, trota, baccala, platessa"],
-  ["Frigo", "shrimp", "gamber*, scampi, cozze, vongole, calamari, polpo, seppi*, frutti di mare"],
+  // I secondi proteici hanno tutti la stessa icona, i muscoli: nessun animale nel disegno.
+  ["Frigo", "protein", "tofu, tempeh, seitan, burger vegetal*, burger di soia, hamburger, burger, affettat*"],
+  ["Frigo", "protein", "carne, manzo, vitello, bistecc*, macinato, salsicc*, maiale, agnello, spezzatino, polpett*, fettine, pollo, tacchino, cosce, fusi"],
+  ["Frigo", "protein", "prosciutto, salame, salami, speck, bresaola, mortadella, pancetta, guanciale, wurstel, salumi"],
+  ["Frigo", "protein", "pesce, salmone, merluzzo, orata, branzino, spigola, sogliola, trota, baccala, platessa, gamber*, scampi, cozze, vongole, calamari, polpo, seppi*, frutti di mare"],
+  ["Frigo", "bean", "hummus"],
   ["Frigo", "wheat", "ravioli, tortellini, tortelloni, gnocchi, pasta fresca, pasta sfoglia, pasta brisee, pasta frolla, pasta per pizza, lievito di birra"],
 
   // Pane e forno
@@ -126,7 +119,7 @@ const CATALOG: [Department, ProductIcon | null, string][] = [
 
   // Surgelati
   ["Surgelati", "snowflake", "surgelat*, congelat*, ghiaccio, sofficini"],
-  ["Surgelati", "fish", "bastoncini"],
+  ["Surgelati", "protein", "bastoncini"],
   ["Surgelati", "icecream", "gelato, gelati, sorbetto"],
   ["Surgelati", "popsicle", "ghiacciol*"],
 
