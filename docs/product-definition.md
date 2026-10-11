@@ -103,8 +103,9 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D40 | Attività ed eventi ricavati dalle **mail**, sempre come proposte da confermare | [PROPOSTA] |
 | D41 | **Allenamento come tipo a sé**, accanto ad attività ed eventi: si pianifica e si completa, se salta resta "saltato" e non finisce in Rimaste indietro. L'area di vita "Allenamento" esce dalle predefinite; nessuna voce nuova nella navigazione | [APPROVATO il 10 ottobre 2026] |
 | D42 | Collegamento con **Salute di Apple** in sola lettura, tramite Comando rapido sull'iPhone (vedi 7.14) | [APPROVATO il 10 ottobre 2026; meccanismo DA VERIFICARE con uno spike] |
-| D43 | **In casa**: nei Pasti, sezione chiusa di default con gli ingredienti comprati (spuntati nella Spesa) e non ancora finiti, anche dopo "Svuota completati". "Finito" li toglie. Collegare gli ingredienti ai singoli pasti resta [FUTURO] | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
+| D43 | **In casa**: nei Pasti, sezione chiusa di default con gli ingredienti comprati (spuntati nella Spesa) e non ancora finiti, anche dopo "Svuota completati". "Finito" li toglie. Il collegamento con i pasti è in D45 | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D44 | Wishlist: sui desiderati, un tocco sulla spunta della card sposta l'articolo in **Acquistati** (con annulla) | [APPROVATO l'11 ottobre 2026] |
+| D45 | **Ingredienti in uso**: un ingrediente in casa è "in uso" quando il suo nome compare in un pasto da oggi in avanti (testo libero, singolare e plurale coincidono). "In casa" mostra prima quelli da usare, poi quelli già nei pasti con giorno e momento; sotto il pasto compaiono gli ingredienti riconosciuti e, a pasto cucinato o arrivato, la domanda "Finito?"; nel foglio del pasto gli ingredienti da usare si aggiungono al nome con un tocco. Una lista di ingredienti per ogni piatto resta [FUTURO] | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -489,6 +490,10 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Pasto da preparare e non preparato → attività il giorno prima in Today; sotto il pasto una riga discreta indica dove si trova. Nessun banner di avviso.
 - Notifica dell'attività: orario configurabile, proposta 20:00 del giorno prima (vedi `technical-design.md`).
 - **In casa** (D43): in fondo, sezione chiusa di default con gli ingredienti comprati e non ancora finiti, per reparto. Un prodotto comprato più volte compare una volta sola. "Finito" lo toglie, con annulla.
+- **Ingredienti in uso** (D45): conta la parola principale dell'ingrediente ("Yogurt greco" → yogurt) cercata come parola intera nel nome dei pasti da oggi alla fine della settimana prossima.
+  - *In casa*: l'intestazione dice quanti sono ancora da usare ("12 ingredienti · 5 da usare"). Aperta, prima quelli da usare per reparto, poi "Già nei pasti", attenuati, con il primo pasto che li usa ("gio · cena").
+  - *Sotto il pasto*: riga discreta "In casa" con gli ingredienti riconosciuti. Se il pasto è preparato, di oggi o passato, la riga diventa "Finito?" e un tocco sull'ingrediente lo toglie da In casa, con annulla.
+  - *Foglio del pasto*: sotto il nome, "In casa, da usare": un tocco aggiunge l'ingrediente al nome ("Patate" → "Patate e fagiolini").
 
 ### 7.14 Allenamenti [APPROVATO, D41–D42]
 - **Aggiungere**: da "Aggiungi" scegliendo Allenamento, oppure dal Quick Capture con una frase che comincia con una disciplina ("corsa domani alle 18 45 min"). In un giorno già passato nasce come fatto.

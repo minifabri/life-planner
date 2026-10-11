@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import { MealSheet } from "@/components/meals/meal-sheet";
-import { PantrySection } from "@/components/meals/pantry-section";
+import { PantrySection, type PantryUse } from "@/components/meals/pantry-section";
+import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Segmented } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { addMeal, removeMeal, renameMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
-import { useMealMemory, useMeals } from "@/lib/data/meals-hooks";
+import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
+import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
 import type { MealPlan, MealSlot, PrepMode } from "@/lib/supabase/types";
 
 const MODES: { value: PrepMode; label: string }[] = [
@@ -58,6 +62,13 @@ export default function MealsPage() {
       toast({ message: "Modifica non salvata. Riprova.", tone: "warn" });
     }
   }
+
+  // In casa: ogni ingrediente con i pasti in programma che lo nominano.
+  const shopping = useShoppingActions();
+  const upcoming = useUpcomingMeals(today);
+  const pantry = pantryGroups(usePantryItems().data ?? []).flatMap((g) => g.entries);
+  const uses: PantryUse[] = pantry.map((entry) => ({ entry, meals: mealsUsing(entry.name, upcoming, today) }));
+  const finish = (entry: PantryEntry) => shopping.finish(entry.name, entry.items);
 
   const dayTitle = capitalize(weekdayName(day));
   const editingMeal = editing ? mealAt(day, editing) : undefined;
@@ -148,6 +159,8 @@ export default function MealsPage() {
                   <MealRow
                     meal={meal}
                     today={today}
+                    ingredients={ingredientsIn(meal.name, pantry)}
+                    onFinish={finish}
                     onOpen={() => setEditing(slot)}
                     onMode={(mode) => run(() => setMealMode(meal, mode, today))}
                     onPrepared={(prepared) => run(() => setMealPrepared(meal, prepared))}
@@ -169,7 +182,7 @@ export default function MealsPage() {
         </ul>
       )}
 
-      <PantrySection />
+      <PantrySection uses={uses} today={today} onFinish={finish} />
 
       {editing ? (
         <MealSheet
@@ -178,6 +191,7 @@ export default function MealsPage() {
           dayLabel={day === today ? "oggi" : `${weekdayName(day)} ${shortDate(day)}`}
           meal={editingMeal}
           suggestions={suggestionsFor(memory, editing)}
+          pantry={uses.filter((u) => u.meals.length === 0).map((u) => u.entry)}
           onClose={() => setEditing(null)}
           onAdd={(name, mode) => {
             const slot = editing;
@@ -201,12 +215,16 @@ export default function MealsPage() {
 function MealRow({
   meal,
   today,
+  ingredients,
+  onFinish,
   onOpen,
   onMode,
   onPrepared,
 }: {
   meal: MealPlan;
   today: LocalDate;
+  ingredients: PantryEntry[];
+  onFinish: (entry: PantryEntry) => void;
   onOpen: () => void;
   onMode: (mode: PrepMode) => void;
   onPrepared: (prepared: boolean) => void;
@@ -219,6 +237,8 @@ function MealRow({
     : meal.reminder_task_id && prepDay
       ? `Promemoria in Oggi: ${relativeDay(prepDay, today)}`
       : "Senza promemoria";
+  // Cucinato o già in tavola: gli ingredienti in casa si possono segnare come finiti da qui.
+  const eaten = meal.prepared || meal.date <= today;
 
   return (
     <>
@@ -244,6 +264,38 @@ function MealRow({
           {hint ? <span className="text-right text-xs text-text-3">{hint}</span> : null}
         </div>
       ) : null}
+      {ingredients.length === 0 ? null : eaten ? (
+        <div className="-my-1 flex flex-wrap items-center gap-x-1">
+          <span className="pr-1 text-xs text-text-3">Finito?</span>
+          {ingredients.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              onClick={() => onFinish(entry)}
+              aria-label={`Finito: ${entry.name}`}
+              style={departmentStyle(entry.department)}
+              className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[13px] text-text-2 hover:bg-surface-2 hover:text-text"
+            >
+              <span className="flex text-(--dept)">
+                <ProductIcon name={entry.name} department={entry.department} size={16} />
+              </span>
+              {entry.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-3">
+          <span>In casa</span>
+          {ingredients.map((entry) => (
+            <span key={entry.key} style={departmentStyle(entry.department)} className="flex items-center gap-1.5 text-text-2">
+              <span className="flex text-(--dept)">
+                <ProductIcon name={entry.name} department={entry.department} size={16} />
+              </span>
+              {entry.name}
+            </span>
+          ))}
+        </p>
+      )}
     </>
   );
 }
