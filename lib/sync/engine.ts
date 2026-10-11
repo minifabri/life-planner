@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
+import type { LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToLog, applyToMealMemory, applyToMeals, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -55,6 +55,8 @@ function applyToCache(op: Op, at: string) {
     queryClient.setQueryData<LogEntry[]>(["log-entries"], (old) => old && applyToLog(old, op, at));
   } else if (op.table === "wishlist_items") {
     queryClient.setQueryData<WishlistItem[]>(["wishlist-items"], (old) => old && applyToWishlist(old, op, at));
+  } else if (op.table === "wardrobe_items") {
+    queryClient.setQueryData<WardrobeItem[]>(["wardrobe-items"], (old) => old && applyToWardrobe(old, op, at));
   } else if (op.table === "meal_memory") {
     queryClient.setQueryData<MealMemory[]>(["meal-memory"], (old) => old && applyToMealMemory(old, op));
   } else if (op.table === "workouts") {
@@ -122,6 +124,10 @@ export async function withPendingLog(entries: LogEntry[]): Promise<LogEntry[]> {
 
 export async function withPendingWishlist(items: WishlistItem[]): Promise<WishlistItem[]> {
   return (await pending()).reduce((acc, e) => applyToWishlist(acc, e.op, e.at), items);
+}
+
+export async function withPendingWardrobe(items: WardrobeItem[]): Promise<WardrobeItem[]> {
+  return (await pending()).reduce((acc, e) => applyToWardrobe(acc, e.op, e.at), items);
 }
 
 export async function withPendingWorkouts(workouts: Workout[], from: LocalDate, to: LocalDate): Promise<Workout[]> {

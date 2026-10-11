@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
+import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -16,7 +16,8 @@ export type Table =
   | "shopping_items"
   | "wishlist_items"
   | "log_entries"
-  | "workouts";
+  | "workouts"
+  | "wardrobe_items";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -253,6 +254,40 @@ export function applyToWishlist(items: WishlistItem[], op: Op, at: string): Wish
         created_at: at,
         ...(row as Partial<WishlistItem> & { id: string }),
       }) as WishlistItem,
+  )
+    .filter((i) => !i.deleted_at)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Il guardaroba dopo una modifica in attesa: i capi nuovi in testa, come li ordina la lettura dal server. */
+export function applyToWardrobe(items: WardrobeItem[], op: Op, at: string): WardrobeItem[] {
+  if (op.table !== "wardrobe_items") return items;
+  return applyToRows(
+    items,
+    op,
+    (row) =>
+      ({
+        name: null,
+        image_path: null,
+        thumb_path: null,
+        image_url: null,
+        subcategory: null,
+        colors: [],
+        seasons: [],
+        styles: [],
+        occasions: [],
+        material: null,
+        brand: null,
+        warmth: null,
+        layerable: true,
+        status: "clean",
+        favorite: false,
+        notes: null,
+        deleted_at: null,
+        created_at: at,
+        updated_at: at,
+        ...(row as Partial<WardrobeItem> & { id: string }),
+      }) as WardrobeItem,
   )
     .filter((i) => !i.deleted_at)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));

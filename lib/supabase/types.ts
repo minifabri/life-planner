@@ -268,6 +268,35 @@ export type WishlistItem = {
   created_at: string;
 };
 
+export type WardrobeCategory = "top" | "bottom" | "dress" | "outerwear" | "shoes" | "accessory" | "bag" | "other";
+export type WardrobeStatus = "clean" | "worn" | "to_wash";
+
+export type WardrobeItem = {
+  id: string;
+  name: string | null;
+  image_path: string | null;
+  thumb_path: string | null;
+  /** Immagine esterna (es. da un articolo della wishlist), finché non c'è una foto propria. */
+  image_url: string | null;
+  category: WardrobeCategory;
+  subcategory: string | null;
+  colors: string[];
+  seasons: string[];
+  styles: string[];
+  occasions: string[];
+  material: string | null;
+  brand: string | null;
+  /** Leggerezza (1) → pesantezza (5): indicativo, non un vincolo rigido. */
+  warmth: 1 | 2 | 3 | 4 | 5 | null;
+  layerable: boolean;
+  status: WardrobeStatus;
+  favorite: boolean;
+  notes: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 /** Una voce di un template: il giorno è la distanza dalla data di partenza. */
 export type TemplateItem = {
   title: string;
