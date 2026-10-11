@@ -559,6 +559,18 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
   Gratuito, fuori da Supabase, e nessun dato sensibile in chiaro su GitHub.
 - **Eliminazione account**: cancellazione di tutte le righe (cascade da `auth.users`), delle subscription push e del collegamento Google (revoca del token).
 
+Come è stato realizzato (incremento 13, 11 ottobre 2026):
+- **Export nel browser, non da `/api/export`**: il client legge le proprie righe da Supabase (RLS) e costruisce l'archivio sul dispositivo. I dati non passano da Vercel e non serve un endpoint con il token dell'utente; è lo stesso principio dell'import `.ics`.
+  - Logica pura con test in `lib/export/`: `zip.ts` (archivio senza compressione, nessuna libreria in più), `csv.ts` (BOM e CRLF, per Excel e Numeri), `ics.ts` (eventi → iCalendar; il test rilegge l'uscita con `lib/import/ics.ts`), `bundle.ts` (quali file, con quale contenuto).
+  - Contenuto: `LEGGIMI.txt`; `json/<tabella>.json` per 17 tabelle, con tutte le colonne e anche gli elementi eliminati di recente; `csv/` per Spesa, Wishlist, Log e Pasti (solo elementi non eliminati); `eventi.ics` con gli eventi nati nell'app (non quelli di iCloud o imayoga).
+  - Fuori dall'archivio: hash del PIN e chiavi del blocco, credenziali dei calendari, dispositivi delle notifiche, registro delle notifiche.
+  - **Registrazioni riservate solo a Log sbloccato**: a Log bloccato non vengono nemmeno chieste al server, e l'interfaccia e `LEGGIMI.txt` lo dicono.
+  - Su iPhone l'archivio passa dal foglio di condivisione ("Salva su File"); su desktop è un download.
+- **Eliminazione account**: Edge Function `delete-account`, con il token dell'utente e l'email riscritta come conferma (ricontrollata dal server). Toglie i segreti in Vault della persona (`delete_account_secrets`: credenziali iCloud e feed imayoga) e poi l'utente; tutte le tabelle, le subscription push e `private.google_tokens` hanno `on delete cascade`. Sul dispositivo si tolgono cache, outbox, subscription push e passkey del blocco. Verifica in una transazione annullata: 23 righe in 13 tabelle e 2 segreti → 0, dati altrui intatti.
+  - Con le registrazioni chiuse (4.1), dopo l'eliminazione non si può creare un nuovo account dall'app.
+  - La revoca del token Google non c'è perché il collegamento Google non è ancora stato costruito (1c).
+- **Backup automatico**: modello del workflow e guida in `backup/` (`backup.yml`, `README.md`). Gira nel repository privato dei backup, non in questo: lì bastano il token predefinito di GitHub e un solo segreto (`SUPABASE_DB_URL`, stringa del *session pooler*: la connessione diretta è solo IPv6). La chiave privata age la genera e la conserva Bibi. **Non ancora eseguito**: servono il repository, la chiave e il segreto; il ripristino va provato.
+
 ---
 
 ## 11. Hosting e costi
@@ -749,6 +761,8 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 
 **Incremento 13 — Export, backup automatico, eliminazione account**
+- Realizzazione: fine della sezione 10.
+- Criteri: test di `lib/export`; dal telefono e dal desktop: esporta, apri l'archivio, apri un CSV in un foglio di calcolo, importa `eventi.ics` in un calendario; a Log bloccato le riservate non ci sono, sbloccato sì. Backup: una esecuzione manuale riuscita e un file decifrato con la chiave privata. Eliminazione: provata su un account di prova, non su quello vero.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

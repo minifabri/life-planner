@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase/client";
 import { sync } from "@/lib/sync/engine";
-import { forgetCachedData } from "@/lib/sync/persister";
+import { forgetCachedData, forgetEverything } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
+import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
+import { useLogUnlocked } from "@/lib/data/log-hooks";
 import { DEFAULT_PREFS } from "@/lib/reminders/defaults";
 import type { NotificationPrefs } from "@/lib/supabase/types";
 import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
@@ -49,6 +51,7 @@ export default function SettingsPage() {
       <TemplatesSection />
       <DataSection />
       <AccountSection />
+      <DeleteAccountSection />
     </div>
   );
 }
@@ -583,9 +586,42 @@ function TemplatesSection() {
 
 /* ---------------- Dati ---------------- */
 function DataSection() {
+  const unlocked = useLogUnlocked();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ text: string; tone: "neutral" | "ok" | "warn" } | null>(null);
+
+  async function exportData() {
+    setBusy(true);
+    setStatus({ text: "Preparo l'archivio…", tone: "neutral" });
+    try {
+      const file = await createExport(unlocked);
+      const saved = await deliverExport(file);
+      setStatus(
+        saved
+          ? {
+              text: unlocked
+                ? `Archivio pronto: ${file.name}. Contiene anche le registrazioni riservate: tienilo in un posto sicuro.`
+                : `Archivio pronto: ${file.name}. Le registrazioni riservate non ci sono: sblocca il Log e ripeti per averle.`,
+              tone: "ok",
+            }
+          : null,
+      );
+    } catch {
+      setStatus({ text: "Esportazione non riuscita: serve la connessione.", tone: "warn" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Section title="Dati" note="Porta dentro eventi e promemoria da Google Calendar, Calendario Apple o Outlook con un file .ics.">
-      <div>
+    <Section
+      title="Dati"
+      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics."
+    >
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={exportData} disabled={busy}>
+          {busy ? "Esporto…" : "Esporta i dati"}
+        </Button>
         <Link
           href="/settings/import"
           className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
@@ -593,6 +629,95 @@ function DataSection() {
           Importa da calendario
         </Link>
       </div>
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Eliminazione dell'account ---------------- */
+function DeleteAccountSection() {
+  const { session } = useAuth();
+  const router = useRouter();
+  const email = session?.user.email ?? "";
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const matches = email !== "" && typed.trim().toLowerCase() === email.toLowerCase();
+
+  async function remove(e: React.FormEvent) {
+    e.preventDefault();
+    if (!matches) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(typed.trim());
+    } catch {
+      setBusy(false);
+      return setError("Account non eliminato: serve la connessione. Non è stato tolto nulla.");
+    }
+    // L'account non esiste più: si toglie ciò che resta su questo dispositivo.
+    await currentSubscription()
+      .then((s) => s?.unsubscribe())
+      .catch(() => {});
+    forgetLock();
+    await getSupabase().auth.signOut({ scope: "local" }).catch(() => {});
+    await forgetEverything();
+    router.replace("/login");
+  }
+
+  return (
+    <Section title="Elimina account" note="Toglie per sempre l'account e tutto ciò che contiene. I backup già fatti fuori dall'app restano dove sono.">
+      {open ? (
+        <form onSubmit={remove} className="flex flex-col gap-3 rounded-[14px] border border-line-2 p-4">
+          <p className="text-sm leading-relaxed">
+            Verranno eliminati attività, eventi, Log, liste, pasti, allenamenti, template e collegamenti ai calendari.{" "}
+            <strong className="font-medium text-gold">Non si può annullare</strong>, e non potrai creare un nuovo account da qui. Se non l&apos;hai fatto, esporta prima i dati.
+          </p>
+          <Field label={`Per confermare scrivi la tua email (${email})`} htmlFor="delete-confirm">
+            <input
+              id="delete-confirm"
+              type="email"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          {error ? (
+            <p role="alert" className="text-sm text-gold">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setTyped("");
+                setError(null);
+              }}
+              disabled={busy}
+            >
+              Annulla
+            </Button>
+            <button
+              type="submit"
+              disabled={!matches || busy}
+              className="min-h-11 rounded-xl border border-gold px-4 text-sm text-gold transition-colors hover:bg-surface-2 disabled:opacity-40"
+            >
+              {busy ? "Elimino…" : "Elimina tutto per sempre"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div>
+          <Button onClick={() => setOpen(true)} disabled={!email}>
+            Elimina account…
+          </Button>
+        </div>
+      )}
     </Section>
   );
 }

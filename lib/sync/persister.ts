@@ -53,3 +53,13 @@ export async function forgetCachedData(): Promise<void> {
     // Niente da togliere.
   }
 }
+
+/** Dopo l'eliminazione dell'account: via anche le modifiche in attesa, che non hanno più dove andare. */
+export async function forgetEverything(): Promise<void> {
+  await forgetCachedData();
+  try {
+    await getDb().outbox.clear();
+  } catch {
+    // Niente da togliere.
+  }
+}
