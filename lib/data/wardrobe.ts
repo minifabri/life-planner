@@ -102,3 +102,23 @@ export async function fetchWardrobeImageUrl(path: string): Promise<string> {
   if (error || !data) throw new Error(error?.message ?? "URL non disponibile");
   return data.signedUrl;
 }
+
+const PURGE_AFTER_DAYS = 7;
+
+/**
+ * Toglie dallo Storage le foto dei capi eliminati da più di una settimana (quando "Annulla" non serve più)
+ * e ne azzera i percorsi. Richiede la rete; se fallisce si riprova alla prossima apertura.
+ */
+export async function purgeDeletedWardrobePhotos(now: Date = new Date()): Promise<void> {
+  const before = new Date(now.getTime() - PURGE_AFTER_DAYS * 86_400_000).toISOString();
+  const supabase = getSupabase();
+  const rows: Pick<WardrobeItem, "id" | "image_path" | "thumb_path">[] = check(
+    await supabase.from("wardrobe_items").select("id, image_path, thumb_path").lt("deleted_at", before).not("image_path", "is", null),
+  );
+  for (const row of rows) {
+    const paths = [row.image_path, row.thumb_path].filter((p): p is string => !!p);
+    const { error } = await supabase.storage.from("wardrobe").remove(paths);
+    if (error) continue;
+    await supabase.from("wardrobe_items").update({ image_path: null, thumb_path: null }).eq("id", row.id);
+  }
+}

@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
+import { OutfitCard } from "@/components/wardrobe/outfit-card";
+import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
+import { WearSheet } from "@/components/wardrobe/wear-sheet";
 import { WardrobeTile } from "@/components/wardrobe/item-tile";
-import { Button } from "@/components/ui/form";
+import { Button, Segmented, inputClass } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
-import { useOffline } from "@/lib/data/hooks";
-import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, updateWardrobeItem } from "@/lib/data/wardrobe";
-import { useWardrobeItems } from "@/lib/data/wardrobe-hooks";
+import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
+import { createOutfit, recordWear, undoWear, updateOutfit, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
+import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDeletedWardrobePhotos, updateWardrobeItem } from "@/lib/data/wardrobe";
+import { useOutfits, useWardrobeItems, useWears } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
-import type { WardrobeItem } from "@/lib/supabase/types";
+import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
+import type { Outfit, WardrobeItem } from "@/lib/supabase/types";
+
+type View = "items" | "outfits";
+/** L'outfit aperto nel foglio: uno esistente, oppure uno nuovo che parte da questi capi. */
+type OutfitEditor = { outfit: Outfit | null; itemIds: string[] };
+/** Capi di cui si sta registrando l'utilizzo, con l'outfit da cui vengono (se c'è). */
+type Wearing = { outfitId: string | null; items: WardrobeItem[] };
 
 const chip = (active: boolean) =>
   `flex min-h-11 shrink-0 items-center rounded-xl border px-3 text-[13px] transition-colors capitalize ${
@@ -55,6 +66,14 @@ export default function WardrobePage() {
   const offline = useOffline();
   const query = useWardrobeItems();
   const items = query.data ?? [];
+  const outfitsQuery = useOutfits();
+  const outfits = outfitsQuery.data ?? [];
+  const wears = useWears().data ?? [];
+  const { today } = useToday(useTimezone());
+
+  const [view, setView] = useState<View>("items");
+  const [outfitEditor, setOutfitEditor] = useState<OutfitEditor | null>(null);
+  const [wearing, setWearing] = useState<Wearing | null>(null);
 
   const [filters, setFilters] = useState<WardrobeFilters>({});
   const [showFilters, setShowFilters] = useState(false);
@@ -63,8 +82,15 @@ export default function WardrobePage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const visible = filterWardrobe(items, filters);
-  const missing = query.data === undefined;
-  const failed = missing && (offline || query.isError);
+  const visibleOutfits = filterOutfits(outfits, filters.text ?? "");
+  const activeQuery = view === "items" ? query : outfitsQuery;
+  const missing = activeQuery.data === undefined;
+  const failed = missing && (offline || activeQuery.isError);
+
+  // Le foto dei capi eliminati da tempo non servono più: si tolgono dallo Storage quando c'è rete.
+  useEffect(() => {
+    if (!offline) void purgeDeletedWardrobePhotos().catch(() => {});
+  }, [offline]);
 
   const categories = distinctValues(items, (i) => [i.category]);
   const statuses = distinctValues(items, (i) => [i.status]);
@@ -125,6 +151,53 @@ export default function WardrobePage() {
     toast({ message: "Capo duplicato" });
   }
 
+  async function saveOutfit(input: OutfitInput): Promise<boolean> {
+    const target = outfitEditor?.outfit;
+    if (!(await attempt(() => (target ? updateOutfit(target, input) : createOutfit(input))))) return false;
+    setOutfitEditor(null);
+    return true;
+  }
+
+  /** Salva l'outfit aperto e passa a chiedere come restano i capi. */
+  async function wearOutfit(input: OutfitInput): Promise<boolean> {
+    const target = outfitEditor?.outfit;
+    if (!target) return false;
+    if (!(await attempt(() => updateOutfit(target, input)))) return false;
+    setOutfitEditor(null);
+    setWearing({ outfitId: target.id, items: resolveItems(input.item_ids, items).items });
+    return true;
+  }
+
+  async function removeOutfit(outfit: Outfit) {
+    setOutfitEditor(null);
+    if (!(await attempt(() => updateOutfit(outfit, { deleted_at: new Date().toISOString() })))) {
+      toast({ message: "Non eliminato. Riprova.", tone: "warn" });
+      return;
+    }
+    toast({ message: "Outfit eliminato", actionLabel: "Annulla", onAction: () => void attempt(() => updateOutfit(outfit, { deleted_at: null })) });
+  }
+
+  async function confirmWear(choices: WearChoice[]): Promise<boolean> {
+    const target = wearing;
+    if (!target) return false;
+    let wearId: string;
+    try {
+      wearId = await recordWear(target.outfitId, today, choices);
+    } catch {
+      return false;
+    }
+    setWearing(null);
+    toast({ message: "Utilizzo registrato", actionLabel: "Annulla", onAction: () => void attempt(() => undoWear(wearId, choices)) });
+    return true;
+  }
+
+  function endSelection(): WardrobeItem[] {
+    const ids = [...selected];
+    setSelecting(false);
+    setSelected(new Set());
+    return items.filter((i) => ids.includes(i.id));
+  }
+
   function toggleSelected(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -135,10 +208,7 @@ export default function WardrobePage() {
   }
 
   async function bulkSetStatus(status: WardrobeItem["status"]) {
-    const ids = [...selected];
-    setSelecting(false);
-    setSelected(new Set());
-    const targets = items.filter((i) => ids.includes(i.id));
+    const targets = endSelection();
     const ok = (await Promise.all(targets.map((i) => attempt(() => updateWardrobeItem(i, { status }))))).every(Boolean);
     toast(ok ? { message: `${targets.length} capi aggiornati` } : { message: "Alcuni capi non sono stati aggiornati. Riprova.", tone: "warn" });
   }
@@ -149,78 +219,166 @@ export default function WardrobePage() {
         eyebrow="Liste"
         title="Guardaroba"
         actions={
-          <Button variant="quiet" onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}>
-            {selecting ? "Fatto" : "Seleziona"}
-          </Button>
+          view === "items" ? (
+            <Button variant="quiet" onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}>
+              {selecting ? "Fatto" : "Seleziona"}
+            </Button>
+          ) : undefined
         }
       />
 
+      <Segmented
+        label="Vista"
+        value={view}
+        options={[
+          { value: "items", label: "Capi" },
+          { value: "outfits", label: "Outfit" },
+        ]}
+        onChange={(v) => {
+          setView(v);
+          setSelecting(false);
+          setSelected(new Set());
+        }}
+      />
+
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={() => setEditing("new")}>
-          Aggiungi
-        </Button>
-        <Button onClick={() => setShowFilters((v) => !v)}>{showFilters ? "Nascondi filtri" : "Filtri"}</Button>
+        {view === "items" ? (
+          <>
+            <Button variant="primary" onClick={() => setEditing("new")}>
+              Aggiungi
+            </Button>
+            <Button onClick={() => setShowFilters((v) => !v)}>{showFilters ? "Nascondi filtri" : "Filtri"}</Button>
+          </>
+        ) : (
+          <Button variant="primary" onClick={() => setOutfitEditor({ outfit: null, itemIds: [] })}>
+            Nuovo outfit
+          </Button>
+        )}
+        <input
+          type="search"
+          aria-label={view === "items" ? "Cerca tra i capi" : "Cerca tra gli outfit"}
+          placeholder="Cerca"
+          value={filters.text ?? ""}
+          onChange={(e) => setFilters((f) => ({ ...f, text: e.target.value || undefined }))}
+          autoComplete="off"
+          className={`${inputClass} min-w-0 flex-1 basis-40`}
+        />
       </div>
 
-      <FilterRow title="Categoria" options={categories} labels={CATEGORY_LABEL} value={filters.categories ?? []} onToggle={(v) => setFilters((f) => ({ ...f, categories: toggleIn(f.categories, v) }))} />
+      {view === "items" ? (
+        <>
+          <FilterRow title="Categoria" options={categories} labels={CATEGORY_LABEL} value={filters.categories ?? []} onToggle={(v) => setFilters((f) => ({ ...f, categories: toggleIn(f.categories, v) }))} />
 
-      {showFilters ? (
-        <div className="flex flex-col gap-3 rounded-[14px] border border-line p-3">
-          <FilterRow title="Stato" options={statuses} labels={STATUS_LABEL} value={filters.statuses ?? []} onToggle={(v) => setFilters((f) => ({ ...f, statuses: toggleIn(f.statuses, v) }))} />
-          <FilterRow title="Colore" options={colors} value={filters.colors ?? []} onToggle={(v) => setFilters((f) => ({ ...f, colors: toggleIn(f.colors, v) }))} />
-          <FilterRow title="Stagione" options={seasons} labels={SEASON_LABEL} value={filters.seasons ?? []} onToggle={(v) => setFilters((f) => ({ ...f, seasons: toggleIn(f.seasons, v) }))} />
-          <FilterRow title="Stile" options={styles} value={filters.styles ?? []} onToggle={(v) => setFilters((f) => ({ ...f, styles: toggleIn(f.styles, v) }))} />
-          <FilterRow title="Occasione" options={occasions} value={filters.occasions ?? []} onToggle={(v) => setFilters((f) => ({ ...f, occasions: toggleIn(f.occasions, v) }))} />
-          <label className="flex min-h-9 w-fit cursor-pointer items-center gap-2 text-sm">
-            <input type="checkbox" checked={!!filters.favoriteOnly} onChange={(e) => setFilters((f) => ({ ...f, favoriteOnly: e.target.checked }))} className="size-5 accent-[var(--accent-fill)]" />
-            Solo preferiti
-          </label>
-          {Object.keys(filters).length > 0 ? (
-            <Button variant="quiet" className="self-start" onClick={() => setFilters({})}>
-              Azzera filtri
-            </Button>
+          {showFilters ? (
+            <div className="flex flex-col gap-3 rounded-[14px] border border-line p-3">
+              <FilterRow title="Stato" options={statuses} labels={STATUS_LABEL} value={filters.statuses ?? []} onToggle={(v) => setFilters((f) => ({ ...f, statuses: toggleIn(f.statuses, v) }))} />
+              <FilterRow title="Colore" options={colors} value={filters.colors ?? []} onToggle={(v) => setFilters((f) => ({ ...f, colors: toggleIn(f.colors, v) }))} />
+              <FilterRow title="Stagione" options={seasons} labels={SEASON_LABEL} value={filters.seasons ?? []} onToggle={(v) => setFilters((f) => ({ ...f, seasons: toggleIn(f.seasons, v) }))} />
+              <FilterRow title="Stile" options={styles} value={filters.styles ?? []} onToggle={(v) => setFilters((f) => ({ ...f, styles: toggleIn(f.styles, v) }))} />
+              <FilterRow title="Occasione" options={occasions} value={filters.occasions ?? []} onToggle={(v) => setFilters((f) => ({ ...f, occasions: toggleIn(f.occasions, v) }))} />
+              <label className="flex min-h-9 w-fit cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" checked={!!filters.favoriteOnly} onChange={(e) => setFilters((f) => ({ ...f, favoriteOnly: e.target.checked }))} className="size-5 accent-[var(--accent-fill)]" />
+                Solo preferiti
+              </label>
+              {Object.values(filters).some((v) => (Array.isArray(v) ? v.length > 0 : !!v)) ? (
+                <Button variant="quiet" className="self-start" onClick={() => setFilters({})}>
+                  Azzera filtri
+                </Button>
+              ) : null}
+            </div>
           ) : null}
-        </div>
-      ) : null}
 
-      {selecting && selected.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-line-2 bg-surface-2 px-3 py-2 text-sm">
-          <span>{selected.size} selezionati</span>
-          <Button onClick={() => void bulkSetStatus("to_wash")}>Da lavare</Button>
-          <Button onClick={() => void bulkSetStatus("clean")}>Pulito</Button>
-        </div>
-      ) : null}
+          {selecting && selected.size > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-line-2 bg-surface-2 px-3 py-2 text-sm">
+              <span>{selected.size} selezionati</span>
+              <Button
+                onClick={() => {
+                  const targets = endSelection();
+                  setView("outfits");
+                  setOutfitEditor({ outfit: null, itemIds: targets.map((i) => i.id) });
+                }}
+              >
+                Crea outfit
+              </Button>
+              <Button onClick={() => setWearing({ outfitId: null, items: endSelection() })}>Indossati oggi</Button>
+              <Button onClick={() => void bulkSetStatus("to_wash")}>Da lavare</Button>
+              <Button onClick={() => void bulkSetStatus("clean")}>Pulito</Button>
+            </div>
+          ) : null}
 
-      {failed ? (
+          {failed ? (
+            <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
+              <p>{offline ? "Il guardaroba non è ancora stato scaricato su questo dispositivo: serve la connessione." : "Non riesco a caricare il guardaroba. Controlla la connessione."}</p>
+              <button type="button" onClick={() => query.refetch()} className="-ml-2.5 min-h-11 rounded-lg px-2.5 text-accent hover:bg-surface-2">
+                Riprova
+              </button>
+            </div>
+          ) : missing ? (
+            <p className="text-sm text-text-3" aria-live="polite">
+              Carico il guardaroba…
+            </p>
+          ) : visible.length === 0 ? (
+            <EmptyState
+              title={items.length === 0 ? "Il guardaroba è vuoto." : "Nessun capo con questi filtri."}
+              hint="Aggiungi un capo con una foto, o solo con nome e categoria: il resto si completa dopo."
+            />
+          ) : (
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              {visible.map((item) => (
+                <WardrobeTile
+                  key={item.id}
+                  item={item}
+                  selecting={selecting}
+                  selected={selected.has(item.id)}
+                  onOpen={() => setEditing(item)}
+                  onToggleSelect={() => toggleSelected(item.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </>
+      ) : failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
-          <p>{offline ? "Il guardaroba non è ancora stato scaricato su questo dispositivo: serve la connessione." : "Non riesco a caricare il guardaroba. Controlla la connessione."}</p>
-          <button type="button" onClick={() => query.refetch()} className="-ml-2.5 min-h-11 rounded-lg px-2.5 text-accent hover:bg-surface-2">
+          <p>{offline ? "Gli outfit non sono ancora stati scaricati su questo dispositivo: serve la connessione." : "Non riesco a caricare gli outfit. Controlla la connessione."}</p>
+          <button type="button" onClick={() => outfitsQuery.refetch()} className="-ml-2.5 min-h-11 rounded-lg px-2.5 text-accent hover:bg-surface-2">
             Riprova
           </button>
         </div>
       ) : missing ? (
         <p className="text-sm text-text-3" aria-live="polite">
-          Carico il guardaroba…
+          Carico gli outfit…
         </p>
-      ) : visible.length === 0 ? (
+      ) : visibleOutfits.length === 0 ? (
         <EmptyState
-          title={items.length === 0 ? "Il guardaroba è vuoto." : "Nessun capo con questi filtri."}
-          hint="Aggiungi un capo con una foto, o solo con nome e categoria: il resto si completa dopo."
+          title={outfits.length === 0 ? "Nessun outfit salvato." : "Nessun outfit con questa ricerca."}
+          hint="Componi un outfit scegliendo i capi dal guardaroba: bastano anche due."
         />
       ) : (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {visible.map((item) => (
-            <WardrobeTile
-              key={item.id}
-              item={item}
-              selecting={selecting}
-              selected={selected.has(item.id)}
-              onOpen={() => setEditing(item)}
-              onToggleSelect={() => toggleSelected(item.id)}
-            />
+          {visibleOutfits.map((outfit) => (
+            <OutfitCard key={outfit.id} outfit={outfit} items={items} wears={wears} today={today} onOpen={() => setOutfitEditor({ outfit, itemIds: outfit.item_ids })} />
           ))}
         </ul>
       )}
+
+      {outfitEditor ? (
+        <OutfitSheet
+          key={outfitEditor.outfit?.id ?? "new"}
+          outfit={outfitEditor.outfit}
+          initialItemIds={outfitEditor.itemIds}
+          items={items}
+          wears={wears}
+          today={today}
+          onSave={saveOutfit}
+          onWear={wearOutfit}
+          onDelete={() => {
+            if (outfitEditor.outfit) void removeOutfit(outfitEditor.outfit);
+          }}
+          onClose={() => setOutfitEditor(null)}
+        />
+      ) : null}
+
+      {wearing ? <WearSheet items={wearing.items} onConfirm={confirmWear} onClose={() => setWearing(null)} /> : null}
 
       {editing ? (
         <ItemSheet
