@@ -33,6 +33,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // La tastiera virtuale deve ridimensionare il layout (non solo il visual
+  // viewport), altrimenti i fogli `fixed` in dvh restano dietro alla tastiera
+  // e il campo in scrittura è coperto.
+  interactiveWidget: "resizes-content",
 };
 
 // Applica il tema salvato prima del primo paint, per evitare il lampo di colore.

@@ -59,6 +59,12 @@ const PATHS = {
   ),
   chevronLeft: <path d="M15 6l-6 6 6 6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
+  hanger: (
+    <>
+      <circle cx="12" cy="5" r="1.3" />
+      <path d="M12 6.3v1.3M12 7.6 3.3 14.2a1 1 0 0 0 .6 1.8h16.2a1 1 0 0 0 .6-1.8z" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

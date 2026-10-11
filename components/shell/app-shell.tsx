@@ -25,6 +25,7 @@ const DESKTOP_NAV: NavItem[] = [
   { href: "/lists/shopping", label: "Spesa", icon: "list", match: ["/lists/shopping"] },
   { href: "/lists/meals", label: "Pasti", icon: "meal", match: ["/lists/meals"] },
   { href: "/lists/wishlist", label: "Wishlist", icon: "heart", match: ["/lists/wishlist"] },
+  { href: "/lists/wardrobe", label: "Guardaroba", icon: "hanger", match: ["/lists/wardrobe"] },
   { href: "/log", label: "Log", icon: "journal", match: ["/log"] },
 ];
 
