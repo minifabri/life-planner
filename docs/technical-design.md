@@ -510,13 +510,23 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - Vincolo: nessuna creazione automatica. Le mail producono **proposte** in una lista "Da confermare" con mittente e frase d'origine; Bibi accetta, corregge o scarta.
 - Alternativa leggera: un indirizzo a cui inoltrare solo le mail rilevanti, senza accesso alla casella.
 
-### 9.8 Salute di Apple [APPROVATO: sola lettura; DA VERIFICARE: meccanismo, con uno spike sull'iPhone]
+### 9.8 Salute di Apple [APPROVATO: sola lettura; DA VERIFICARE: il Comando rapido, con uno spike sull'iPhone]
 - **Vincolo**: una PWA non può leggere HealthKit. I dati escono dall'iPhone solo con un Comando rapido.
-- **Meccanismo proposto**: un Comando rapido legge gli allenamenti ("Trova allenamenti") e li invia con una richiesta https a una Edge Function `health-workouts`.
-- **Accesso**: token personale generato in Impostazioni; nel database solo l'impronta SHA-256, come per imayoga (9.2). Revocabile.
-- **Abbinamento**: un allenamento di Salute completa quello in programma dello stesso giorno e disciplina; altrimenti crea una riga `source = 'health'`, `status = 'done'`. `health_id` (unico per utente) rende l'invio ripetibile senza duplicati.
-- **Spike** (da fare prima di scrivere codice): quali campi espone "Trova allenamenti" (tipo, inizio, durata, calorie, distanza); se un'automazione "a fine allenamento" parte senza conferma. **Piano B**: automazione a orario fisso ogni sera.
-- Lo schema è già pronto (`source`, `health_id`, misure in `workouts`).
+- **Meccanismo**: un Comando rapido legge gli allenamenti ("Trova allenamenti") e li invia con una richiesta https `POST` alla Edge Function `health-workouts`. Realizzato il 10 ottobre 2026 dal lato dell'app; il Comando rapido resta da costruire con lo spike.
+- **Accesso**: token personale (`lp_` più 32 byte casuali) generato in Impostazioni → Salute di Apple e mostrato una volta sola. Nel database solo l'impronta SHA-256, in `health_links` (RLS e quattro policy, una riga per utente). Un nuovo token sostituisce il precedente; "Revoca" elimina la riga. Gli allenamenti già arrivati restano.
+- **Edge Function `health-workouts`** (senza JWT: l'autenticazione è il token, nell'header `Authorization: Bearer …` oppure `x-health-token`): solo `POST`, corpo fino a 256 kB e 200 allenamenti. Cerca l'impronta del token, legge il fuso del profilo, scrive soltanto nella tabella `workouts` di chi possiede il token e aggiorna `last_received_at`. Risponde `{ ok, received, completed, created, known, rejected, message }`; `message` è una frase in italiano che il Comando rapido può mostrare. Errori: 401 token mancante o sconosciuto, 400 richiesta non valida, 413 troppo grande.
+- **Cosa si manda**: `{ "workouts": [ … ] }` (o direttamente l'elenco). Per ogni allenamento:
+  - `start` (obbligatorio): data ISO 8601; senza fuso vale l'ora del profilo. `end` facoltativo.
+  - `type`: il nome del tipo di allenamento, in italiano o in inglese.
+  - `duration` ("45:12", "1:02:33" o minuti) oppure `duration_min`; se manca si usa `end − start`.
+  - `energy` ("312 kcal", anche kJ) oppure `energy_kcal`; `distance` ("5,2 km", "800 m", miglia) oppure `distance_km` / `distance_m`; `avg_hr`.
+  - `id`: l'identificativo di Salute, se il Comando rapido lo espone. Senza, `health_id` si ricava da inizio e disciplina (`2026-10-12T18:30|corsa`).
+  - Una voce senza un inizio leggibile si scarta e viene contata in `rejected`.
+- **Logica** in `lib/health/import.ts` (pura, con test, senza librerie: le date passano da `Intl`). La funzione usa lo stesso codice, impacchettato in `health.gen.js` da `pnpm build:functions`.
+  - **Discipline**: i nomi di Salute si riconducono a Corsa, Camminata, Escursione, Bici, Nuoto, Yoga, Pilates, Hiit, Forza (basta che una parola cominci nel modo giusto: "Outdoor Run", "Allenamento funzionale della forza"). Gli altri tengono il loro nome.
+  - **Abbinamento**: un allenamento di Salute completa quello dello stesso giorno e della stessa disciplina che non ha ancora un `health_id`; tra più candidati, prima quelli da fare, poi il più vicino per orario. Il nome e l'orario scelti nell'app restano; le misure di Salute si scrivono solo dove ci sono. Un allenamento già segnato come fatto a mano tiene il suo `completed_at`. Senza candidati si crea una riga `source = 'health'`, `status = 'done'`.
+  - **Ripetibilità**: `health_id` (unico per utente) rende l'invio ripetibile. Un allenamento già arrivato non si tocca più, nemmeno se nell'app è stato modificato o eliminato.
+- **Spike** (resta da fare, sull'iPhone): quali campi espone "Trova allenamenti" (tipo, inizio, fine, durata, calorie, distanza, identificativo) e in che formato; se un'automazione "a fine allenamento" parte senza conferma. **Piano B**: automazione a orario fisso ogni sera. La lettura è tollerante sui formati proprio perché lo spike può ancora cambiarli.
 
 ---
 
@@ -678,7 +688,14 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: ripetizioni degli allenamenti; notifiche (incremento 9).
 
 **Incremento 7c — Salute di Apple** *(aggiunto il 10 ottobre 2026)*
-- Come da sezione 9.8. Si comincia dallo spike sull'iPhone.
+- Come da sezione 9.8.
+- Come è stato realizzato (10 ottobre 2026), dal lato dell'app:
+  - Migrazione `health_link` (tabella `health_links` con RLS e quattro policy).
+  - Logica pura con test in `lib/health/`: `import.ts` (lettura di ciò che arriva, discipline, abbinamento, frase di risposta) e `token.ts` (token e impronta).
+  - Edge Function `health-workouts`, con `health.gen.js` generato da `scripts/build-functions.mjs`.
+  - Dati in `lib/health/link.ts` e `hooks.ts`; sezione "Salute di Apple" in Impostazioni (genera, rigenera, revoca, ultimo invio).
+- Criteri: test dei moduli puri; `rls_check.sql` esteso a `health_links`; prova dal vivo della funzione con un utente di prova (token sbagliato rifiutato, allenamento in programma completato, allenamento nuovo aggiunto, secondo invio senza duplicati).
+- Resta da fare: lo spike sull'iPhone, il Comando rapido e la prova con un allenamento vero.
 
 **Incremento 8 — Wishlist**
 - Inserimento manuale, recupero da link con test su link reali, import da ChatGPT. Realizzazione: sezioni 9.3 e 9.4. Elenco per stato (desiderati, acquistati, scartati) e categoria, ordinato per interesse; passa dalla outbox e resta in cache come le altre liste (il recupero dal link richiede la rete).
@@ -730,7 +747,7 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T9 | Import una tantum da `.ics` (1b) e Google Calendar (1c) subito dopo l'incremento 1, prima di Quick Capture | [APPROVATO il 10 ottobre 2026] |
 | T10 | imayoga (1e): sola lettura, solo lezioni pubblicate, 60 minuti, individuali solo se prenotate; accesso con funzione protetta da token su `ima-yoga` (sezione 9.2) | [APPROVATO il 10 ottobre 2026] |
 | T11 | Allenamenti (7b): tabella `workouts` separata; "saltato" calcolato in lettura; nessuna voce di navigazione | [APPROVATO il 10 ottobre 2026] |
-| T12 | Salute di Apple (7c): Comando rapido → Edge Function con token personale (sezione 9.8) | [DA VERIFICARE con lo spike] |
+| T12 | Salute di Apple (7c): Comando rapido → Edge Function con token personale (sezione 9.8) | [Lato app realizzato; Comando rapido DA VERIFICARE con lo spike] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

@@ -16,6 +16,8 @@ import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
 import { useImayogaAccount } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
+import { useHealthLink } from "@/lib/health/hooks";
+import { createHealthToken, healthEndpoint, revokeHealthLink } from "@/lib/health/link";
 import {
   checkPushSupport,
   currentSubscription,
@@ -44,6 +46,7 @@ export default function SettingsPage() {
       <CalendarsSection />
       <ImayogaSection />
       <WorkoutsSection />
+      <HealthSection />
       <DataSection />
       <AccountSection />
     </div>
@@ -471,6 +474,101 @@ function WorkoutsSection() {
           Storico e riepilogo
         </Link>
       </div>
+    </Section>
+  );
+}
+
+/* ---------------- Salute di Apple ---------------- */
+function CopyField({ id, label, value }: { id: string; label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch {
+      // Senza accesso agli appunti il testo resta selezionabile a mano.
+    }
+  }
+
+  return (
+    <Field label={label} htmlFor={id}>
+      <div className="flex gap-2">
+        <input id={id} readOnly value={value} onFocus={(e) => e.currentTarget.select()} className={`${inputClass} min-w-0 flex-1 font-mono text-xs`} />
+        <Button onClick={copy}>{copied ? "Copiato" : "Copia"}</Button>
+      </div>
+    </Field>
+  );
+}
+
+function HealthSection() {
+  const qc = useQueryClient();
+  const link = useHealthLink();
+  const [busy, setBusy] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+
+  async function act(action: () => Promise<string | null>) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const text = await action();
+      setStatus(text ? { text, tone: "ok" } : null);
+    } catch {
+      setStatus({ text: "Operazione non riuscita. Controlla la connessione e riprova.", tone: "warn" });
+    } finally {
+      await qc.invalidateQueries({ queryKey: ["health-link"] });
+      setBusy(false);
+    }
+  }
+
+  const create = () =>
+    act(async () => {
+      setToken(await createHealthToken());
+      return null;
+    });
+
+  const revoke = () =>
+    act(async () => {
+      await revokeHealthLink();
+      setToken(null);
+      return "Token revocato. Gli allenamenti già arrivati restano.";
+    });
+
+  const linked = !!link.data;
+  const lastReceived = link.data?.last_received_at
+    ? new Date(link.data.last_received_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "Mai";
+
+  return (
+    <Section
+      title="Salute di Apple"
+      note="Sola lettura: un Comando rapido sull’iPhone manda qui gli allenamenti registrati da iPhone o Apple Watch. Se ce n’è uno in programma nello stesso giorno e nella stessa disciplina lo completano; gli altri si aggiungono come già fatti."
+    >
+      <Row
+        label="Allenamenti da Salute"
+        value={link.isPending ? "…" : linked ? <span className="text-accent">Token attivo</span> : <span className="text-text-3">Non collegata</span>}
+      />
+      {linked ? <Row label="Ultimo invio" value={lastReceived} /> : null}
+      {token ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-line-2 p-3">
+          <p className="text-sm text-text-2">Copia indirizzo e token nel Comando rapido. Il token si vede solo adesso: se lo perdi, generane uno nuovo.</p>
+          <CopyField id="health-endpoint" label="Indirizzo" value={healthEndpoint()} />
+          <CopyField id="health-token" label="Token" value={token} />
+        </div>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={create} disabled={busy || link.isPending}>
+          {linked ? "Genera un nuovo token" : "Genera il token"}
+        </Button>
+        {linked ? (
+          <Button onClick={revoke} disabled={busy}>
+            Revoca
+          </Button>
+        ) : null}
+      </div>
+      {linked && !token ? <p className="text-xs leading-relaxed text-text-3">Un nuovo token toglie validità a quello in uso nel Comando rapido.</p> : null}
+      <Status text={status?.text ?? null} tone={status?.tone} />
     </Section>
   );
 }

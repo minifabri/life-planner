@@ -4,7 +4,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { build } from "esbuild";
 
-const targets = [{ entry: "lib/reminders/plan.ts", out: "supabase/functions/dispatch-reminders/plan.gen.js" }];
+const targets = [
+  { entry: "lib/reminders/plan.ts", out: "supabase/functions/dispatch-reminders/plan.gen.js" },
+  { entry: "lib/health/edge.ts", out: "supabase/functions/health-workouts/health.gen.js" },
+];
 const check = process.argv.includes("--check");
 let stale = false;
 

@@ -170,6 +170,13 @@ export type ImayogaAccount = {
   last_error: string | null;
 };
 
+/** Collegamento con Salute di Apple: esiste finché il token personale è valido. */
+export type HealthLink = {
+  owner_id: string;
+  created_at: string;
+  last_received_at: string | null;
+};
+
 export type IcloudCalendar = {
   id: string;
   url: string;
