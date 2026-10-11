@@ -236,8 +236,9 @@ id, owner_id, kind text check in ('shopping','wishlist'), name
 **shopping_items**
 ```
 id, owner_id, list_id, name, quantity text null, department text null,
-checked boolean default false, checked_at timestamptz null, deleted_at
+checked boolean default false, checked_at timestamptz null, finished_at timestamptz null, deleted_at
 ```
+"In casa" (Pasti, D43) non ha una tabella sua: sono gli articoli con `checked` e senza `finished_at`, anche se già tolti dalla lista (`deleted_at`). Regole in `lib/shopping/pantry.ts`; la cache `pantry-items` segue la outbox come la lista (`applyToPantry`). Migrazione `20261011110000_pantry.sql`.
 
 **product_memory** — catalogo appreso, mai gestito a mano
 ```

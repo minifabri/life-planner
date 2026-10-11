@@ -69,6 +69,14 @@ export default function WishlistPage() {
     toast({ message: "Articolo eliminato", actionLabel: "Annulla", onAction: () => void attempt(() => updateWishlistItem(item, { deleted_at: null })) });
   }
 
+  async function markBought(item: WishlistItem) {
+    if (!(await attempt(() => updateWishlistItem(item, { status: "bought" })))) {
+      toast({ message: "Non spostato. Riprova.", tone: "warn" });
+      return;
+    }
+    toast({ message: "Spostato in Acquistati", actionLabel: "Annulla", onAction: () => void attempt(() => updateWishlistItem(item, { status: item.status })) });
+  }
+
   return (
     <>
       <PageHeader eyebrow="Liste" title="Wishlist" />
@@ -114,7 +122,7 @@ export default function WishlistPage() {
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
           {visible.map((item) => (
-            <ItemCard key={item.id} item={item} onOpen={() => setEditing(item)} />
+            <ItemCard key={item.id} item={item} onOpen={() => setEditing(item)} onBought={item.status === "wanted" ? () => void markBought(item) : undefined} />
           ))}
         </ul>
       )}
@@ -151,8 +159,8 @@ export default function WishlistPage() {
   );
 }
 
-/** Card essenziale: immagine se c'è, nome, marca, prezzo se c'è, interesse. */
-function ItemCard({ item, onOpen }: { item: WishlistItem; onOpen: () => void }) {
+/** Card essenziale: immagine se c'è, nome, marca, prezzo se c'è, interesse. Sui desiderati, la spunta sposta in Acquistati. */
+function ItemCard({ item, onOpen, onBought }: { item: WishlistItem; onOpen: () => void; onBought?: () => void }) {
   const price = formatPrice(item.price_amount, item.price_currency, item.price_is_estimate);
   const site = item.url ? siteName(item.url) : null;
   const missingData = missingFromLink(item);
@@ -183,6 +191,17 @@ function ItemCard({ item, onOpen }: { item: WishlistItem; onOpen: () => void }) 
           ) : null}
         </span>
       </button>
+      {onBought ? (
+        <button
+          type="button"
+          onClick={onBought}
+          aria-label={`Segna come acquistato: ${item.name}`}
+          title="Acquistato"
+          className="flex w-11 shrink-0 items-center justify-center border-l border-line text-text-2 hover:bg-surface-2 hover:text-text"
+        >
+          <Icon name="check" size={16} />
+        </button>
+      ) : null}
       {item.url ? (
         <a
           href={item.url}

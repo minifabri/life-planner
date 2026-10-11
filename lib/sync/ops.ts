@@ -1,4 +1,5 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
+import { inPantry } from "../shopping/pantry";
 import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WishlistItem, Workout } from "../supabase/types";
 
 /**
@@ -179,8 +180,20 @@ export function applyToShopping(items: ShoppingItem[], op: Op, at: string): Shop
     items,
     op,
     (row) =>
-      ({ quantity: null, department: null, checked: false, checked_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
+      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
   ).filter((i) => !i.deleted_at);
+}
+
+/** Gli articoli in casa dopo una modifica in attesa: restano anche quelli tolti dalla lista della spesa. */
+export function applyToPantry(items: ShoppingItem[], op: Op, at: string): ShoppingItem[] {
+  if (op.table !== "shopping_items") return items;
+  return applyToRows(
+    items,
+    op,
+    (row) =>
+      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
+    inPantry,
+  ).filter(inPantry);
 }
 
 /** I pasti di una settimana (da `from` a `to`, inclusi) dopo una modifica in attesa. */

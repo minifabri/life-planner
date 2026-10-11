@@ -159,6 +159,8 @@ export type ShoppingItem = {
   department: string | null;
   checked: boolean;
   checked_at: string | null;
+  /** Finito: l'articolo comprato non è più in casa (Pasti → In casa). */
+  finished_at: string | null;
   deleted_at: string | null;
   created_at: string;
 };

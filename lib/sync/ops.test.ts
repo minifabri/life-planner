@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventRow, Task } from "../supabase/types";
-import { applyToDayEvents, applyToRecurrences, applyToShopping, applyToTasks, applyToWorkouts, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
+import { applyToDayEvents, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWorkouts, byId, classifyStatus, eventTouchesDay, type DayEvents, type Op } from "./ops";
 
 const AT = "2026-10-10T08:00:00.000Z";
 const TZ = "Europe/Rome";
@@ -180,6 +180,26 @@ describe("applyToShopping", () => {
     const [item] = applyToShopping([], add, AT);
     const undo: Op = { kind: "update", table: "shopping_items", patch: { deleted_at: null }, where: byId("s"), snapshot: { ...item, deleted_at: null } };
     expect(applyToShopping([], undo, AT)).toEqual([item]);
+  });
+});
+
+describe("applyToPantry", () => {
+  const add: Op = { kind: "insert", table: "shopping_items", row: { id: "s", list_id: "l", name: "Latte" } };
+  const [item] = applyToShopping([], add, AT);
+  const bought = { ...item, checked: true, checked_at: AT };
+  const update = (patch: Record<string, unknown>, snapshot?: typeof item): Op => ({ kind: "update", table: "shopping_items", patch, where: byId("s"), snapshot });
+
+  it("un articolo entra quando viene spuntato e resta dopo \"Svuota completati\"", () => {
+    expect(applyToPantry([], add, AT)).toEqual([]);
+    const pantry = applyToPantry([], update({ checked: true, checked_at: AT }, bought), AT);
+    expect(pantry).toEqual([bought]);
+    expect(applyToPantry(pantry, update({ deleted_at: AT }), AT)).toHaveLength(1);
+  });
+
+  it("esce se la spunta viene tolta o se è finito, e torna annullando", () => {
+    expect(applyToPantry([bought], update({ checked: false, checked_at: null }), AT)).toEqual([]);
+    expect(applyToPantry([bought], update({ finished_at: AT }), AT)).toEqual([]);
+    expect(applyToPantry([], update({ finished_at: null }, bought), AT)).toEqual([bought]);
   });
 });
 

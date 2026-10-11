@@ -21,6 +21,12 @@ function departmentRank(department: string): number {
   return i === -1 ? DEPARTMENTS.length : i;
 }
 
+/** I reparti noti nel loro ordine, poi gli altri in ordine alfabetico, "Altro" per ultimo. */
+export function compareDepartments(a: string, b: string): number {
+  if ((a === NO_DEPARTMENT) !== (b === NO_DEPARTMENT)) return a === NO_DEPARTMENT ? 1 : -1;
+  return departmentRank(a) - departmentRank(b) || a.localeCompare(b, "it");
+}
+
 /**
  * Articoli da comprare raggruppati per reparto (i reparti noti nel loro ordine, poi gli altri
  * in ordine alfabetico, "Altro" per ultimo) e articoli già presi, dal più recente.
@@ -37,10 +43,7 @@ export function groupItems(items: ShoppingItem[]): { groups: DepartmentGroup[]; 
       department,
       items: list.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
     }))
-    .sort((a, b) => {
-      if ((a.department === NO_DEPARTMENT) !== (b.department === NO_DEPARTMENT)) return a.department === NO_DEPARTMENT ? 1 : -1;
-      return departmentRank(a.department) - departmentRank(b.department) || a.department.localeCompare(b.department, "it");
-    });
+    .sort((a, b) => compareDepartments(a.department, b.department));
   const checked = items
     .filter((i) => i.checked)
     .sort((a, b) => (b.checked_at ?? "").localeCompare(a.checked_at ?? "") || b.id.localeCompare(a.id));

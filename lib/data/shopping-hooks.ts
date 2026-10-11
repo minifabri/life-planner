@@ -8,6 +8,7 @@ import { normalizeName, parseEntry, type Entry } from "../shopping/entry";
 import { learnedDepartment } from "../shopping/list";
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
 import {
+  fetchPantryItems,
   fetchProductMemory,
   fetchShoppingItems,
   insertShoppingItem,
@@ -19,6 +20,7 @@ import {
 
 const ITEMS_KEY = ["shopping-items"];
 const MEMORY_KEY = ["product-memory"];
+const PANTRY_KEY = ["pantry-items"];
 
 export function useShoppingItems() {
   const qc = useQueryClient();
@@ -28,10 +30,16 @@ export function useShoppingItems() {
       subscribeToShoppingItems(() => {
         qc.invalidateQueries({ queryKey: ITEMS_KEY });
         qc.invalidateQueries({ queryKey: MEMORY_KEY });
+        qc.invalidateQueries({ queryKey: PANTRY_KEY });
       }),
     [qc],
   );
   return useQuery({ queryKey: ITEMS_KEY, queryFn: fetchShoppingItems });
+}
+
+/** In casa (Pasti): ciò che è stato comprato e non è ancora finito. */
+export function usePantryItems() {
+  return useQuery({ queryKey: PANTRY_KEY, queryFn: fetchPantryItems });
 }
 
 export function useProductMemory() {
@@ -80,6 +88,7 @@ export function useShoppingActions() {
       department: learnedDepartment(entry.name, memory),
       checked: false,
       checked_at: null,
+      finished_at: null,
       deleted_at: null,
       created_at: new Date().toISOString(),
     };
@@ -100,9 +109,17 @@ export function useShoppingActions() {
     });
   }
 
+  /** Finito: l'ingrediente esce da "In casa" (tutti gli acquisti di quel prodotto), con annulla. */
+  async function finish(name: string, items: ShoppingItem[]) {
+    const ok = await patch(items, { finished_at: new Date().toISOString() });
+    if (!ok) return;
+    toast({ message: `${name}: finito`, actionLabel: "Annulla", onAction: () => patch(items, { finished_at: null }) });
+  }
+
   return {
     add,
     toggle,
+    finish,
     edit: (item: ShoppingItem, change: Pick<ShoppingItem, "name" | "quantity" | "department">) => patch([item], change),
     remove: (item: ShoppingItem) => remove([item], "Articolo eliminato"),
     clearChecked: (checked: ShoppingItem[]) =>
