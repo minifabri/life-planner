@@ -1,25 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { IdeasView } from "@/components/wardrobe/ideas-view";
 import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
 import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
+import { StyleSheet } from "@/components/wardrobe/style-sheet";
 import { WearSheet } from "@/components/wardrobe/wear-sheet";
 import { WardrobeTile } from "@/components/wardrobe/item-tile";
 import { Button, Segmented, inputClass } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
-import { createOutfit, recordWear, undoWear, updateOutfit, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
+import { STYLE_KEY, createOutfit, recordWear, saveWardrobeStyle, setFeedback, undoWear, updateOutfit, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
 import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDeletedWardrobePhotos, updateWardrobeItem } from "@/lib/data/wardrobe";
-import { useOutfits, useWardrobeItems, useWears } from "@/lib/data/wardrobe-hooks";
+import { useOutfitFeedback, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
 import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
-import type { Outfit, WardrobeItem } from "@/lib/supabase/types";
+import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
+import type { Outfit, OutfitFeedback, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
 
-type View = "items" | "outfits";
+type View = "items" | "outfits" | "ideas";
 /** L'outfit aperto nel foglio: uno esistente, oppure uno nuovo che parte da questi capi. */
 type OutfitEditor = { outfit: Outfit | null; itemIds: string[] };
 /** Capi di cui si sta registrando l'utilizzo, con l'outfit da cui vengono (se c'è). */
@@ -69,12 +73,22 @@ export default function WardrobePage() {
   const items = query.data ?? [];
   const outfitsQuery = useOutfits();
   const outfits = outfitsQuery.data ?? [];
-  const wears = useWears().data ?? [];
+  const wearsQuery = useWears();
+  const feedbackQuery = useOutfitFeedback();
+  const style = useWardrobeStyle().data ?? DEFAULT_STYLE;
+  const queryClient = useQueryClient();
+  const wears = useMemo(() => wearsQuery.data ?? [], [wearsQuery.data]);
+  const suggestData = useMemo(
+    () => ({ items: query.data ?? [], outfits: outfitsQuery.data ?? [], wears, feedback: feedbackQuery.data ?? [], style }),
+    [query.data, outfitsQuery.data, wears, feedbackQuery.data, style],
+  );
   const { today } = useToday(useTimezone());
 
   const [view, setView] = useState<View>("items");
   const [outfitEditor, setOutfitEditor] = useState<OutfitEditor | null>(null);
   const [wearing, setWearing] = useState<Wearing | null>(null);
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [editingStyle, setEditingStyle] = useState(false);
 
   const [filters, setFilters] = useState<WardrobeFilters>({});
   const [showFilters, setShowFilters] = useState(false);
@@ -84,7 +98,8 @@ export default function WardrobePage() {
 
   const visible = filterWardrobe(items, filters);
   const visibleOutfits = filterOutfits(outfits, filters.text ?? "");
-  const activeQuery = view === "items" ? query : outfitsQuery;
+  const activeQuery = view === "outfits" ? outfitsQuery : query;
+  const anchor = items.find((i) => i.id === anchorId) ?? null;
   const missing = activeQuery.data === undefined;
   const failed = missing && (offline || activeQuery.isError);
 
@@ -192,6 +207,30 @@ export default function WardrobePage() {
     return true;
   }
 
+  async function giveFeedback(suggestion: Suggestion, verdict: OutfitFeedback["verdict"] | null) {
+    const existing = (feedbackQuery.data ?? []).find((f) => f.signature === suggestion.signature) ?? null;
+    if (!(await attempt(() => setFeedback(existing, suggestion.itemIds, verdict)))) {
+      toast({ message: "Non registrato. Riprova.", tone: "warn" });
+      return;
+    }
+    if (verdict !== "dislike") return;
+    toast({
+      message: "Non te lo ripropongo",
+      actionLabel: "Annulla",
+      onAction: () => {
+        const given = (queryClient.getQueryData<OutfitFeedback[]>(["outfit-feedback"]) ?? []).find((f) => f.signature === suggestion.signature) ?? null;
+        void attempt(() => setFeedback(given, suggestion.itemIds, existing?.verdict ?? null));
+      },
+    });
+  }
+
+  async function saveStyle(next: WardrobeStyle): Promise<boolean> {
+    if (!(await attempt(() => saveWardrobeStyle(next)))) return false;
+    queryClient.setQueryData(STYLE_KEY, next);
+    setEditingStyle(false);
+    return true;
+  }
+
   function endSelection(): WardrobeItem[] {
     const ids = [...selected];
     setSelecting(false);
@@ -237,6 +276,7 @@ export default function WardrobePage() {
         options={[
           { value: "items", label: "Capi" },
           { value: "outfits", label: "Outfit" },
+          { value: "ideas", label: "Idee" },
         ]}
         onChange={(v) => {
           setView(v);
@@ -245,29 +285,31 @@ export default function WardrobePage() {
         }}
       />
 
-      <div className="flex flex-wrap gap-2">
-        {view === "items" ? (
-          <>
-            <Button variant="primary" onClick={() => setEditing("new")}>
-              Aggiungi
+      {view === "ideas" ? null : (
+        <div className="flex flex-wrap gap-2">
+          {view === "items" ? (
+            <>
+              <Button variant="primary" onClick={() => setEditing("new")}>
+                Aggiungi
+              </Button>
+              <Button onClick={() => setShowFilters((v) => !v)}>{showFilters ? "Nascondi filtri" : "Filtri"}</Button>
+            </>
+          ) : (
+            <Button variant="primary" onClick={() => setOutfitEditor({ outfit: null, itemIds: [] })}>
+              Nuovo outfit
             </Button>
-            <Button onClick={() => setShowFilters((v) => !v)}>{showFilters ? "Nascondi filtri" : "Filtri"}</Button>
-          </>
-        ) : (
-          <Button variant="primary" onClick={() => setOutfitEditor({ outfit: null, itemIds: [] })}>
-            Nuovo outfit
-          </Button>
-        )}
-        <input
-          type="search"
-          aria-label={view === "items" ? "Cerca tra i capi" : "Cerca tra gli outfit"}
-          placeholder="Cerca"
-          value={filters.text ?? ""}
-          onChange={(e) => setFilters((f) => ({ ...f, text: e.target.value || undefined }))}
-          autoComplete="off"
-          className={`${inputClass} min-w-0 flex-1 basis-40`}
-        />
-      </div>
+          )}
+          <input
+            type="search"
+            aria-label={view === "items" ? "Cerca tra i capi" : "Cerca tra gli outfit"}
+            placeholder="Cerca"
+            value={filters.text ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, text: e.target.value || undefined }))}
+            autoComplete="off"
+            className={`${inputClass} min-w-0 flex-1 basis-40`}
+          />
+        </div>
+      )}
 
       {view === "items" ? (
         <>
@@ -341,6 +383,23 @@ export default function WardrobePage() {
             </ul>
           )}
         </>
+      ) : view === "ideas" ? (
+        missing ? (
+          <p className="text-sm text-text-3" aria-live="polite">
+            Carico il guardaroba…
+          </p>
+        ) : (
+          <IdeasView
+            data={suggestData}
+            today={today}
+            anchor={anchor}
+            onClearAnchor={() => setAnchorId(null)}
+            onFeedback={(s, v) => void giveFeedback(s, v)}
+            onSave={(s) => setOutfitEditor({ outfit: null, itemIds: s.itemIds })}
+            onWear={(s) => setWearing({ outfitId: null, items: s.items })}
+            onEditStyle={() => setEditingStyle(true)}
+          />
+        )
       ) : failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
           <p>{offline ? "Gli outfit non sono ancora stati scaricati su questo dispositivo: serve la connessione." : "Non riesco a caricare gli outfit. Controlla la connessione."}</p>
@@ -382,6 +441,8 @@ export default function WardrobePage() {
         />
       ) : null}
 
+      {editingStyle ? <StyleSheet style={style} onSave={saveStyle} onClose={() => setEditingStyle(false)} /> : null}
+
       {wearing ? <WearSheet items={wearing.items} onConfirm={confirmWear} onClose={() => setWearing(null)} /> : null}
 
       {editing ? (
@@ -393,6 +454,15 @@ export default function WardrobePage() {
             if (editing !== "new") void remove(editing);
           }}
           onDuplicate={editing !== "new" ? () => void duplicate(editing) : undefined}
+          onMatch={
+            editing !== "new"
+              ? () => {
+                  setAnchorId(editing.id);
+                  setEditing(null);
+                  setView("ideas");
+                }
+              : undefined
+          }
           onClose={() => setEditing(null)}
         />
       ) : null}

@@ -277,11 +277,15 @@ wardrobe_items: id, owner_id, name null, image_path null, thumb_path null, image
 outfits:        id, owner_id, name null, item_ids uuid[], styles text[], occasions text[], seasons text[],
                 favorite boolean default false, notes null, deleted_at
 wardrobe_wears: id, owner_id, worn_on date, outfit_id null → outfits (on delete set null), item_ids uuid[]
+wardrobe_style: owner_id pk, liked_styles text[], liked_colors text[], avoid text[], weights jsonb null
+outfit_feedback: id, owner_id, item_ids uuid[], signature text, verdict text check in ('like','dislike')
 ```
 - Foto in Supabase Storage, bucket privato `wardrobe`: `<owner_id>/<id>.jpg` e `<owner_id>/<id>_thumb.jpg`, con policy sul primo segmento del percorso. Si mostrano con URL firmati di un'ora. Compressione nel browser prima dell'upload (lato lungo 1600 px, miniatura 400 px, JPEG).
 - `image_url` è l'immagine esterna di un capo arrivato senza foto propria (previsto per il passaggio dalla Wishlist).
 - `outfits.item_ids` è un elenco di id e non una tabella di collegamento: ogni modifica dell'outfit è una sola scrittura nella outbox. Il database non verifica che gli id esistano; i capi non vengono mai cancellati davvero (`deleted_at`), e l'app conta come "non più nel guardaroba" gli id che non trova.
 - `wardrobe_wears` registra solo utilizzi effettivi; `item_ids` è la fotografia dei capi indossati quel giorno, indipendente dalle modifiche successive all'outfit.
+- `wardrobe_style` ha una riga per utente e si scrive direttamente, con la rete (non passa dalla outbox). Senza riga vale il profilo di partenza dell'app (`DEFAULT_STYLE`). `weights` contiene solo i pesi diversi da quelli predefiniti.
+- `outfit_feedback.signature` è l'elenco degli id ordinati e uniti da "|": una combinazione ha un solo giudizio, a prescindere dall'ordine dei capi. L'unicità è garantita dall'app (aggiorna il giudizio esistente), non da un vincolo.
 - Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
@@ -825,8 +829,23 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: l'export (sezione 10) non contiene ancora le tabelle del guardaroba né le foto.
 - Criteri: test di `lib/wardrobe`; dal telefono: fotografa due capi, crea un outfit dalla selezione, sostituisci un capo, segna "Indossato oggi" scegliendo un capo da lavare, ritrova l'etichetta sull'outfit, annulla dal toast; ripeti la creazione di un outfit senza rete.
 
-**Incrementi 16–19 — Guardaroba, passi successivi** [PROPOSTA]
-- 16 suggerimenti a regole (motore puro, deterministico e spiegabile, con pesi configurabili), profilo di stile e feedback; 17 pianificazione di un outfit su un giorno o un evento; 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
+**Incremento 16 — Guardaroba, idee** *(11 ottobre 2026)*
+- Migrazione `20261012130000_wardrobe_suggestions.sql`: `wardrobe_style` e `outfit_feedback`, con RLS e le quattro policy.
+- Motore puro con test in `lib/wardrobe/suggest.ts`, senza servizi esterni:
+  - **Filtro preliminare**: per ogni categoria si tengono i capi migliori valutati da soli (6 per top, bottom e vestiti; 4 per scarpe, capispalla, accessori e borse). Le basi sono top × bottom più i vestiti: al più 42.
+  - **Completamento**: a ogni base si aggiungono le scarpe migliori; il capospalla col freddo, o col mite se la base è leggera; un accessorio o una borsa solo se non peggiora il voto.
+  - **Voto**: otto fattori tra 0 e 1 (colore, stile, occasione, termico, disponibilità, preferenze, giudizi, varietà) in media pesata. Pesi in `DEFAULT_WEIGHTS`, sovrascrivibili da `wardrobe_style.weights`.
+  - **Dati mancanti**: un fattore senza dati vale 0,5 e non entra nella motivazione.
+  - **Giudizi**: "Mi piace" e "Non mi piace" spostano il voto di ogni coppia di capi della combinazione; la combinazione scartata esatta è esclusa.
+  - **Diversità**: le proposte mostrate differiscono di almeno due capi, uno se non è possibile.
+  - **Temperatura**: indicata a mano (freddo, mite, caldo) oppure ricavata dalla stagione, dichiarandolo nella proposta.
+- `suggestOutfits` (per oggi), `suggestAround` (Consigliato, Elegante, Alternativo intorno a un capo), `suggestDiscover` (capi meno usati, combinazioni mai indossate né salvate).
+- Interfaccia: `IdeasView` e `StyleSheet`; "Abbina" nella scheda del capo; "Salva" riusa `OutfitSheet`, "Indossato oggi" riusa `WearSheet`.
+- Non incluso: meteo reale (richiede un servizio esterno e la posizione: da decidere), regolazione dei pesi dall'interfaccia, motivazione quando si scarta.
+- Criteri: test di `lib/wardrobe/suggest`; dal telefono, con almeno una decina di capi classificati: apri Idee, cambia occasione e tempo, dai un "Non mi piace" e verifica che la proposta sparisca e torni con Annulla; "Abbina" da un capo e ottieni tre proposte diverse; salva una proposta come outfit; modifica "Il mio stile" e verifica che l'ordine cambi.
+
+**Incrementi 17–19 — Guardaroba, passi successivi** [PROPOSTA]
+- 17 pianificazione di un outfit su un giorno o un evento; 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

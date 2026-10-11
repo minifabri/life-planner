@@ -43,12 +43,15 @@ export function ItemSheet({
   onSave,
   onDelete,
   onDuplicate,
+  onMatch,
   onClose,
 }: {
   item: WardrobeItem | null;
   onSave: (input: ItemSave) => Promise<boolean>;
   onDelete: () => void;
   onDuplicate?: () => void;
+  /** Apre le idee di abbinamento intorno a questo capo. */
+  onMatch?: () => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(item?.name ?? "");
@@ -252,15 +255,20 @@ export function ItemSheet({
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {item ? (
-            <div className="-ml-4 flex gap-1">
+            <div className="-ml-4 flex flex-wrap gap-1">
               <Button variant="quiet" onClick={onDelete} disabled={busy}>
                 Elimina
               </Button>
               {onDuplicate ? (
                 <Button variant="quiet" onClick={onDuplicate} disabled={busy}>
                   Duplica
+                </Button>
+              ) : null}
+              {onMatch ? (
+                <Button variant="quiet" onClick={onMatch} disabled={busy}>
+                  Abbina
                 </Button>
               ) : null}
             </div>

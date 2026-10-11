@@ -1,8 +1,9 @@
 import { uuidv7 } from "../ids";
 import { getSupabase } from "../supabase/client";
-import type { Outfit, WardrobeItem, WardrobeStatus, WardrobeWear } from "../supabase/types";
-import { commit, withPendingOutfits, withPendingWears } from "../sync/engine";
+import type { Outfit, OutfitFeedback, WardrobeItem, WardrobeStatus, WardrobeStyle, WardrobeWear } from "../supabase/types";
+import { commit, withPendingFeedback, withPendingOutfits, withPendingWears } from "../sync/engine";
 import { byId, type Op } from "../sync/ops";
+import { signatureOf } from "../wardrobe/suggest";
 
 function check<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
@@ -63,4 +64,38 @@ export async function undoWear(wearId: string, choices: WearChoice[]): Promise<v
     if (status !== item.status) ops.push({ kind: "update", table: "wardrobe_items", patch: { status: item.status }, where: byId(item.id), snapshot: item });
   }
   await commit(ops);
+}
+
+export const FEEDBACK_KEY = ["outfit-feedback"];
+export const STYLE_KEY = ["wardrobe-style"];
+
+export async function fetchFeedback(): Promise<OutfitFeedback[]> {
+  const rows: OutfitFeedback[] = check(await getSupabase().from("outfit_feedback").select("id, item_ids, signature, verdict, created_at").limit(2000));
+  return withPendingFeedback(rows);
+}
+
+/**
+ * Registra, cambia o toglie (`verdict` nullo) il giudizio su una combinazione.
+ * `existing` è il giudizio già dato alla stessa combinazione, se c'è: una combinazione ha un solo giudizio.
+ */
+export async function setFeedback(existing: OutfitFeedback | null, itemIds: string[], verdict: OutfitFeedback["verdict"] | null): Promise<void> {
+  if (existing) {
+    await commit([
+      verdict
+        ? { kind: "update", table: "outfit_feedback", patch: { verdict }, where: byId(existing.id), snapshot: { ...existing, verdict } }
+        : { kind: "delete", table: "outfit_feedback", where: byId(existing.id) },
+    ]);
+  } else if (verdict) {
+    await commit([{ kind: "insert", table: "outfit_feedback", row: { id: uuidv7(), item_ids: itemIds, signature: signatureOf(itemIds), verdict } }]);
+  }
+}
+
+/** Il profilo di stile salvato, o `null` se non è mai stato toccato (vale quello di partenza). */
+export async function fetchWardrobeStyle(): Promise<WardrobeStyle | null> {
+  return check(await getSupabase().from("wardrobe_style").select("liked_styles, liked_colors, avoid, weights").maybeSingle());
+}
+
+/** Salva il profilo di stile. Come le altre impostazioni, richiede la rete. */
+export async function saveWardrobeStyle(style: WardrobeStyle): Promise<void> {
+  check(await getSupabase().from("wardrobe_style").upsert(style, { onConflict: "owner_id" }).select("owner_id"));
 }
