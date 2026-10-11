@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { OUTFITS_KEY, WEARS_KEY, fetchOutfits, fetchWears } from "./outfits";
+import { FEEDBACK_KEY, OUTFITS_KEY, STYLE_KEY, WEARS_KEY, fetchFeedback, fetchOutfits, fetchWardrobeStyle, fetchWears } from "./outfits";
 import { WARDROBE_KEY, fetchWardrobeImageUrl, fetchWardrobeItems } from "./wardrobe";
 
 export function useWardrobeItems() {
@@ -14,6 +14,14 @@ export function useOutfits() {
 
 export function useWears() {
   return useQuery({ queryKey: WEARS_KEY, queryFn: fetchWears });
+}
+
+export function useOutfitFeedback() {
+  return useQuery({ queryKey: FEEDBACK_KEY, queryFn: fetchFeedback });
+}
+
+export function useWardrobeStyle() {
+  return useQuery({ queryKey: STYLE_KEY, queryFn: fetchWardrobeStyle, staleTime: 5 * 60_000 });
 }
 
 /** URL firmato di una foto del guardaroba: si rinnova da solo prima che scada (ogni ora). */

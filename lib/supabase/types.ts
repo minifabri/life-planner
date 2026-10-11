@@ -327,6 +327,26 @@ export type WardrobeWear = {
   created_at: string;
 };
 
+/** Giudizio esplicito su una combinazione di capi (non si deduce mai da ciò che non viene scelto). */
+export type OutfitFeedback = {
+  id: string;
+  item_ids: string[];
+  /** Gli id ordinati e uniti da "|": la stessa combinazione ha sempre la stessa firma. */
+  signature: string;
+  verdict: "like" | "dislike";
+  created_at: string;
+};
+
+/** Profilo di stile usato dai suggerimenti: orientamenti, non divieti. */
+export type WardrobeStyle = {
+  liked_styles: string[];
+  liked_colors: string[];
+  /** Parole cercate in nome, sottocategoria, materiale e note dei capi (es. "con lacci"). */
+  avoid: string[];
+  /** Pesi dei fattori del motore, se diversi da quelli predefiniti. */
+  weights: Partial<Record<string, number>> | null;
+};
+
 /** Una voce di un template: il giorno è la distanza dalla data di partenza. */
 export type TemplateItem = {
   title: string;

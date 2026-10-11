@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -19,7 +19,8 @@ export type Table =
   | "workouts"
   | "wardrobe_items"
   | "outfits"
-  | "wardrobe_wears";
+  | "wardrobe_wears"
+  | "outfit_feedback";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -296,6 +297,12 @@ export function applyToWears(wears: WardrobeWear[], op: Op, at: string): Wardrob
     op,
     (row) => ({ outfit_id: null, item_ids: [], created_at: at, ...(row as Partial<WardrobeWear> & { id: string; worn_on: string }) }) as WardrobeWear,
   ).sort((a, b) => b.worn_on.localeCompare(a.worn_on) || b.created_at.localeCompare(a.created_at));
+}
+
+/** I giudizi sulle combinazioni dopo una modifica in attesa. */
+export function applyToFeedback(feedback: OutfitFeedback[], op: Op, at: string): OutfitFeedback[] {
+  if (op.table !== "outfit_feedback") return feedback;
+  return applyToRows(feedback, op, (row) => ({ created_at: at, ...(row as Omit<OutfitFeedback, "created_at">) }));
 }
 
 /** Il guardaroba dopo una modifica in attesa: i capi nuovi in testa, come li ordina la lettura dal server. */
