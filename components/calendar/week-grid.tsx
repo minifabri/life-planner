@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { DaySigns } from "@/components/days/day-signs";
 import { AreaDot } from "@/components/today/task-row";
 import { AttentionMark, Diamond } from "@/components/ui/marks";
 import { WorkoutMark } from "@/components/workouts/workout-row";
 import type { EditorTarget } from "@/components/today/item-editor";
 import { canMoveEvent, hourRange, layoutBlocks, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { daySigns, signsText } from "@/lib/days/marks";
 import type { Occurrence } from "@/lib/events/day";
-import type { Area, Task, Workout } from "@/lib/supabase/types";
+import type { Area, DayMark, Task, Workout } from "@/lib/supabase/types";
 import { LOAD_LABEL } from "@/lib/tasks/load";
 
 /** Altezza di un'ora e durata minima disegnata: un blocco non scende mai sotto i 44 px toccabili. */
@@ -24,6 +26,7 @@ const chipClass =
 export function WeekGrid({
   views,
   today,
+  marks,
   nowTime,
   areaById,
   dragged,
@@ -36,6 +39,8 @@ export function WeekGrid({
 }: {
   views: DayView[];
   today: LocalDate;
+  /** Segni dei giorni (ufficio, viaggio): piccole icone accanto alla data. */
+  marks: DayMark[];
   nowTime: string;
   areaById: Map<string, Area>;
   dragged: Dragged | null;
@@ -60,6 +65,7 @@ export function WeekGrid({
       <div className="grid min-w-0 flex-1 grid-cols-7 gap-px rounded-[14px] border border-line bg-line">
         {views.map((view, index) => {
           const isToday = view.day === today;
+          const signs = daySigns(view.day, marks, [], today);
           const allDay = view.occurrences.filter((o) => o.allDay);
           const placed = layoutBlocks(blocksByDay[index], MIN_BLOCK_MIN);
           return (
@@ -85,12 +91,13 @@ export function WeekGrid({
               <button
                 type="button"
                 onClick={() => onOpenDay(view.day)}
-                aria-label={`Apri ${weekdayName(view.day)} ${shortDate(view.day)}: ${LOAD_LABEL[view.load.level].toLowerCase()}`}
+                aria-label={`Apri ${weekdayName(view.day)} ${shortDate(view.day)}: ${LOAD_LABEL[view.load.level].toLowerCase()}${signs.length ? `, ${signsText(signs)}` : ""}`}
                 className={`flex min-h-11 flex-col gap-1.5 px-2 pb-2 pt-2.5 text-left hover:bg-surface-2 ${isToday ? "bg-accent-soft" : ""}`}
               >
                 <span className="flex items-baseline gap-1.5">
                   <span className={`font-mono text-[10.5px] uppercase tracking-[0.08em] ${isToday ? "text-accent" : "text-text-3"}`}>{weekdayName(view.day).slice(0, 3)}</span>
                   <span className={`text-xl ${isToday ? "font-medium text-accent" : "font-light text-text"}`}>{Number(view.day.slice(8))}</span>
+                  <DaySigns signs={signs} size={12} className="ml-auto self-center" />
                 </span>
                 <span className="h-[3px] overflow-hidden rounded-full bg-line">
                   <span className={`block h-full rounded-full ${view.load.level === "full" ? "bg-accent" : "bg-text-3"}`} style={{ width: `${view.load.ratio * 100}%` }} />

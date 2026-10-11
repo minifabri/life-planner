@@ -110,6 +110,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D47 | **Outfit**: dentro Guardaroba, selettore "Capi · Outfit". Un outfit è un elenco di capi senza struttura obbligatoria, mostrato come moodboard delle loro foto | [APPROVATO l'11 ottobre 2026] |
 | D48 | **Indossato oggi**: registra l'utilizzo e chiede, capo per capo, se resta pulito, riutilizzabile o da lavare. Nessun capo diventa da lavare da solo. Un outfit con capi da lavare si segnala, non si nasconde | [APPROVATO l'11 ottobre 2026] |
 | D49 | Guardaroba, passi successivi nell'ordine: suggerimenti a regole con profilo di stile e feedback; pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche | [PROPOSTA] |
+| D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -539,6 +540,15 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 **Offline**: capi, outfit e utilizzi si leggono e si modificano senza rete; solo il caricamento della foto la richiede.
 
 Non incluso per ora (D49): suggerimenti, profilo di stile e feedback, meteo, pianificazione su giorno o evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+
+### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
+- **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
+- **Aspetto**: icone piccole e grigie, mai colore né testo nelle strisce dei giorni. Niente notifiche, niente effetto sul carico del giorno.
+- **Segnare**: riga discreta sotto il titolo del giorno ("Segna il giorno", poi "Ufficio · Corsa 18:00"); un tocco apre il foglio con Ufficio e Viaggio, che si mettono e si tolgono.
+- **Pasti**: icone sotto i puntini di ogni giorno della striscia; riga del giorno con segni e allenamenti.
+- **Guardaroba**: in alto i prossimi sette giorni da oggi con i loro segni; un tocco su un giorno lo segna.
+- **Oggi**: riga sotto la data, solo ufficio e viaggio (gli allenamenti hanno già la loro sezione). **Settimana**: icone accanto alla data, mobile e desktop.
+- Non incluso per ora: segnare più giorni insieme (un viaggio si segna giorno per giorno), altri tipi di segno, icone nelle celle del Mese, ricerca.
 
 ---
 

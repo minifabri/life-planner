@@ -61,6 +61,15 @@ export type Task = {
   updated_at: string;
 };
 
+export type DayMarkKind = "office" | "travel";
+
+/** Segno di un giorno: "in ufficio", "in viaggio". Un giorno può averne più di uno. */
+export type DayMark = {
+  id: string;
+  date: string;
+  kind: DayMarkKind;
+};
+
 export type WorkoutStatus = "planned" | "done" | "skipped";
 
 /** Allenamento: si pianifica e si completa, ma se salta non resta indietro. */

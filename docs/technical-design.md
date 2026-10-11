@@ -228,6 +228,8 @@ unique (owner_id, health_id)
 ```
 "Saltato" per un allenamento in programma in un giorno passato si calcola in lettura (`shownStatus`), senza scritture.
 
+**day_marks** — Segni dei giorni (D50): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`.
+
 **lists** — contenitore predisposto per la condivisione futura
 ```
 id, owner_id, kind text check in ('shopping','wishlist'), name
@@ -797,6 +799,13 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Settimana**: su mobile numero del giorno, tempo libero (`freeLabel`) e segni distinti per evento, attività e scadenza; su desktop legenda nella barra laterale, giorni passati attenuati e conferma dello spostamento con Annulla.
 - **Log**: tessere "Ultima volta" in testa alla cronologia. Nel Mese il Log resta un trattino neutro (D24).
 - Non toccata la Spesa: le sue differenze sono sul ramo `claude/shopping-list-ux-4ae3ef`.
+
+**Segni dei giorni** *(12 ottobre 2026, D50)*
+- Migrazione `day_marks` (RLS e quattro policy), `rls_check.sql` esteso.
+- Logica pura con test in `lib/days/marks.ts`: segni di un giorno (`daySigns`), allenamenti che contano, testi, operazione metti/togli.
+- Dati in `lib/data/day-marks.ts` e `day-marks-hooks.ts`: query `["day-marks", dal, al]`, salvata sul dispositivo; le scritture passano dalla outbox (`applyToDayMarks`). L'id nasce da utente, giorno e segno (`deterministicId`): due dispositivi offline non creano doppioni.
+- Interfaccia in `components/days/day-signs.tsx`: `DaySigns` (icone), `DayMarksLine` (riga del giorno), `DayMarksSheet`, `UpcomingDays` (Guardaroba). Icone di `lucide-react`.
+- La tabella entra nell'export; l'eliminazione dell'account la porta via con l'utente.
 
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 

@@ -6,12 +6,14 @@ import { CalendarError, CalendarHeader } from "@/components/calendar/calendar-he
 import { useCalendar } from "@/components/calendar/use-calendar";
 import { TaskChip, WeekGrid, type Dragged } from "@/components/calendar/week-grid";
 import { AreaDot } from "@/components/today/task-row";
+import { DaySigns } from "@/components/days/day-signs";
 import { ItemEditor } from "@/components/today/item-editor";
 import { Icon } from "@/components/ui/icon";
 import { Diamond } from "@/components/ui/marks";
 import { useToast } from "@/components/ui/toast";
 import { canMoveEvent, dayHighlights, freeLabel, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
 import { addDays, dueLabel, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { daySigns, signsText } from "@/lib/days/marks";
 import { WorkoutMark } from "@/components/workouts/workout-row";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { useTimezone, useToday } from "@/lib/data/hooks";
@@ -106,12 +108,14 @@ export default function WeekPage() {
             {views.map((view) => {
               const { items, more } = dayHighlights(view);
               const isToday = view.day === today;
+              // Gli allenamenti sono già tra le voci del giorno: qui solo ufficio e viaggio.
+              const signs = daySigns(view.day, cal.marks, [], today);
               return (
                 <li key={view.day} className="border-b border-line last:border-b-0">
                   <button
                     type="button"
                     onClick={() => cal.openDay(view.day)}
-                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}: ${freeLabel(view)}`}
+                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}${signs.length ? `, ${signsText(signs)}` : ""}: ${freeLabel(view)}`}
                     className={`flex w-full gap-3.5 rounded-xl py-3.5 pr-1 text-left hover:bg-surface ${isToday ? "bg-accent-soft" : ""}`}
                   >
                     <span className="flex w-[46px] shrink-0 flex-col items-center gap-1 pt-0.5">
@@ -119,6 +123,7 @@ export default function WeekPage() {
                       <span className={`flex size-[34px] items-center justify-center rounded-full text-[17px] ${isToday ? "bg-accent-fill font-semibold text-on-accent" : "text-text"}`}>
                         {Number(view.day.slice(8))}
                       </span>
+                      {signs.length ? <DaySigns signs={signs} /> : null}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-2">
                       <span className="flex items-center gap-2.5">
@@ -161,6 +166,7 @@ export default function WeekPage() {
           <WeekGrid
             views={views}
             today={today}
+            marks={cal.marks}
             nowTime={localTimeString(cal.now, tz)}
             areaById={areaById}
             dragged={dragged}

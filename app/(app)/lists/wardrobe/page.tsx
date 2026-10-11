@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
 import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
@@ -226,6 +227,9 @@ export default function WardrobePage() {
           ) : undefined
         }
       />
+
+      {/* Com'è fatta la settimana (ufficio, viaggio, allenamento): aiuta a scegliere cosa mettere. */}
+      <UpcomingDays today={today} />
 
       <Segmented
         label="Vista"

@@ -19,6 +19,7 @@ export const EXPORT_TABLES = [
   { name: "events", key: "id" },
   { name: "event_exceptions", key: "id" },
   { name: "workouts", key: "id" },
+  { name: "day_marks", key: "id" },
   { name: "meal_plans", key: "id" },
   { name: "meal_memory", key: "id" },
   { name: "log_categories", key: "id" },
