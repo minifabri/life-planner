@@ -312,6 +312,30 @@ export type WardrobeItem = {
   updated_at: string;
 };
 
+export type Outfit = {
+  id: string;
+  name: string | null;
+  /** Id dei capi (`wardrobe_items`): riferimenti, mai copie delle immagini. */
+  item_ids: string[];
+  styles: string[];
+  occasions: string[];
+  seasons: string[];
+  favorite: boolean;
+  notes: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Un utilizzo effettivo (non una pianificazione): i capi indossati in un giorno. */
+export type WardrobeWear = {
+  id: string;
+  worn_on: string;
+  outfit_id: string | null;
+  item_ids: string[];
+  created_at: string;
+};
+
 /** Una voce di un template: il giorno è la distanza dalla data di partenza. */
 export type TemplateItem = {
   title: string;

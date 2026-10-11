@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -18,7 +18,9 @@ export type Table =
   | "log_entries"
   | "workouts"
   | "day_marks"
-  | "wardrobe_items";
+  | "wardrobe_items"
+  | "outfits"
+  | "wardrobe_wears";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -260,6 +262,41 @@ export function applyToWishlist(items: WishlistItem[], op: Op, at: string): Wish
   )
     .filter((i) => !i.deleted_at)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Gli outfit dopo una modifica in attesa, dal più recente. */
+export function applyToOutfits(outfits: Outfit[], op: Op, at: string): Outfit[] {
+  if (op.table !== "outfits") return outfits;
+  return applyToRows(
+    outfits,
+    op,
+    (row) =>
+      ({
+        name: null,
+        item_ids: [],
+        styles: [],
+        occasions: [],
+        seasons: [],
+        favorite: false,
+        notes: null,
+        deleted_at: null,
+        created_at: at,
+        updated_at: at,
+        ...(row as Partial<Outfit> & { id: string }),
+      }) as Outfit,
+  )
+    .filter((o) => !o.deleted_at)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Lo storico degli utilizzi dopo una modifica in attesa, dal giorno più recente. */
+export function applyToWears(wears: WardrobeWear[], op: Op, at: string): WardrobeWear[] {
+  if (op.table !== "wardrobe_wears") return wears;
+  return applyToRows(
+    wears,
+    op,
+    (row) => ({ outfit_id: null, item_ids: [], created_at: at, ...(row as Partial<WardrobeWear> & { id: string; worn_on: string }) }) as WardrobeWear,
+  ).sort((a, b) => b.worn_on.localeCompare(a.worn_on) || b.created_at.localeCompare(a.created_at));
 }
 
 /** Il guardaroba dopo una modifica in attesa: i capi nuovi in testa, come li ordina la lettura dal server. */

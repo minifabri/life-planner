@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { DayMark, LogEntry, MealMemory, MealPlan, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, LogEntry, MealMemory, MealPlan, Outfit, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToDayMarks, applyToLog, applyToMealMemory, applyToMeals, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToDayMarks, applyToLog, applyToMealMemory, applyToMeals, applyToOutfits, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWears, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -57,6 +57,10 @@ function applyToCache(op: Op, at: string) {
     queryClient.setQueryData<WishlistItem[]>(["wishlist-items"], (old) => old && applyToWishlist(old, op, at));
   } else if (op.table === "wardrobe_items") {
     queryClient.setQueryData<WardrobeItem[]>(["wardrobe-items"], (old) => old && applyToWardrobe(old, op, at));
+  } else if (op.table === "outfits") {
+    queryClient.setQueryData<Outfit[]>(["outfits"], (old) => old && applyToOutfits(old, op, at));
+  } else if (op.table === "wardrobe_wears") {
+    queryClient.setQueryData<WardrobeWear[]>(["wardrobe-wears"], (old) => old && applyToWears(old, op, at));
   } else if (op.table === "meal_memory") {
     queryClient.setQueryData<MealMemory[]>(["meal-memory"], (old) => old && applyToMealMemory(old, op));
   } else if (op.table === "workouts") {
@@ -133,6 +137,14 @@ export async function withPendingWishlist(items: WishlistItem[]): Promise<Wishli
 
 export async function withPendingWardrobe(items: WardrobeItem[]): Promise<WardrobeItem[]> {
   return (await pending()).reduce((acc, e) => applyToWardrobe(acc, e.op, e.at), items);
+}
+
+export async function withPendingOutfits(outfits: Outfit[]): Promise<Outfit[]> {
+  return (await pending()).reduce((acc, e) => applyToOutfits(acc, e.op, e.at), outfits);
+}
+
+export async function withPendingWears(wears: WardrobeWear[]): Promise<WardrobeWear[]> {
+  return (await pending()).reduce((acc, e) => applyToWears(acc, e.op, e.at), wears);
 }
 
 export async function withPendingWorkouts(workouts: Workout[], from: LocalDate, to: LocalDate): Promise<Workout[]> {

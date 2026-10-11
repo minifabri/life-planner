@@ -228,7 +228,7 @@ unique (owner_id, health_id)
 ```
 "Saltato" per un allenamento in programma in un giorno passato si calcola in lettura (`shownStatus`), senza scritture.
 
-**day_marks** — Segni dei giorni (D46): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`.
+**day_marks** — Segni dei giorni (D50): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`.
 
 **lists** — contenitore predisposto per la condivisione futura
 ```
@@ -264,6 +264,25 @@ image_url null, notes null, interest smallint check between 1 and 3 default 2,
 status text check in ('wanted','bought','discarded') default 'wanted',
 source text check in ('manual','link','chatgpt'), metadata_fetched_at timestamptz null, deleted_at
 ```
+
+**wardrobe_items**, **outfits**, **wardrobe_wears** — guardaroba [APPROVATO, T13]
+```
+wardrobe_items: id, owner_id, name null, image_path null, thumb_path null, image_url null,
+                category text check in ('top','bottom','dress','outerwear','shoes','accessory','bag','other'),
+                subcategory null, colors text[], seasons text[], styles text[], occasions text[],
+                material null, brand null, warmth smallint null check between 1 and 5,
+                layerable boolean default true,
+                status text check in ('clean','worn','to_wash') default 'clean',
+                favorite boolean default false, notes null, deleted_at
+outfits:        id, owner_id, name null, item_ids uuid[], styles text[], occasions text[], seasons text[],
+                favorite boolean default false, notes null, deleted_at
+wardrobe_wears: id, owner_id, worn_on date, outfit_id null → outfits (on delete set null), item_ids uuid[]
+```
+- Foto in Supabase Storage, bucket privato `wardrobe`: `<owner_id>/<id>.jpg` e `<owner_id>/<id>_thumb.jpg`, con policy sul primo segmento del percorso. Si mostrano con URL firmati di un'ora. Compressione nel browser prima dell'upload (lato lungo 1600 px, miniatura 400 px, JPEG).
+- `image_url` è l'immagine esterna di un capo arrivato senza foto propria (previsto per il passaggio dalla Wishlist).
+- `outfits.item_ids` è un elenco di id e non una tabella di collegamento: ogni modifica dell'outfit è una sola scrittura nella outbox. Il database non verifica che gli id esistano; i capi non vengono mai cancellati davvero (`deleted_at`), e l'app conta come "non più nel guardaroba" gli id che non trova.
+- `wardrobe_wears` registra solo utilizzi effettivi; `item_ids` è la fotografia dei capi indossati quel giorno, indipendente dalle modifiche successive all'outfit.
+- Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
 ```
@@ -611,7 +630,7 @@ Note:
 
 ```
 /app
-  (app)/today, /calendar/{day,week,month}, /lists/{shopping,meals,wishlist},
+  (app)/today, /calendar/{day,week,month}, /lists/{shopping,meals,wishlist,wardrobe},
   /log, /settings, /search
   (auth)/login
   api/link-preview, api/google/{connect,callback,sync}, api/push/subscribe, api/export
@@ -781,7 +800,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Log**: tessere "Ultima volta" in testa alla cronologia. Nel Mese il Log resta un trattino neutro (D24).
 - Non toccata la Spesa: le sue differenze sono sul ramo `claude/shopping-list-ux-4ae3ef`.
 
-**Segni dei giorni** *(12 ottobre 2026, D46)*
+**Segni dei giorni** *(12 ottobre 2026, D50)*
 - Migrazione `day_marks` (RLS e quattro policy), `rls_check.sql` esteso.
 - Logica pura con test in `lib/days/marks.ts`: segni di un giorno (`daySigns`), allenamenti che contano, testi, operazione metti/togli.
 - Dati in `lib/data/day-marks.ts` e `day-marks-hooks.ts`: query `["day-marks", dal, al]`, salvata sul dispositivo; le scritture passano dalla outbox (`applyToDayMarks`). L'id nasce da utente, giorno e segno (`deterministicId`): due dispositivi offline non creano doppioni.
@@ -793,6 +812,21 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 13 — Export, backup automatico, eliminazione account**
 - Realizzazione: fine della sezione 10.
 - Criteri: test di `lib/export`; dal telefono e dal desktop: esporta, apri l'archivio, apri un CSV in un foglio di calcolo, importa `eventi.ics` in un calendario; a Log bloccato le riservate non ci sono, sbloccato sì. Backup: una esecuzione manuale riuscita e un file decifrato con la chiave privata. Eliminazione: provata su un account di prova, non su quello vero.
+
+**Incremento 14 — Guardaroba, fondamenta** *(11 ottobre 2026)*
+- Migrazione `wardrobe_items` e bucket `wardrobe`; moduli puri in `lib/wardrobe/` (`catalog.ts` classificazione assistita, `list.ts` filtri, `image.ts` compressione) con test; catalogo a griglia in `/lists/wardrobe` con filtri e cambio di stato in blocco; voce "Guardaroba" in Liste e nella barra laterale.
+- Le scritture passano dalla outbox; l'upload della foto richiede la rete.
+
+**Incremento 15 — Guardaroba, outfit e utilizzi** *(11 ottobre 2026)*
+- Migrazione `20261012110000_outfits.sql`: `outfits` e `wardrobe_wears`, con RLS e le quattro policy.
+- Logica pura con test in `lib/wardrobe/outfits.ts`: ordine della moodboard, capi mancanti, sostituzione, etichette proposte dai capi (condivise da almeno metà di quelli che ne dichiarano), stato proposto dopo l'utilizzo, storico per outfit, ricerca.
+- Dati in `lib/data/outfits.ts`: `recordWear` scrive l'utilizzo e gli stati dei capi in un unico `commit`; `undoWear` fa il contrario. `outfits` e `wardrobe-wears` sono tra le query salvate sul dispositivo.
+- Interfaccia: selettore "Capi · Outfit" e ricerca nella pagina; `OutfitSheet` (moodboard, scelta e sostituzione dei capi nello stesso foglio, senza finestre annidate), `OutfitCard`, `WearSheet`.
+- Non incluso: l'export (sezione 10) non contiene ancora le tabelle del guardaroba né le foto.
+- Criteri: test di `lib/wardrobe`; dal telefono: fotografa due capi, crea un outfit dalla selezione, sostituisci un capo, segna "Indossato oggi" scegliendo un capo da lavare, ritrova l'etichetta sull'outfit, annulla dal toast; ripeti la creazione di un outfit senza rete.
+
+**Incrementi 16–19 — Guardaroba, passi successivi** [PROPOSTA]
+- 16 suggerimenti a regole (motore puro, deterministico e spiegabile, con pesi configurabili), profilo di stile e feedback; 17 pianificazione di un outfit su un giorno o un evento; 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 
@@ -816,6 +850,7 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T10 | imayoga (1e): sola lettura, solo lezioni pubblicate, 60 minuti, individuali solo se prenotate; accesso con funzione protetta da token su `ima-yoga` (sezione 9.2) | [APPROVATO il 10 ottobre 2026] |
 | T11 | Allenamenti (7b): tabella `workouts` separata; "saltato" calcolato in lettura; nessuna voce di navigazione | [APPROVATO il 10 ottobre 2026] |
 | T12 | Salute di Apple (7c): Comando rapido → Edge Function con token personale (sezione 9.8) | [Lato app realizzato; Comando rapido DA VERIFICARE con lo spike] |
+| T13 | Guardaroba: foto in Supabase Storage (bucket privato, URL firmati, compressione nel browser); capi dell'outfit come elenco di id; storico degli utilizzi in una tabella propria | [APPROVATO l'11 ottobre 2026] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

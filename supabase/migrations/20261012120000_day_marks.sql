@@ -1,4 +1,4 @@
--- Segni dei giorni (D46): "in ufficio", "in viaggio". Un giorno può averne più di uno.
+-- Segni dei giorni (D50): "in ufficio", "in viaggio". Un giorno può averne più di uno.
 -- Si aggiungono e si tolgono con un tocco: nessuna eliminazione reversibile, la riga sparisce.
 
 create table public.day_marks (

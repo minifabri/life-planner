@@ -106,7 +106,11 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D43 | **In casa**: nei Pasti, sezione chiusa di default con gli ingredienti comprati (spuntati nella Spesa) e non ancora finiti, anche dopo "Svuota completati". "Finito" li toglie. Il collegamento con i pasti è in D45 | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D44 | Wishlist: sui desiderati, un tocco sulla spunta della card sposta l'articolo in **Acquistati** (con annulla) | [APPROVATO l'11 ottobre 2026] |
 | D45 | **Ingredienti in uso**: un ingrediente in casa è "in uso" quando il suo nome compare in un pasto da oggi in avanti (testo libero, singolare e plurale coincidono). "In casa" mostra prima quelli da usare, poi quelli già nei pasti con giorno e momento; sotto il pasto compaiono gli ingredienti riconosciuti e, a pasto cucinato o arrivato, la domanda "Finito?"; nel foglio del pasto gli ingredienti da usare si aggiungono al nome con un tocco. Una lista di ingredienti per ogni piatto resta [FUTURO] | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
-| D46 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.15) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D46 | **Guardaroba**: nuova sezione dentro Liste (non un'app separata), con catalogo fotografico dei capi e outfit. Funziona per intero senza servizi AI; ogni classificazione proposta è correggibile | [APPROVATO l'11 ottobre 2026] |
+| D47 | **Outfit**: dentro Guardaroba, selettore "Capi · Outfit". Un outfit è un elenco di capi senza struttura obbligatoria, mostrato come moodboard delle loro foto | [APPROVATO l'11 ottobre 2026] |
+| D48 | **Indossato oggi**: registra l'utilizzo e chiede, capo per capo, se resta pulito, riutilizzabile o da lavare. Nessun capo diventa da lavare da solo. Un outfit con capi da lavare si segnala, non si nasconde | [APPROVATO l'11 ottobre 2026] |
+| D49 | Guardaroba, passi successivi nell'ordine: suggerimenti a regole con profilo di stile e feedback; pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche | [PROPOSTA] |
+| D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -507,7 +511,37 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Segni dei giorni [APPROVATO, D46; dettagli PROPOSTA]
+### 7.15 Guardaroba [APPROVATO, D46–D48; passi successivi PROPOSTA, D49]
+Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit** e il campo di ricerca.
+
+**Capi**
+- **Aggiungere**: "Aggiungi" → foto scattata o caricata (facoltativa), nome (facoltativo), categoria. Tutto il resto sta in "Altri dettagli" e si completa quando si vuole: sottocategoria, marca, colori, stagioni, stili, occasioni, pesantezza da 1 a 5, uso a strati, materiale, preferito, stato, note.
+- **Classificazione assistita**: stagioni, stili, occasioni, pesantezza e uso a strati vengono proposti dalla categoria e dalle parole del nome ("cappotto", "pizzo"…), con regole locali. Si correggono liberamente; dopo una correzione il sistema non le riscrive.
+- **Stagionalità**: stagioni e pesantezza sono indicazioni, mai vincoli. Nessun capo viene escluso per la stagione.
+- **Catalogo**: griglia fotografica; filtri a scelta multipla per categoria, stato, colore, stagione, stile, occasione e preferiti; ricerca per nome, marca e sottocategoria.
+- **Selezione multipla** ("Seleziona"): Crea outfit · Indossati oggi · Da lavare · Pulito.
+- **Scheda**: modifica, duplica (senza la foto propria), elimina con annulla.
+- **Stato**: Pulito · Indossato (riutilizzabile) · Da lavare. Non c'è uno stato "in lavaggio".
+
+**Outfit**
+- **Comporre**: "Nuovo outfit" apre la scelta dei capi per categoria; oppure dalla selezione multipla del catalogo. Nessuna struttura obbligatoria: un outfit può essere incompleto o avere più strati.
+- **Moodboard**: le foto dei capi in ordine dall'esterno verso l'interno (capospalla, top, vestito, pantaloni o gonna, scarpe, borsa, accessori). Sono le stesse foto del catalogo, mai copie.
+- **Sostituire**: un tocco su un capo della moodboard apre i capi della stessa categoria; da lì si sostituisce o si toglie.
+- **Dettagli**: nome (facoltativo), stili, occasioni e stagioni proposti dai capi scelti e correggibili, preferito, note.
+- **Elenco**: preferiti in testa, poi i più recenti; ogni card mostra l'ultima volta indossato e segnala i capi da lavare. Elimina con annulla.
+- Un capo eliminato dal guardaroba non rompe l'outfit: l'outfit avvisa che un capo non c'è più.
+
+**Indossato oggi**
+- Dall'outfit ("Indossato oggi") o dalla selezione multipla dei capi ("Indossati oggi").
+- Per ogni capo si sceglie Pulito · Riutilizzabile · Da lavare. Proposta di partenza: riutilizzabile; scarpe, borse, accessori e capispalla restano come sono; un capo già da lavare resta da lavare.
+- L'utilizzo entra nello storico (giorno, outfit, capi) e si può annullare dal toast, che riporta anche i capi allo stato di prima.
+- Un utilizzo è distinto da una pianificazione (D49, non ancora realizzata).
+
+**Offline**: capi, outfit e utilizzi si leggono e si modificano senza rete; solo il caricamento della foto la richiede.
+
+Non incluso per ora (D49): suggerimenti, profilo di stile e feedback, meteo, pianificazione su giorno o evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+
+### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
 - **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
 - **Aspetto**: icone piccole e grigie, mai colore né testo nelle strisce dei giorni. Niente notifiche, niente effetto sul carico del giorno.
 - **Segnare**: riga discreta sotto il titolo del giorno ("Segna il giorno", poi "Ufficio · Corsa 18:00"); un tocco apre il foglio con Ufficio e Viaggio, che si mettono e si tolgono.
