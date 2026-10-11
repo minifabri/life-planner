@@ -21,6 +21,7 @@ import {
   reopenTask,
   updateTask,
 } from "./api";
+import { fetchTemplates } from "./templates";
 import { workoutsQuery } from "./workouts-hooks";
 
 /** L'istante corrente, aggiornato ogni mezzo minuto e al ritorno in primo piano. */
@@ -173,4 +174,8 @@ export function useOffline(): boolean {
     () => !navigator.onLine,
     () => false,
   );
+}
+
+export function useTemplates() {
+  return useQuery({ queryKey: ["templates"], queryFn: fetchTemplates, staleTime: 5 * 60_000 });
 }
