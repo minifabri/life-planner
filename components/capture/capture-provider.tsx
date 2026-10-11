@@ -109,14 +109,11 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     setText(initial);
   }, []);
 
-  // Desktop: N oppure ⌘K / Ctrl+K, da qualsiasi schermata.
+  // Desktop: N da qualsiasi schermata. ⌘K / Ctrl+K apre la command palette (components/search).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.altKey || document.querySelector("[role=dialog]")) return;
-      const key = e.key.toLowerCase();
-      const palette = (e.metaKey || e.ctrlKey) && key === "k";
-      const direct = !e.metaKey && !e.ctrlKey && key === "n" && !isTyping(e.target);
-      if (!palette && !direct) return;
+      if (e.altKey || e.metaKey || e.ctrlKey || document.querySelector("[role=dialog]")) return;
+      if (e.key.toLowerCase() !== "n" || isTyping(e.target)) return;
       e.preventDefault();
       open();
     }

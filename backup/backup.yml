@@ -1,0 +1,58 @@
+# Backup notturno cifrato del database (technical-design.md, 10).
+# Questo file va copiato nel repository privato dei backup come .github/workflows/backup.yml:
+# le istruzioni sono in backup/README.md del repository dell'app.
+name: Backup notturno
+
+on:
+  schedule:
+    # Ogni notte alle 02:17 UTC (un minuto qualsiasi: all'ora esatta le code di GitHub sono più lente).
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa pg_dump 17 e age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age
+
+      - name: Dump cifrato
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL" || { echo "Manca il segreto SUPABASE_DB_URL"; exit 1; }
+          test -s age-recipient.txt || { echo "Manca age-recipient.txt con la chiave pubblica"; exit 1; }
+          mkdir -p backups
+          file="backups/planner-$(date -u +%Y-%m-%d).sql.age"
+          # Il dump non tocca mai il disco in chiaro: passa direttamente alla cifratura.
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema=public --no-owner --no-privileges \
+            | age --recipients-file age-recipient.txt --output "$file"
+          # Un file quasi vuoto vuol dire che qualcosa è andato storto: meglio fallire che salvarlo.
+          test "$(stat -c %s "$file")" -gt 2000
+
+      - name: Tieni gli ultimi 30
+        run: ls -1 backups/planner-*.sql.age | sort | head -n -30 | xargs -r git rm -q --
+
+      - name: Salva nel repository
+        run: |
+          git config user.name "backup"
+          git config user.email "backup@users.noreply.github.com"
+          git add backups
+          git commit -q -m "Backup $(date -u +%Y-%m-%d)"
+          git push -q

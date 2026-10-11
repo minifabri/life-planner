@@ -9,6 +9,21 @@ export type Profile = {
   timezone: string;
   theme: "dark" | "light";
   evening_review_time: string;
+} & NotificationPrefs;
+
+/** Preferenze delle notifiche (technical-design.md, 7.2). Gli orari sono "HH:mm:ss". */
+export type NotificationPrefs = {
+  morning_overview_time: string;
+  quiet_start: string;
+  quiet_end: string;
+  meal_prep_reminder_time: string;
+  notify_medium: boolean;
+  notify_high: boolean;
+  /** Le notifiche di attenzione alta arrivano anche nella fascia di silenzio. */
+  quiet_allow_high: boolean;
+  notify_meal_prep: boolean;
+  notify_morning: boolean;
+  notify_evening: boolean;
 };
 
 export type Area = {
@@ -249,4 +264,21 @@ export type WishlistItem = {
   metadata_fetched_at: string | null;
   deleted_at: string | null;
   created_at: string;
+};
+
+/** Una voce di un template: il giorno è la distanza dalla data di partenza. */
+export type TemplateItem = {
+  title: string;
+  day_offset: number;
+  /** "HH:mm", se l'attività ha un orario. */
+  time: string | null;
+  duration_min: number | null;
+  area_id: string | null;
+  attention: Attention;
+};
+
+export type Template = {
+  id: string;
+  name: string;
+  items: TemplateItem[];
 };

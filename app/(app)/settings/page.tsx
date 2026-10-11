@@ -6,11 +6,15 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase/client";
 import { sync } from "@/lib/sync/engine";
-import { forgetCachedData } from "@/lib/sync/persister";
+import { forgetCachedData, forgetEverything } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
+import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
+import { useLogUnlocked } from "@/lib/data/log-hooks";
+import { DEFAULT_PREFS } from "@/lib/reminders/defaults";
+import type { NotificationPrefs } from "@/lib/supabase/types";
 import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
@@ -47,8 +51,10 @@ export default function SettingsPage() {
       <ImayogaSection />
       <WorkoutsSection />
       <HealthSection />
+      <TemplatesSection />
       <DataSection />
       <AccountSection />
+      <DeleteAccountSection />
     </div>
   );
 }
@@ -188,7 +194,93 @@ function DaySection() {
   );
 }
 
-/* ---------------- Notifiche (spike S1) ---------------- */
+/* ---------------- Notifiche ---------------- */
+const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof NotificationPrefs)[];
+type TimeKey = "morning_overview_time" | "quiet_start" | "quiet_end" | "meal_prep_reminder_time";
+type ToggleKey = Exclude<keyof NotificationPrefs, TimeKey>;
+
+function Toggle({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-5 shrink-0 accent-(--accent-fill)" />
+      <span className="flex flex-col">
+        <span>{label}</span>
+        {hint ? <span className="text-xs text-text-3">{hint}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+/** Cosa notificare e quando: vale per tutti i dispositivi, si salva solo con la rete. */
+function NotificationPrefsForm() {
+  const profile = useProfile();
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<Partial<NotificationPrefs>>({});
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+  // Un profilo rimasto in cache da prima di questo incremento non ha ancora questi campi.
+  const value = <K extends keyof NotificationPrefs>(key: K): NotificationPrefs[K] => draft[key] ?? profile?.[key] ?? DEFAULT_PREFS[key];
+  const time = (key: TimeKey) => value(key).slice(0, 5);
+  const set = (patch: Partial<NotificationPrefs>) => {
+    setDraft({ ...draft, ...patch });
+    setStatus(null);
+  };
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const row = Object.fromEntries(PREF_KEYS.map((k) => [k, value(k)]));
+    const { error } = await getSupabase().from("profiles").update(row).eq("owner_id", profile!.owner_id);
+    if (error) return setStatus({ text: "Non salvato: serve la connessione.", tone: "warn" });
+    await qc.invalidateQueries({ queryKey: ["profile"] });
+    setDraft({});
+    setStatus({ text: "Salvato.", tone: "ok" });
+  }
+
+  const toggle = (key: ToggleKey, label: string, hint?: string) => (
+    <Toggle id={`pref-${key}`} label={label} hint={hint} checked={value(key)} onChange={(v) => set({ [key]: v })} />
+  );
+  const timeField = (key: TimeKey, label: string) => (
+    <Field label={label} htmlFor={`pref-${key}`}>
+      <input id={`pref-${key}`} type="time" required value={time(key)} onChange={(e) => set({ [key]: e.target.value })} className={inputClass} />
+    </Field>
+  );
+
+  return (
+    <form onSubmit={save} className="flex flex-col gap-5 border-t border-line pt-4">
+      <fieldset className="flex flex-col gap-1">
+        <legend className="mb-1 text-xs text-text-2">Cosa ti avvisa</legend>
+        {toggle("notify_medium", "Attenzione media", "Un avviso all'orario; al mattino se non c'è un orario.")}
+        {toggle("notify_high", "Attenzione alta", "Come sopra, più un richiamo il giorno prima.")}
+        {toggle("notify_meal_prep", "Pasti da preparare", "La sera prima, se l'attività è ancora aperta.")}
+        {toggle("notify_morning", "Panoramica del mattino")}
+        {toggle("notify_evening", "Revisione della sera", "Solo se resta qualcosa di aperto.")}
+      </fieldset>
+      <div className="flex flex-wrap gap-3">
+        {timeField("morning_overview_time", "Avvisi del mattino alle")}
+        {timeField("meal_prep_reminder_time", "Avviso dei pasti alle")}
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-xs text-text-2">Silenzio</legend>
+        <div className="flex flex-wrap gap-3">
+          {timeField("quiet_start", "Dalle")}
+          {timeField("quiet_end", "Alle")}
+        </div>
+        {toggle("quiet_allow_high", "L'attenzione alta arriva comunque")}
+        <p className="text-xs leading-relaxed text-text-3">
+          Gli avvisi che cadono in questa fascia arrivano quando finisce. Con lo stesso orario di inizio e di fine il silenzio è spento.
+        </p>
+      </fieldset>
+      <button
+        type="submit"
+        disabled={!profile}
+        className="min-h-11 self-start rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2 disabled:opacity-40"
+      >
+        Salva
+      </button>
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </form>
+  );
+}
+
 function NotificationsSection() {
   const [support] = useState<PushSupport | null>(() => (typeof window === "undefined" ? null : checkPushSupport()));
   const [subscribed, setSubscribed] = useState(false);
@@ -231,7 +323,7 @@ function NotificationsSection() {
   return (
     <Section
       title="Notifiche"
-      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì."
+      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
     >
       {support && !support.ok && support.reason === "ios-not-installed" ? (
         <div className="flex flex-col gap-2 rounded-[14px] bg-accent-soft p-4 text-sm leading-relaxed">
@@ -268,6 +360,7 @@ function NotificationsSection() {
         )}
       </div>
       <Status text={status?.text ?? null} tone={status?.tone} />
+      <NotificationPrefsForm />
     </Section>
   );
 }
@@ -573,11 +666,60 @@ function HealthSection() {
   );
 }
 
+/* ---------------- Template ---------------- */
+function TemplatesSection() {
+  return (
+    <Section title="Template" note="Gruppi di attività che tornano uguali, come la preparazione di una lezione: scegli il giorno di partenza e nascono tutte insieme.">
+      <div>
+        <Link
+          href="/settings/templates"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          Gestisci i template
+        </Link>
+      </div>
+    </Section>
+  );
+}
+
 /* ---------------- Dati ---------------- */
 function DataSection() {
+  const unlocked = useLogUnlocked();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ text: string; tone: "neutral" | "ok" | "warn" } | null>(null);
+
+  async function exportData() {
+    setBusy(true);
+    setStatus({ text: "Preparo l'archivio…", tone: "neutral" });
+    try {
+      const file = await createExport(unlocked);
+      const saved = await deliverExport(file);
+      setStatus(
+        saved
+          ? {
+              text: unlocked
+                ? `Archivio pronto: ${file.name}. Contiene anche le registrazioni riservate: tienilo in un posto sicuro.`
+                : `Archivio pronto: ${file.name}. Le registrazioni riservate non ci sono: sblocca il Log e ripeti per averle.`,
+              tone: "ok",
+            }
+          : null,
+      );
+    } catch {
+      setStatus({ text: "Esportazione non riuscita: serve la connessione.", tone: "warn" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Section title="Dati" note="Porta dentro eventi e promemoria da Google Calendar, Calendario Apple o Outlook con un file .ics.">
-      <div>
+    <Section
+      title="Dati"
+      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics."
+    >
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={exportData} disabled={busy}>
+          {busy ? "Esporto…" : "Esporta i dati"}
+        </Button>
         <Link
           href="/settings/import"
           className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
@@ -585,6 +727,95 @@ function DataSection() {
           Importa da calendario
         </Link>
       </div>
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Eliminazione dell'account ---------------- */
+function DeleteAccountSection() {
+  const { session } = useAuth();
+  const router = useRouter();
+  const email = session?.user.email ?? "";
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const matches = email !== "" && typed.trim().toLowerCase() === email.toLowerCase();
+
+  async function remove(e: React.FormEvent) {
+    e.preventDefault();
+    if (!matches) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(typed.trim());
+    } catch {
+      setBusy(false);
+      return setError("Account non eliminato: serve la connessione. Non è stato tolto nulla.");
+    }
+    // L'account non esiste più: si toglie ciò che resta su questo dispositivo.
+    await currentSubscription()
+      .then((s) => s?.unsubscribe())
+      .catch(() => {});
+    forgetLock();
+    await getSupabase().auth.signOut({ scope: "local" }).catch(() => {});
+    await forgetEverything();
+    router.replace("/login");
+  }
+
+  return (
+    <Section title="Elimina account" note="Toglie per sempre l'account e tutto ciò che contiene. I backup già fatti fuori dall'app restano dove sono.">
+      {open ? (
+        <form onSubmit={remove} className="flex flex-col gap-3 rounded-[14px] border border-line-2 p-4">
+          <p className="text-sm leading-relaxed">
+            Verranno eliminati attività, eventi, Log, liste, pasti, allenamenti, template e collegamenti ai calendari.{" "}
+            <strong className="font-medium text-gold">Non si può annullare</strong>, e non potrai creare un nuovo account da qui. Se non l&apos;hai fatto, esporta prima i dati.
+          </p>
+          <Field label={`Per confermare scrivi la tua email (${email})`} htmlFor="delete-confirm">
+            <input
+              id="delete-confirm"
+              type="email"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          {error ? (
+            <p role="alert" className="text-sm text-gold">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setTyped("");
+                setError(null);
+              }}
+              disabled={busy}
+            >
+              Annulla
+            </Button>
+            <button
+              type="submit"
+              disabled={!matches || busy}
+              className="min-h-11 rounded-xl border border-gold px-4 text-sm text-gold transition-colors hover:bg-surface-2 disabled:opacity-40"
+            >
+              {busy ? "Elimino…" : "Elimina tutto per sempre"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div>
+          <Button onClick={() => setOpen(true)} disabled={!email}>
+            Elimina account…
+          </Button>
+        </div>
+      )}
     </Section>
   );
 }

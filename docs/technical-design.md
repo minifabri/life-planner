@@ -135,6 +135,8 @@ theme text check in ('dark','light') default 'dark',
 morning_overview_time time default '07:00', evening_review_time time default '20:30',
 quiet_start time default '22:00', quiet_end time default '07:30',
 meal_prep_reminder_time time default '20:00',
+notify_medium bool default true, notify_high bool default true, quiet_allow_high bool default false,
+notify_meal_prep bool default true, notify_morning bool default false, notify_evening bool default false,
 log_lock_pin_hash text null, log_lock_webauthn jsonb null
 ```
 
@@ -304,9 +306,11 @@ id, owner_id, name, items jsonb  -- [{title, day_offset, time, duration_min, are
 ```
 id, owner_id, target_type text check in ('event','task','log_entry','meal_plan','digest'),
 target_id uuid null, fire_at timestamptz not null, kind text check in ('auto','custom'),
-title_snapshot text, sent_at timestamptz null, attempts int default 0
+title_snapshot text, sent_at timestamptz null, attempts int default 0,
+dedupe_key text null  -- unica per (owner_id, dedupe_key)
 index on (fire_at) where sent_at is null
 ```
+Dall'incremento 9 è il registro degli invii e la coda dei tentativi, non un elenco pianificato in anticipo (sezione 7.4).
 
 **push_subscriptions**
 ```
@@ -338,11 +342,20 @@ owner_id pk, refresh_token text, access_token text, expires_at timestamptz, scop
 
 ### 5.3 Ricerca
 - Estensioni `unaccent` e `pg_trgm`.
-- Colonna generata `search_text` (titolo + note, normalizzati e senza accenti) con indice GIN trigram su ogni tabella ricercabile.
-- Funzione RPC `search_all(q text, types text[], from_date date, to_date date, include_sensitive boolean)` che unisce i risultati di events, tasks, log_entries, shopping_items, wishlist_items, meal_plans e li ordina per similarità e data.
-- Tolleranza agli errori: si confronta anche la query senza spazi (`"lent icchie"` → `"lenticchie"`) con `similarity()`.
-- `include_sensitive` è `true` solo quando il Log è sbloccato; altrimenti le registrazioni sensibili tornano con titolo neutro.
-- Date in linguaggio naturale nella ricerca ("ottobre", "settembre") interpretate dal parser client e trasformate in filtri.
+- Funzione RPC `search_all(q text, types text[], from_date date, to_date date, include_sensitive boolean, max_results int)` che unisce i risultati di events, tasks, log_entries, shopping_items, wishlist_items, meal_plans e workouts e li ordina per somiglianza e data. Gira con i permessi di chi chiama (RLS).
+- Tolleranza agli errori: il testo si confronta senza accenti né maiuscole, anche senza spazi (`"lent icchie"` → `"lenticchie"`), e con `word_similarity()` per gli errori di battitura (soglia 0,5).
+- Date in linguaggio naturale nella ricerca ("ottobre", "settembre 2025", "2025") interpretate dal parser client e trasformate in filtri.
+
+Come è stato realizzato (incremento 10, 10 ottobre 2026):
+- **Niente colonna generata `search_text` né indici trigram**, diversamente dalla bozza: `search_all` dà un punteggio a ogni riga, quindi gli indici non verrebbero usati, e una colonna in più cambierebbe la forma delle righe che il client legge con `select *` e riscrive dalla outbox. Con i dati di una persona la lettura completa costa pochi millisecondi; se servirà, si aggiungono indici su espressione (`public.search_text(...)` è immutabile apposta).
+- **Registrazioni riservate, a Log bloccato: non compaiono affatto** (diversamente dalla bozza e dalla 4.3, che prevedevano il titolo neutro): anche un segnaposto direbbe che la parola cercata c'è. È la stessa regola della cronologia del Log (incremento 7). La palette lo dice in fondo ai risultati. `include_sensitive` è `true` solo a Log sbloccato.
+- Logica pura con test in `lib/search/query.ts`: periodo nel testo, comandi, raggruppamento e descrizione dei risultati, destinazione.
+- **Command palette** (`components/search/search-provider.tsx`): `⌘K` / `Ctrl+K` su desktop e pulsante "Cerca" nella barra laterale; su mobile l'icona in alto in ogni schermata. `N` resta la cattura diretta.
+  - Senza testo: "Aggiungi…" e i comandi (vai a una sezione, cambia tema). Con il testo: i risultati per tipo, poi "Aggiungi «testo»" (apre il Quick Capture con quel testo) e i comandi che corrispondono.
+  - Un'attività si apre nel modulo di modifica (così si raggiungono anche quelle senza data); un evento apre il suo giorno; il resto apre la sezione.
+  - Tastiera: frecce, Invio, Esc. Ruoli `combobox` / `listbox`.
+- La ricerca vuole la connessione; i comandi funzionano anche senza. I risultati non entrano nella cache salvata sul dispositivo.
+- Non incluso: filtro per tipo nell'interfaccia (la funzione lo accetta già); apertura diretta di registrazioni, pasti, articoli e allenamenti (si apre la sezione); per le serie di eventi la data è quella della prima occorrenza; filtro "Senza data" nel Calendario (ancora [PROPOSTA]).
 
 ---
 
@@ -413,6 +426,22 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 ### 7.3 Onboarding notifiche
 - Su iPhone, se l'app non è installata, una schermata spiega come aggiungerla alla Home (Condividi → Aggiungi alla schermata Home).
 - Il permesso si chiede solo da un pulsante esplicito in Impostazioni o al primo promemoria impostato, mai all'avvio.
+
+### 7.4 Come è stato realizzato (incremento 9, 10 ottobre 2026)
+- **Scostamento dal punto 1 del flusso [APPROVATO il 10 ottobre 2026]**: le notifiche non vengono scritte in anticipo dal client. A ogni giro del cron la Edge Function `dispatch-reminders` le ricava dallo stato reale di attività ed eventi per gli ultimi 10 minuti, le registra in `reminders` con una chiave (`dedupe_key`) e invia ciò che è in attesa. Così le serie di eventi notificano senza aprire l'app, e ciò che è completato, spostato o eliminato non notifica: non c'è nulla da tenere allineato.
+- **Regole** in `lib/reminders/plan.ts` (puro, con test):
+  - Media: all'orario; senza orario all'ora del mattino (`morning_overview_time`). Le attività "nel periodo" avvisano nell'ultimo giorno utile.
+  - Alta: in più il richiamo del giorno prima, alla stessa ora locale; senza orario all'ora della revisione serale.
+  - Eventi: all'inizio (quelli di tutto il giorno al mattino); le serie rispettano eccezioni e cambio dell'ora.
+  - Pasti: l'attività "Preparare … di domani" avvisa a `meal_prep_reminder_time` se è ancora aperta, qualunque sia l'attenzione.
+  - Silenzio: l'invio slitta alla fine della fascia e il testo si adegua ("Ieri alle 23:00"); le alte la attraversano solo con `quiet_allow_high`. Un elemento con orario dentro la fascia viene quindi avvisato dopo il suo orario.
+  - Panoramica del mattino e revisione della sera: facoltative, spente in partenza; la sera solo se resta qualcosa di aperto.
+  - Un elemento creato o modificato dopo l'orario previsto non manda l'avviso in ritardo. Spostato a un altro orario, avvisa di nuovo (la chiave contiene data e ora).
+- **Stesso codice in produzione e nei test**: `pnpm build:functions` impacchetta il modulo in `supabase/functions/dispatch-reminders/plan.gen.js` (le librerie restano fuori, Deno le prende da npm alle versioni di `package.json`); `pnpm test` fallisce se il file non è aggiornato. Dopo una modifica alle regole la funzione va ripubblicata.
+- **Prova senza invii**: chiamata con `{"dryRun": true, "at": "<istante>", "minutes": <n>}` la funzione risponde con ciò che registrerebbe.
+- Il registro più vecchio di 30 giorni viene tolto una volta al giorno.
+- **Impostazioni → Notifiche**: attivazione per dispositivo; preferenze (livelli, pasti, mattino, sera, orari, silenzio) valide per tutti i dispositivi, salvate solo con la rete.
+- Non incluso: notifiche dal Personal Log (le registrazioni non hanno un livello di attenzione, quindi la regola dei titoli neutri oggi non ha casi); anticipo configurabile per gli eventi; apertura diretta dell'elemento dalla notifica (si apre Oggi).
 
 ---
 
@@ -539,6 +568,18 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
   3. Commit del file cifrato; conservazione degli ultimi 30 backup.
   Gratuito, fuori da Supabase, e nessun dato sensibile in chiaro su GitHub.
 - **Eliminazione account**: cancellazione di tutte le righe (cascade da `auth.users`), delle subscription push e del collegamento Google (revoca del token).
+
+Come è stato realizzato (incremento 13, 11 ottobre 2026):
+- **Export nel browser, non da `/api/export`**: il client legge le proprie righe da Supabase (RLS) e costruisce l'archivio sul dispositivo. I dati non passano da Vercel e non serve un endpoint con il token dell'utente; è lo stesso principio dell'import `.ics`.
+  - Logica pura con test in `lib/export/`: `zip.ts` (archivio senza compressione, nessuna libreria in più), `csv.ts` (BOM e CRLF, per Excel e Numeri), `ics.ts` (eventi → iCalendar; il test rilegge l'uscita con `lib/import/ics.ts`), `bundle.ts` (quali file, con quale contenuto).
+  - Contenuto: `LEGGIMI.txt`; `json/<tabella>.json` per 17 tabelle, con tutte le colonne e anche gli elementi eliminati di recente; `csv/` per Spesa, Wishlist, Log e Pasti (solo elementi non eliminati); `eventi.ics` con gli eventi nati nell'app (non quelli di iCloud o imayoga).
+  - Fuori dall'archivio: hash del PIN e chiavi del blocco, credenziali dei calendari, dispositivi delle notifiche, registro delle notifiche.
+  - **Registrazioni riservate solo a Log sbloccato**: a Log bloccato non vengono nemmeno chieste al server, e l'interfaccia e `LEGGIMI.txt` lo dicono.
+  - Su iPhone l'archivio passa dal foglio di condivisione ("Salva su File"); su desktop è un download.
+- **Eliminazione account**: Edge Function `delete-account`, con il token dell'utente e l'email riscritta come conferma (ricontrollata dal server). Toglie i segreti in Vault della persona (`delete_account_secrets`: credenziali iCloud e feed imayoga) e poi l'utente; tutte le tabelle, le subscription push e `private.google_tokens` hanno `on delete cascade`. Sul dispositivo si tolgono cache, outbox, subscription push e passkey del blocco. Verifica in una transazione annullata: 23 righe in 13 tabelle e 2 segreti → 0, dati altrui intatti.
+  - Con le registrazioni chiuse (4.1), dopo l'eliminazione non si può creare un nuovo account dall'app.
+  - La revoca del token Google non c'è perché il collegamento Google non è ancora stato costruito (1c).
+- **Backup automatico**: modello del workflow e guida in `backup/` (`backup.yml`, `README.md`). Gira nel repository privato dei backup, non in questo: lì bastano il token predefinito di GitHub e un solo segreto (`SUPABASE_DB_URL`, stringa del *session pooler*: la connessione diretta è solo IPv6). La chiave privata age la genera e la conserva Bibi. **Non ancora eseguito**: servono il repository, la chiave e il segreto; il ripristino va provato.
 
 ---
 
@@ -701,9 +742,12 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Inserimento manuale, recupero da link con test su link reali, import da ChatGPT. Realizzazione: sezioni 9.3 e 9.4. Elenco per stato (desiderati, acquistati, scartati) e categoria, ordinato per interesse; passa dalla outbox e resta in cache come le altre liste (il recupero dal link richiede la rete).
 
 **Incremento 9 — Notifiche**
-- Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni.
+- Calcolo dei reminder, fasce di silenzio, dispatch, impostazioni. Realizzazione: sezione 7.4.
+- Criteri: test di `lib/reminders`; prova a secco della funzione; dal telefono: attività ad attenzione media con orario tra pochi minuti → notifica con app chiusa; la stessa completata prima dell'orario → nessuna notifica.
 
 **Incremento 10 — Ricerca globale e command palette**
+- Realizzazione: fine della sezione 5.3.
+- Criteri: test di `lib/search`; verifica SQL di `search_all`; dal telefono: icona in alto → "lent icchie" trova le lenticchie; "unghie ottobre" filtra il mese; a Log bloccato una registrazione riservata non compare, sbloccato sì. Da desktop: `⌘K`, frecce e Invio senza mouse.
 
 **Incremento 11 — Morning overview, Evening review, Templates**
 - Morning overview ed Evening review anticipate il 10 ottobre 2026 (i Templates restano da fare):
@@ -713,6 +757,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - La chiusura vale per il giorno e per il dispositivo (`localStorage`), non è sincronizzata.
   - Impostazioni → "Mattino e sera": nome usato nel saluto (`display_name`) e ora della review, solo con la rete.
   - Non incluso: notifica facoltativa che accompagna le card (incremento 9); `morning_overview_time` resta inutilizzato fino ad allora.
+- Templates (11 ottobre 2026):
+  - Logica pura con test in `lib/templates/apply.ts`: pulizia e lettura delle voci, applicazione da un giorno di partenza, template ricavato da attività esistenti, etichette.
+  - **Impostazioni → Template** (`/settings/templates`): elenco, creazione, modifica ed eliminazione, solo con la rete come le altre impostazioni. Ogni voce ha titolo, giorni dopo la partenza, ora e durata facoltative, area, attenzione.
+  - **Applica**: si sceglie il giorno di partenza, si vede l'anteprima con le date e si conferma. Le attività nascono con `source = 'template'` e passano dalla outbox: i template restano in cache, quindi si applicano anche offline. Il toast permette di annullare tutte le attività create.
+  - **Crea da attività esistenti**: si sceglie un periodo, si spuntano le attività e il primo giorno diventa la partenza; poi si dà un nome e si ritocca.
+  - Un'area che non esiste più viene lasciata vuota all'applicazione. Le attività create non restano legate al template: modificarlo dopo non le cambia.
+  - Nessuna migrazione: la tabella `templates` esiste dallo schema iniziale.
+  - Non incluso: note e ripetizioni nelle voci; attività "nel periodo" o eventi dentro un template; applicazione dal Quick Capture o dalla command palette.
+- Criteri dei Templates: test di `lib/templates`; dal telefono: crea un template di tre voci su due giorni, applicalo da domani, ritrova le attività in Oggi e in Settimana, annulla dal toast; ripeti l'applicazione senza rete.
 
 **Allineamento al prototipo** *(10 ottobre 2026)*
 - Segni comuni in `components/ui/marks.tsx`: rombo oro per attenzione alta e scadenze, punto viola per l'attenzione media (al posto della scritta "Importante").
@@ -725,6 +778,8 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 
 **Incremento 13 — Export, backup automatico, eliminazione account**
+- Realizzazione: fine della sezione 10.
+- Criteri: test di `lib/export`; dal telefono e dal desktop: esporta, apri l'archivio, apri un CSV in un foglio di calcolo, importa `eventi.ics` in un calendario; a Log bloccato le riservate non ci sono, sbloccato sì. Backup: una esecuzione manuale riuscita e un file decifrato con la chiave privata. Eliminazione: provata su un account di prova, non su quello vero.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 
