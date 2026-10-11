@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DayMarksLine, DaySigns } from "@/components/days/day-signs";
 import { MealSheet } from "@/components/meals/meal-sheet";
 import { PantrySection, type PantryUse } from "@/components/meals/pantry-section";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
@@ -8,11 +9,13 @@ import { Segmented } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
+import { useDayContext } from "@/lib/data/day-marks-hooks";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { addMeal, removeMeal, renameMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
@@ -47,6 +50,8 @@ export default function MealsPage() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i));
 
   const mealsQuery = useMeals(from);
+  // Com'è fatto ogni giorno (ufficio, viaggio, allenamento): aiuta a decidere cosa preparare.
+  const { marks, workouts } = useDayContext(from, days[6]);
   const memory = useMealMemory().data ?? [];
   const [editing, setEditing] = useState<MealSlot | null>(null);
 
@@ -96,14 +101,15 @@ export default function MealsPage() {
           const dots = SLOTS.map((slot) => mealDot(mealAt(d, slot)));
           const planned = dots.filter((s) => s !== "empty").length;
           const toPrep = dots.filter((s) => s === "prep").length;
+          const signs = daySigns(d, marks, workouts, today);
           return (
             <button
               key={d}
               type="button"
               aria-pressed={active}
-              aria-label={`${weekdayName(d)} ${shortDate(d)}: ${planned === 1 ? "1 pasto pianificato" : `${planned} pasti pianificati`}${toPrep ? `, ${toPrep} da preparare` : ""}`}
+              aria-label={`${weekdayName(d)} ${shortDate(d)}: ${planned === 1 ? "1 pasto pianificato" : `${planned} pasti pianificati`}${toPrep ? `, ${toPrep} da preparare` : ""}${signs.length ? `, ${signsText(signs)}` : ""}`}
               onClick={() => setSelected(d)}
-              className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border text-[13px] transition-colors ${
+              className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border py-1.5 text-[13px] transition-colors ${
                 active ? "border-line-2 bg-surface-2 text-text" : "border-transparent text-text-2 hover:bg-surface-2"
               }`}
             >
@@ -114,6 +120,7 @@ export default function MealsPage() {
                   <span key={i} className={`size-1.5 rounded-full ${DOT_CLASS[state]}`} />
                 ))}
               </span>
+              <DaySigns signs={signs} />
             </button>
           );
         })}
@@ -130,6 +137,7 @@ export default function MealsPage() {
           </button>
         ) : null}
       </div>
+      <DayMarksLine key={day} day={day} today={today} marks={marks} workouts={workouts} className="-my-3" />
 
       {failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">

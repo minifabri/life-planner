@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToFeedback, applyToLog, applyToMealMemory, applyToMeals, applyToOutfits, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWears, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToDayMarks, applyToFeedback, applyToLog, applyToMealMemory, applyToMeals, applyToOutfits, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWears, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -69,6 +69,11 @@ function applyToCache(op: Op, at: string) {
     // Chiave: ["workouts", dal, al].
     for (const [key, data] of queryClient.getQueriesData<Workout[]>({ queryKey: ["workouts"] })) {
       if (data) queryClient.setQueryData(key, applyToWorkouts(data, op, at, key[1] as LocalDate, key[2] as LocalDate));
+    }
+  } else if (op.table === "day_marks") {
+    // Chiave: ["day-marks", dal, al].
+    for (const [key, data] of queryClient.getQueriesData<DayMark[]>({ queryKey: ["day-marks"] })) {
+      if (data) queryClient.setQueryData(key, applyToDayMarks(data, op, key[1] as LocalDate, key[2] as LocalDate));
     }
   }
 }
@@ -150,6 +155,10 @@ export async function withPendingFeedback(feedback: OutfitFeedback[]): Promise<O
 
 export async function withPendingWorkouts(workouts: Workout[], from: LocalDate, to: LocalDate): Promise<Workout[]> {
   return (await pending()).reduce((acc, e) => applyToWorkouts(acc, e.op, e.at, from, to), workouts);
+}
+
+export async function withPendingDayMarks(marks: DayMark[], from: LocalDate, to: LocalDate): Promise<DayMark[]> {
+  return (await pending()).reduce((acc, e) => applyToDayMarks(acc, e.op, from, to), marks);
 }
 
 export type SyncState = {

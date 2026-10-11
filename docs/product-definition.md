@@ -110,7 +110,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D47 | **Outfit**: dentro Guardaroba, selettore "Capi · Outfit". Un outfit è un elenco di capi senza struttura obbligatoria, mostrato come moodboard delle loro foto | [APPROVATO l'11 ottobre 2026] |
 | D48 | **Indossato oggi**: registra l'utilizzo e chiede, capo per capo, se resta pulito, riutilizzabile o da lavare. Nessun capo diventa da lavare da solo. Un outfit con capi da lavare si segnala, non si nasconde | [APPROVATO l'11 ottobre 2026] |
 | D49 | **Idee** (suggerimenti): terza voce del selettore in Guardaroba. Regole locali, deterministiche e spiegabili, senza servizi esterni né AI; tre modalità (per oggi, intorno a un capo, scopri); profilo di stile come orientamento, mai divieto; giudizi solo espliciti | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
-| D50 | Guardaroba, passi successivi nell'ordine: pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
+| D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D51 | Guardaroba, passi successivi nell'ordine: pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
 
 ---
 
@@ -511,7 +512,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Guardaroba [APPROVATO, D46–D49; passi successivi PROPOSTA, D50]
+### 7.15 Guardaroba [APPROVATO, D46–D49; passi successivi PROPOSTA, D51]
 Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee**; in Capi e Outfit c'è il campo di ricerca.
 
 **Capi**
@@ -535,7 +536,7 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - Dall'outfit ("Indossato oggi") o dalla selezione multipla dei capi ("Indossati oggi").
 - Per ogni capo si sceglie Pulito · Riutilizzabile · Da lavare. Proposta di partenza: riutilizzabile; scarpe, borse, accessori e capispalla restano come sono; un capo già da lavare resta da lavare.
 - L'utilizzo entra nello storico (giorno, outfit, capi) e si può annullare dal toast, che riporta anche i capi allo stato di prima.
-- Un utilizzo è distinto da una pianificazione (D50, non ancora realizzata).
+- Un utilizzo è distinto da una pianificazione (D51, non ancora realizzata).
 
 **Offline**: capi, outfit e utilizzi si leggono e si modificano senza rete; solo il caricamento della foto la richiede.
 
@@ -548,7 +549,16 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - **Azioni**: Mi piace · Non mi piace · Salva (apre il nuovo outfit con quei capi) · Indossato oggi. Una combinazione scartata non viene riproposta (si annulla dal toast); ciò che non viene scelto non conta come giudizio negativo.
 - **Il mio stile**: stili e colori preferiti e parole da evitare, cercate nei testi dei capi. Parte dalle preferenze indicate da Bibi e si modifica quando si vuole; richiede la rete, come le altre impostazioni.
 
-Non incluso per ora (D50): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, pianificazione su giorno o evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+Non incluso per ora (D51): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, pianificazione su giorno o evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+
+### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
+- **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
+- **Aspetto**: icone piccole e grigie, mai colore né testo nelle strisce dei giorni. Niente notifiche, niente effetto sul carico del giorno.
+- **Segnare**: riga discreta sotto il titolo del giorno ("Segna il giorno", poi "Ufficio · Corsa 18:00"); un tocco apre il foglio con Ufficio e Viaggio, che si mettono e si tolgono.
+- **Pasti**: icone sotto i puntini di ogni giorno della striscia; riga del giorno con segni e allenamenti.
+- **Guardaroba**: in alto i prossimi sette giorni da oggi con i loro segni; un tocco su un giorno lo segna.
+- **Oggi**: riga sotto la data, solo ufficio e viaggio (gli allenamenti hanno già la loro sezione). **Settimana**: icone accanto alla data, mobile e desktop.
+- Non incluso per ora: segnare più giorni insieme (un viaggio si segna giorno per giorno), altri tipi di segno, icone nelle celle del Mese, ricerca.
 
 ---
 

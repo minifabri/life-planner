@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { DayMarksLine } from "@/components/days/day-signs";
 import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
@@ -22,6 +23,7 @@ import {
   useTimezone,
   useToday,
 } from "@/lib/data/hooks";
+import { useWeekDayMarks } from "@/lib/data/day-marks-hooks";
 import { useWeekWorkouts, useWorkoutActions } from "@/lib/data/workouts-hooks";
 import {
   addDays,
@@ -65,6 +67,7 @@ export default function TodayPage() {
   // Gli allenamenti della settimana del giorno: servono anche al riepilogo. Se mancano, il resto si mostra comunque.
   const weekWorkouts = useWeekWorkouts(day).data ?? [];
   const workoutActions = useWorkoutActions();
+  const dayMarks = useWeekDayMarks(day).data ?? [];
   const [workout, setWorkout] = useState<Workout | null>(null);
 
   const [editor, setEditor] = useState<EditorTarget | null>(null);
@@ -215,6 +218,7 @@ export default function TodayPage() {
             </Link>
           </div>
         </div>
+        <DayMarksLine key={day} day={day} today={today} marks={dayMarks} className="-my-2.5" />
         <div className="flex flex-col gap-2">
           <div className="flex min-h-6 items-baseline justify-between gap-3">
             <span className="text-[13px] text-text-2">{loadText}</span>

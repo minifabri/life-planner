@@ -228,6 +228,8 @@ unique (owner_id, health_id)
 ```
 "Saltato" per un allenamento in programma in un giorno passato si calcola in lettura (`shownStatus`), senza scritture.
 
+**day_marks** — Segni dei giorni (D50): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`.
+
 **lists** — contenitore predisposto per la condivisione futura
 ```
 id, owner_id, kind text check in ('shopping','wishlist'), name
@@ -802,6 +804,13 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Log**: tessere "Ultima volta" in testa alla cronologia. Nel Mese il Log resta un trattino neutro (D24).
 - Non toccata la Spesa: le sue differenze sono sul ramo `claude/shopping-list-ux-4ae3ef`.
 
+**Segni dei giorni** *(12 ottobre 2026, D50)*
+- Migrazione `day_marks` (RLS e quattro policy), `rls_check.sql` esteso.
+- Logica pura con test in `lib/days/marks.ts`: segni di un giorno (`daySigns`), allenamenti che contano, testi, operazione metti/togli.
+- Dati in `lib/data/day-marks.ts` e `day-marks-hooks.ts`: query `["day-marks", dal, al]`, salvata sul dispositivo; le scritture passano dalla outbox (`applyToDayMarks`). L'id nasce da utente, giorno e segno (`deterministicId`): due dispositivi offline non creano doppioni.
+- Interfaccia in `components/days/day-signs.tsx`: `DaySigns` (icone), `DayMarksLine` (riga del giorno), `DayMarksSheet`, `UpcomingDays` (Guardaroba). Icone di `lucide-react`.
+- La tabella entra nell'export; l'eliminazione dell'account la porta via con l'utente.
+
 **Incremento 12 — Google Calendar** → anticipato, vedi 1c.
 
 **Incremento 13 — Export, backup automatico, eliminazione account**
@@ -821,7 +830,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Criteri: test di `lib/wardrobe`; dal telefono: fotografa due capi, crea un outfit dalla selezione, sostituisci un capo, segna "Indossato oggi" scegliendo un capo da lavare, ritrova l'etichetta sull'outfit, annulla dal toast; ripeti la creazione di un outfit senza rete.
 
 **Incremento 16 — Guardaroba, idee** *(11 ottobre 2026)*
-- Migrazione `20261012120000_wardrobe_suggestions.sql`: `wardrobe_style` e `outfit_feedback`, con RLS e le quattro policy.
+- Migrazione `20261012130000_wardrobe_suggestions.sql`: `wardrobe_style` e `outfit_feedback`, con RLS e le quattro policy.
 - Motore puro con test in `lib/wardrobe/suggest.ts`, senza servizi esterni:
   - **Filtro preliminare**: per ogni categoria si tengono i capi migliori valutati da soli (6 per top, bottom e vestiti; 4 per scarpe, capispalla, accessori e borse). Le basi sono top × bottom più i vestiti: al più 42.
   - **Completamento**: a ogni base si aggiungono le scarpe migliori; il capospalla col freddo, o col mite se la base è leggera; un accessorio o una borsa solo se non peggiora il voto.

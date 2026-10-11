@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { EditorTarget } from "@/components/today/item-editor";
 import { buildDay, type DayView } from "@/lib/calendar/view";
 import { updateEvent } from "@/lib/data/api";
+import { useDayMarks } from "@/lib/data/day-marks-hooks";
 import { useAreas, useOffline, useRangeEvents, useRangeTasks, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
 import { useWorkoutActions, useWorkouts } from "@/lib/data/workouts-hooks";
 import type { LocalDate } from "@/lib/dates/local";
@@ -24,6 +25,7 @@ export function useCalendar(days: LocalDate[]) {
   const eventsQuery = useRangeEvents(from, to, tz);
   // Gli allenamenti non bloccano la vista: se mancano, il calendario si mostra comunque.
   const workouts = useWorkouts(from, to).data;
+  const marks = useDayMarks(from, to).data;
   const areas = useAreas().data;
   const actions = useTaskActions(today, tz);
   const workoutActions = useWorkoutActions();
@@ -50,6 +52,8 @@ export function useCalendar(days: LocalDate[]) {
     offline,
     tasks: tasks ?? [],
     views,
+    /** Segni dei giorni (ufficio, viaggio). */
+    marks: marks ?? [],
     areaById,
     actions,
     workoutActions,
