@@ -48,6 +48,7 @@ const PATHS = {
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
+  bell: <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />,
   check: <path d="M5 12.5l4.2 4L19 7" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   more: (

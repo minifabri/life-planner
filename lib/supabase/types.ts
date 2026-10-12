@@ -47,6 +47,8 @@ export type Task = {
   due_date: string | null;
   window_start: string | null;
   attention: Attention;
+  /** Promemoria: una notifica all'orario (al mattino se manca), qualunque sia l'attenzione. Vale solo con una data. */
+  remind: boolean;
   area_id: string | null;
   status: TaskStatus;
   completed_at: string | null;
@@ -136,6 +138,8 @@ export type RecurrenceTemplate = {
   duration_min: number | null;
   area_id: string | null;
   attention: Attention;
+  /** Assente nelle ricorrenze nate prima del promemoria. */
+  remind?: boolean;
   /** Data della prima attività: le occorrenze generate partono dal giorno dopo. */
   start_date: string;
 };
