@@ -75,6 +75,7 @@ export function OutfitSheet({
   today,
   onSave,
   onWear,
+  onPlan,
   onDelete,
   onClose,
 }: {
@@ -86,6 +87,8 @@ export function OutfitSheet({
   onSave: (input: OutfitInput) => Promise<boolean>;
   /** Salva le modifiche e passa a registrare l'utilizzo. */
   onWear: (input: OutfitInput) => Promise<boolean>;
+  /** Salva le modifiche e passa a scegliere il giorno. */
+  onPlan: (input: OutfitInput) => Promise<boolean>;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -275,11 +278,16 @@ export function OutfitSheet({
           ) : (
             <span />
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {outfit ? (
-              <Button onClick={() => void run(onWear)} disabled={busy || resolved.items.length === 0}>
-                Indossato oggi
-              </Button>
+              <>
+                <Button onClick={() => void run(onPlan)} disabled={busy || resolved.items.length === 0}>
+                  Pianifica
+                </Button>
+                <Button onClick={() => void run(onWear)} disabled={busy || resolved.items.length === 0}>
+                  Indossato oggi
+                </Button>
+              </>
             ) : null}
             <Button type="submit" variant="primary" disabled={busy || itemIds.length === 0}>
               Salva

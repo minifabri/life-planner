@@ -336,6 +336,19 @@ export type WardrobeWear = {
   created_at: string;
 };
 
+/** Outfit pianificato per un giorno (non un utilizzo, non un evento del calendario). */
+export type OutfitPlan = {
+  id: string;
+  date: string;
+  event_id: string | null;
+  /** Titolo dell'evento al momento della scelta, oppure un'occasione scritta a mano. */
+  label: string | null;
+  outfit_id: string | null;
+  /** I capi fissati al momento della pianificazione: valgono se l'outfit salvato non c'è (più). */
+  item_ids: string[];
+  created_at: string;
+};
+
 /** Giudizio esplicito su una combinazione di capi (non si deduce mai da ciò che non viene scelto). */
 export type OutfitFeedback = {
   id: string;
