@@ -34,4 +34,4 @@ export const STYLE_OPTIONS = ["minimal", "urban", "gothic", "elegante", "cyber",
 
 export const OCCASION_OPTIONS = ["quotidiano", "ufficio", "serata", "aperitivo", "sport", "cerimonia"];
 
-export const COLOR_OPTIONS = ["nero", "bianco", "grigio", "lilla", "beige", "blu", "rosso", "verde", "oro", "argento", "altro"];
+export const COLOR_OPTIONS = ["nero", "bianco", "grigio", "beige", "marrone", "blu", "azzurro", "verde", "giallo", "arancione", "rosso", "bordeaux", "rosa", "lilla", "oro", "argento", "altro"];

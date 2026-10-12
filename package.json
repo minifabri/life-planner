@@ -9,10 +9,12 @@
     "lint": "eslint",
     "test": "vitest run && node scripts/build-functions.mjs --check",
     "typecheck": "next typegen && tsc --noEmit",
-    "build:functions": "node scripts/build-functions.mjs"
+    "build:functions": "node scripts/build-functions.mjs",
+    "build:vision": "node scripts/build-wardrobe-vision.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
+    "@huggingface/transformers": "4.3.1",
     "@serwist/turbopack": "9.5.13",
     "@supabase/supabase-js": "2.117.3",
     "@tanstack/react-query": "5.104.1",
@@ -32,6 +34,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@huggingface/tokenizers": "0.2.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
@@ -41,6 +44,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.0",
     "fake-indexeddb": "6.2.5",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vitest": "5.0.3"
