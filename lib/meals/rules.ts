@@ -8,6 +8,7 @@ import { byId, type Op } from "../sync/ops";
  * valgono allo stesso modo con e senza rete. Il database applica le stesse regole con dei trigger.
  */
 
+/** I pasti della giornata. Gli extra ("extra") non sono un pasto: stanno a parte, facoltativi. */
 export const SLOTS: MealSlot[] = ["breakfast", "lunch", "snack", "dinner"];
 
 export const SLOT_LABEL: Record<MealSlot, string> = {
@@ -15,6 +16,7 @@ export const SLOT_LABEL: Record<MealSlot, string> = {
   lunch: "Pranzo",
   snack: "Merenda",
   dinner: "Cena",
+  extra: "Extra",
 };
 
 const SLOT_WITH_ARTICLE: Record<MealSlot, string> = {
@@ -22,6 +24,7 @@ const SLOT_WITH_ARTICLE: Record<MealSlot, string> = {
   lunch: "il pranzo",
   snack: "la merenda",
   dinner: "la cena",
+  extra: "gli extra",
 };
 
 export function reminderTitle(slot: MealSlot): string {
@@ -69,8 +72,8 @@ function removeReminderOps(meal: Pick<MealPlan, "reminder_task_id">, now: string
 }
 
 /** Nuovo pasto. `taskId` è l'id da dare all'eventuale attività di preparazione. */
-export function addMealOps(meal: MealKey & { prep_mode: PrepMode }, taskId: string, today: LocalDate): Op[] {
-  const row = { id: meal.id, date: meal.date, slot: meal.slot, name: meal.name, prep_mode: meal.prep_mode };
+export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: boolean }, taskId: string, today: LocalDate): Op[] {
+  const row = { id: meal.id, date: meal.date, slot: meal.slot, name: meal.name, prep_mode: meal.prep_mode, ...(meal.eaten_out ? { eaten_out: true } : {}) };
   return [{ kind: "insert", table: "meal_plans", row }, ...(meal.prep_mode === "to_prep" ? reminderOps(meal, taskId, today) : [])];
 }
 
@@ -100,6 +103,21 @@ export function setPreparedOps(meal: MealPlan, prepared: boolean, now: string): 
     });
   }
   return ops;
+}
+
+/** "Mangiato fuori": non c'è niente da preparare, quindi il pasto diventa Pronto e la sua attività si elimina. */
+export function setEatenOutOps(meal: MealPlan, out: boolean, now: string): Op[] {
+  if (out === meal.eaten_out) return [];
+  if (!out) return [{ kind: "update", table: "meal_plans", patch: { eaten_out: false }, where: byId(meal.id) }];
+  return [
+    ...removeReminderOps(meal, now),
+    { kind: "update", table: "meal_plans", patch: { eaten_out: true, prep_mode: "ready", prepared: false, prepared_at: null, reminder_task_id: null }, where: byId(meal.id) },
+  ];
+}
+
+/** Come si legge un pasto: il suo nome, o "Mangiato fuori" se è fuori e senza nome. */
+export function mealTitle(meal: Pick<MealPlan, "name" | "eaten_out">): string {
+  return meal.name || (meal.eaten_out ? "Mangiato fuori" : "");
 }
 
 /** Cambio del piatto: il nome sta anche nelle note dell'attività collegata. */

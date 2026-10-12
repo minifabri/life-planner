@@ -6,6 +6,7 @@ import {
   addMealOps,
   hideIdeaOp,
   mealDot,
+  mealTitle,
   normalizeMealName,
   rememberMealOp,
   reminderDate,
@@ -15,6 +16,7 @@ import {
   reminderToggledOps,
   removeMealOps,
   renameMealOps,
+  setEatenOutOps,
   setModeOps,
   setNutrientsOps,
   setPreparedOps,
@@ -103,6 +105,26 @@ describe("pasto → attività", () => {
     w = run(w, setPreparedOps(w.meals[0], false, NOW));
     expect(w.meals[0]).toMatchObject({ prepared: false, prepared_at: null });
     expect(w.tasks[0]).toMatchObject({ status: "open", completed_at: null });
+  });
+
+  it("segnare un pasto come mangiato fuori elimina l'attività e lo rende Pronto; toglierlo non la ricrea", () => {
+    let w = withMeal("to_prep");
+    w = run(w, setEatenOutOps(w.meals[0], true, NOW));
+    expect(w.tasks).toEqual([]);
+    expect(w.meals[0]).toMatchObject({ eaten_out: true, prep_mode: "ready", prepared: false, reminder_task_id: null });
+    expect(setEatenOutOps(w.meals[0], true, NOW)).toEqual([]);
+    w = run(w, setEatenOutOps(w.meals[0], false, NOW));
+    expect(w.tasks).toEqual([]);
+    expect(w.meals[0]).toMatchObject({ eaten_out: false, prep_mode: "ready", name: "Riso e lenticchie" });
+  });
+
+  it("un pasto fuori può nascere senza nome, e si legge comunque", () => {
+    const w = run({ meals: [], tasks: [] }, addMealOps({ id: "o", date: "2026-10-12", slot: "dinner", name: "", prep_mode: "ready", eaten_out: true }, "t9", TODAY));
+    expect(w.tasks).toEqual([]);
+    expect(w.meals[0]).toMatchObject({ eaten_out: true, name: "" });
+    expect(mealTitle(w.meals[0])).toBe("Mangiato fuori");
+    expect(mealTitle({ name: "Pizza", eaten_out: true })).toBe("Pizza");
+    expect(withMeal("ready").meals[0].eaten_out).toBe(false);
   });
 
   it("passare a Pronto elimina l'attività e azzera Preparato", () => {

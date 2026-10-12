@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
+import { Icon } from "@/components/ui/icon";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Sheet } from "@/components/ui/sheet";
 import { addIngredient, ingredientsIn } from "@/lib/meals/ingredients";
@@ -15,7 +16,10 @@ const MODES: { value: PrepMode; label: string }[] = [
   { value: "to_prep", label: "Da preparare" },
 ];
 
-/** Foglio di un pasto: per uno vuoto propone i ricorrenti di quel momento, per uno esistente permette di cambiarlo o toglierlo. */
+/**
+ * Foglio di un pasto: per uno vuoto propone i ricorrenti di quel momento, per uno esistente permette di cambiarlo o toglierlo.
+ * Vale anche per gli extra del giorno (`slot` "extra"), che non hanno modalità né "mangiato fuori".
+ */
 export function MealSheet({
   slot,
   dayLabel,
@@ -37,14 +41,17 @@ export function MealSheet({
   /** I nutrienti già corretti a mano, per nome del piatto. */
   overrides: Overrides;
   /** `nutrients` c'è solo se sono stati corretti: l'elenco scelto, o `null` per tornare a quelli del nome. */
-  onAdd: (name: string, mode: PrepMode, nutrients?: Nutrient[] | null) => void;
-  onSave: (name: string, nutrients?: Nutrient[] | null) => void;
+  onAdd: (name: string, mode: PrepMode, nutrients?: Nutrient[] | null, out?: boolean) => void;
+  onSave: (name: string, out: boolean, nutrients?: Nutrient[] | null) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(meal?.name ?? "");
   const [mode, setMode] = useState<PrepMode>(meal?.prep_mode ?? "ready");
   const trimmed = name.trim();
+  const extra = slot === "extra";
+  // Mangiato fuori: il piatto è facoltativo e non c'è niente da preparare.
+  const [out, setOut] = useState(meal?.eaten_out ?? false);
   // Scrivendo un nome già noto si riprende la sua modalità abituale, finché non la si cambia a mano.
   const known = suggestions.find((s) => s.name_normalized === normalizeMealName(trimmed));
   const [modeTouched, setModeTouched] = useState(false);
@@ -66,16 +73,16 @@ export function MealSheet({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!trimmed) return;
-    if (meal) onSave(trimmed, corrected ? wanted : undefined);
-    else onAdd(trimmed, effectiveMode, corrected ? wanted : undefined);
+    if (!trimmed && !out) return;
+    if (meal) onSave(trimmed, out, corrected ? wanted : undefined);
+    else onAdd(trimmed, out || extra ? "ready" : effectiveMode, corrected ? wanted : undefined, out);
   }
 
   return (
     <Sheet title={`${SLOT_LABEL[slot]} · ${dayLabel}`} isOpen onClose={onClose}>
       {!meal && suggestions.length > 0 ? (
         <section className="flex flex-col gap-1.5">
-          <h3 className="label-mono">Ricorrenti</h3>
+          <h3 className="label-mono">{extra ? "Extra ricorrenti" : "Ricorrenti"}</h3>
           <ul className="flex flex-col rounded-xl border border-line bg-bg px-3">
             {suggestions.slice(0, 6).map((s) => (
               <li key={s.id} className="border-b border-line last:border-b-0">
@@ -86,7 +93,7 @@ export function MealSheet({
                 >
                   <span className="flex min-w-0 flex-col gap-0.5 py-1.5">
                     <span className="break-words">{s.display_name}</span>
-                    <span className="text-xs text-text-3">{s.default_prep_mode === "to_prep" ? "Da preparare" : "Pronto"}</span>
+                    {extra ? null : <span className="text-xs text-text-3">{s.default_prep_mode === "to_prep" ? "Da preparare" : "Pronto"}</span>}
                   </span>
                   <span className="shrink-0 font-mono text-[11px] text-text-3">{s.use_count === 1 ? "1 volta" : `${s.use_count} volte`}</span>
                 </button>
@@ -97,18 +104,38 @@ export function MealSheet({
       ) : null}
 
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label={meal ? "Piatto" : suggestions.length > 0 ? "Oppure un piatto nuovo" : "Piatto"} htmlFor="meal-name">
+        {extra ? null : (
+          <label className="-my-1 -ml-2.5 flex min-h-11 cursor-pointer items-center gap-1 self-start pr-2 text-sm">
+            <span className="flex size-11 items-center justify-center">
+              <input type="checkbox" className="peer sr-only" checked={out} onChange={(e) => setOut(e.target.checked)} />
+              <span
+                className={`flex size-[22px] items-center justify-center rounded-[7px] border transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
+                  out ? "border-accent-fill bg-accent-fill text-on-accent" : "border-line-2 text-transparent"
+                }`}
+              >
+                <Icon name="check" size={14} strokeWidth={2.2} />
+              </span>
+            </span>
+            Mangiato fuori
+          </label>
+        )}
+        <Field
+          label={extra ? "Fuori pasto e condimenti" : out ? "Piatto (facoltativo)" : meal ? "Piatto" : suggestions.length > 0 ? "Oppure un piatto nuovo" : "Piatto"}
+          htmlFor="meal-name"
+        >
           <input
             id="meal-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Es. riso e lenticchie"
+            placeholder={extra ? "Es. olio, noci, cioccolato fondente" : "Es. riso e lenticchie"}
             autoComplete="off"
             enterKeyHint="done"
             className={inputClass}
           />
         </Field>
-        {unused.length > 0 ? (
+        {out && !trimmed ? <p className="-mt-2 text-xs text-text-3">Senza piatto il pasto resta segnato, ma non conta nei nutrienti.</p> : null}
+        {extra ? <p className="-mt-2 text-xs text-text-3">Contano nei nutrienti del giorno e della settimana come un pasto in più.</p> : null}
+        {unused.length > 0 && !out ? (
           <section className="-mt-1 flex flex-col gap-1.5">
             <h3 className="label-mono">In casa, da usare</h3>
             <ul className="flex flex-wrap gap-1.5">
@@ -117,7 +144,7 @@ export function MealSheet({
                   <button
                     type="button"
                     onClick={() => setName(addIngredient(name, entry.name))}
-                    aria-label={`Aggiungi al piatto: ${entry.name}`}
+                    aria-label={`Aggiungi ${extra ? "agli extra" : "al piatto"}: ${entry.name}`}
                     style={departmentStyle(entry.department)}
                     className="flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
                   >
@@ -134,7 +161,7 @@ export function MealSheet({
         {trimmed ? (
           <section className="-mt-1 flex flex-col gap-1.5">
             <h3 className="label-mono">Nutrienti</h3>
-            <div role="group" aria-label="Nutrienti del piatto" className="flex flex-wrap gap-1.5">
+            <div role="group" aria-label={extra ? "Nutrienti degli extra" : "Nutrienti del piatto"} className="flex flex-wrap gap-1.5">
               {NUTRIENTS.map((n) => {
                 const on = nutrients.includes(n);
                 return (
@@ -153,11 +180,11 @@ export function MealSheet({
               })}
             </div>
             <p className="text-xs text-text-3">
-              {picked || saved ? "Scelti a mano per questo piatto." : nutrients.length > 0 ? "Riconosciuti dal nome. Correggili se serve." : "Il nome non li dice: indicali tu, se vuoi."}
+              {picked || saved ? (extra ? "Scelti a mano." : "Scelti a mano per questo piatto.") : nutrients.length > 0 ? "Riconosciuti dal nome. Correggili se serve." : "Il nome non li dice: indicali tu, se vuoi."}
             </p>
           </section>
         ) : null}
-        {!meal ? (
+        {!meal && !out && !extra ? (
           <Segmented
             label="Modalità"
             value={effectiveMode}
@@ -171,12 +198,12 @@ export function MealSheet({
         <div className="flex items-center justify-between gap-3">
           {meal ? (
             <Button variant="quiet" onClick={onRemove} className="-ml-4">
-              Togli il pasto
+              {extra ? "Togli gli extra" : "Togli il pasto"}
             </Button>
           ) : (
             <span />
           )}
-          <Button type="submit" variant="primary" disabled={!trimmed || (!!meal && trimmed === meal.name && !corrected)}>
+          <Button type="submit" variant="primary" disabled={(!trimmed && !out) || (!!meal && trimmed === meal.name && out === meal.eaten_out && !corrected)}>
             {meal ? "Salva" : "Aggiungi"}
           </Button>
         </div>

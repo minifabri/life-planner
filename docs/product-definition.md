@@ -120,6 +120,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D57 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D58 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D59 | **Micronutrienti del giorno**: nel Giorno dei Pasti, riepilogo di ferro, calcio, zinco, omega-3, vitamina A, vitamina C e folati, riconosciuti dal nome del piatto con un dizionario locale di buone fonti. La riga resta discreta; aperta mostra un piccolo grafico a barre di nutrienti e micronutrienti nei pasti del giorno | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D60 | **Extra del giorno**: nei Pasti, sotto i quattro pasti, una riga facoltativa per ciò che si mangia fuori pasto o in accompagnamento (condimenti, spuntini). Testo libero, una riga per giorno; conta nei nutrienti e nei micronutrienti come un pasto in più | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D61 | **Mangiato fuori**: un pasto si può segnare come mangiato fuori senza scrivere il piatto. Il momento risulta occupato; senza nome non conta nei nutrienti, con il nome (facoltativo) sì | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -501,6 +503,8 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Striscia dei 7 giorni in alto; sotto ogni giorno quattro puntini (vuoto = non pianificato, grigio = a posto, lilla = da preparare).
 - Per il giorno scelto: colazione, pranzo, merenda, cena. Ogni pasto ha il selettore **Pronto / Da preparare** e, se da preparare, la casella **Preparato**.
 - Pasto vuoto → foglio con i **ricorrenti** di quel momento ordinati per frequenza (ognuno ricorda la sua modalità abituale), oppure un nome nuovo.
+- **Mangiato fuori** (D61): su un pasto vuoto, accanto ad "Aggiungi", un tocco su "Mangiato fuori" lo segna subito. Nel foglio del pasto la stessa casella vale anche per un pasto già scritto: il piatto diventa facoltativo, spariscono Pronto / Da preparare e l'eventuale attività di preparazione. Un pasto fuori non entra tra i ricorrenti e, senza nome, non conta nei nutrienti.
+- **Extra** (D60): sotto la cena, riga tratteggiata "Extra · facoltativo". Si scrive in un solo campo ("olio, noci, cioccolato fondente"); i nutrienti si riconoscono e si correggono come per un piatto, e gli extra già usati tornano tra i ricorrenti. Compare anche nella Settimana. Non ha puntino nella striscia dei giorni e non riceve Idee.
 - Pasto da preparare e non preparato → attività il giorno prima in Today; sotto il pasto una riga discreta indica dove si trova. Nessun banner di avviso.
 - Notifica dell'attività: orario configurabile, proposta 20:00 del giorno prima (vedi `technical-design.md`).
 - **In casa** (D43): in fondo, sezione chiusa di default con gli ingredienti comprati e non ancora finiti, per reparto. Un prodotto comprato più volte compare una volta sola. "Finito" lo toglie, con annulla.

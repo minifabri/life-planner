@@ -13,6 +13,7 @@ const meal = (date: string, name: string, slot: MealSlot = "lunch"): MealPlan =>
   slot,
   name,
   prep_mode: "ready",
+  eaten_out: false,
   prepared: false,
   prepared_at: null,
   reminder_task_id: null,
@@ -91,6 +92,13 @@ describe("nutrientsOf", () => {
 });
 
 describe("weekBalance", () => {
+  it("conta gli extra e un pasto fuori con il nome, non uno fuori senza nome", () => {
+    const out = (name: string) => ({ ...meal(DAYS[1], name, "dinner"), eaten_out: true });
+    const balance = weekBalance([meal(DAYS[0], "Insalata"), meal(DAYS[0], "Olio", "extra"), out(""), { ...out("Pizza"), date: DAYS[2] }], DAYS);
+    expect(balance.planned).toBe(3);
+    expect(balance.rows.find((r) => r.nutrient === "fat")).toMatchObject({ meals: 2, perDay: [1, 0, 1, 0, 0, 0, 0] });
+  });
+
   it("conta i pasti con ogni nutriente, in tutto e giorno per giorno", () => {
     const balance = weekBalance([meal(DAYS[0], "Riso e lenticchie"), meal(DAYS[0], "Yogurt", "breakfast"), meal(DAYS[2], "Avanzi"), meal("2026-10-19", "Pollo")], DAYS);
     expect(balance.planned).toBe(3);

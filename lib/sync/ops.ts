@@ -210,7 +210,7 @@ export function applyToMeals(meals: MealPlan[], op: Op, from: LocalDate, to: Loc
   return applyToRows(
     meals,
     op,
-    (row) => ({ prepared: false, prepared_at: null, reminder_task_id: null, ...row }) as MealPlan,
+    (row) => ({ eaten_out: false, prepared: false, prepared_at: null, reminder_task_id: null, ...row }) as MealPlan,
     (m) => m.date >= from && m.date <= to,
   );
 }

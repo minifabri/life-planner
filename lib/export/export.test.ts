@@ -157,7 +157,7 @@ describe("buildExport", () => {
 
   it("scrive Spesa e Pasti in italiano e in ordine", () => {
     expect(read("csv/spesa.csv")).toBe("﻿Nome,Quantità,Reparto,Presa,Aggiunta il\r\nLatte,2,Frigo,sì,2026-10-01\r\n");
-    expect(read("csv/pasti.csv")).toBe("﻿Data,Pasto,Nome,Da preparare,Preparato\r\n2026-10-12,Pranzo,Pasta al ragù,sì,sì\r\n2026-10-12,Cena,Zuppa,no,no\r\n");
+    expect(read("csv/pasti.csv")).toBe("﻿Data,Pasto,Nome,Da preparare,Preparato,Fuori\r\n2026-10-12,Pranzo,Pasta al ragù,sì,sì,no\r\n2026-10-12,Cena,Zuppa,no,no,no\r\n");
   });
 
   it("nel calendario vanno solo gli eventi creati nell'app e non eliminati", () => {

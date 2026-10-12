@@ -3,7 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { signsText, type DaySign } from "@/lib/days/marks";
 import { NUTRIENT_LABEL, nutrientsOf, type Overrides } from "@/lib/meals/nutrients";
-import { SLOTS, SLOT_LABEL, mealDot, type MealDot } from "@/lib/meals/rules";
+import { SLOTS, SLOT_LABEL, mealDot, mealTitle, type MealDot } from "@/lib/meals/rules";
 import type { MealPlan, MealSlot } from "@/lib/supabase/types";
 
 const DOT_CLASS: Record<MealDot, string> = {
@@ -12,7 +12,9 @@ const DOT_CLASS: Record<MealDot, string> = {
   prep: "bg-accent",
 };
 
-/** La settimana intera: ogni giorno con i suoi quattro pasti; un tocco apre il foglio di quel pasto. */
+const ROWS: MealSlot[] = [...SLOTS, "extra"];
+
+/** La settimana intera: ogni giorno con i suoi quattro pasti e gli extra; un tocco apre il foglio di quel pasto. */
 export function WeekView({
   days,
   today,
@@ -43,9 +45,11 @@ export function WeekView({
               {signs.length ? <span className="sr-only">{signsText(signs)}</span> : null}
             </h3>
             <ul>
-              {SLOTS.map((slot) => {
+              {ROWS.map((slot) => {
                 const meal = mealAt(d, slot);
                 const nutrients = meal ? nutrientsOf(meal.name, overrides) : [];
+                // Dove e cosa porta: "Fuori", poi i nutrienti riconosciuti.
+                const detail = [meal?.eaten_out && meal.name ? "Fuori" : null, ...nutrients.map((n) => NUTRIENT_LABEL[n])].filter(Boolean).join(" · ");
                 const state = mealDot(meal);
                 return (
                   <li key={slot} className="border-t border-line">
@@ -54,7 +58,7 @@ export function WeekView({
                       onClick={() => onOpen(d, slot)}
                       aria-label={
                         meal
-                          ? `${SLOT_LABEL[slot]}, ${weekdayName(d)}: ${meal.name}${state === "prep" ? ", da preparare" : ""}. Modifica`
+                          ? `${SLOT_LABEL[slot]}, ${weekdayName(d)}: ${mealTitle(meal)}${meal.eaten_out && meal.name ? ", mangiato fuori" : ""}${state === "prep" ? ", da preparare" : ""}. Modifica`
                           : `Aggiungi ${SLOT_LABEL[slot].toLowerCase()}, ${weekdayName(d)}`
                       }
                       className="-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
@@ -62,8 +66,8 @@ export function WeekView({
                       <span className="w-[74px] shrink-0 font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-3">{SLOT_LABEL[slot]}</span>
                       {meal ? (
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className={`break-words text-[15px] leading-snug ${meal.prep_mode === "to_prep" && meal.prepared ? "text-text-2" : "text-text"}`}>{meal.name}</span>
-                          {nutrients.length > 0 ? <span className="text-xs text-text-3">{nutrients.map((n) => NUTRIENT_LABEL[n]).join(" · ")}</span> : null}
+                          <span className={`break-words text-[15px] leading-snug ${meal.prep_mode === "to_prep" && meal.prepared ? "text-text-2" : "text-text"}`}>{mealTitle(meal)}</span>
+                          {detail ? <span className="text-xs text-text-3">{detail}</span> : null}
                         </span>
                       ) : (
                         <span className="flex flex-1 items-center gap-1.5 text-sm text-text-3">
@@ -71,7 +75,7 @@ export function WeekView({
                           Aggiungi
                         </span>
                       )}
-                      <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT_CLASS[state]}`} />
+                      {slot === "extra" ? null : <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT_CLASS[state]}`} />}
                     </button>
                   </li>
                 );

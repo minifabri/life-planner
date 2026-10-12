@@ -38,8 +38,8 @@ export type ExportData = Record<ExportTable, Row[]>;
 /** Colonne che non sono dati di Bibi ma chiavi di accesso: restano fuori dall'archivio. */
 const SECRET_COLUMNS: Partial<Record<ExportTable, string[]>> = { profiles: ["log_lock_pin_hash", "log_lock_webauthn"] };
 
-const SLOT: Record<string, string> = { breakfast: "Colazione", lunch: "Pranzo", snack: "Merenda", dinner: "Cena" };
-const SLOT_ORDER = ["breakfast", "lunch", "snack", "dinner"];
+const SLOT: Record<string, string> = { breakfast: "Colazione", lunch: "Pranzo", snack: "Merenda", dinner: "Cena", extra: "Extra" };
+const SLOT_ORDER = ["breakfast", "lunch", "snack", "dinner", "extra"];
 const WISH_STATUS: Record<string, string> = { wanted: "Desiderato", bought: "Comprato", discarded: "Scartato" };
 
 const text = (v: unknown) => (typeof v === "string" ? v : v === null || v === undefined ? "" : String(v));
@@ -125,10 +125,10 @@ export function buildExport(data: ExportData, options: ExportOptions): ZipEntry[
       ]),
   );
   const meals = toCsv(
-    ["Data", "Pasto", "Nome", "Da preparare", "Preparato"],
+    ["Data", "Pasto", "Nome", "Da preparare", "Preparato", "Fuori"],
     [...data.meal_plans]
       .sort((a, b) => byText("date")(a, b) || SLOT_ORDER.indexOf(text(a.slot)) - SLOT_ORDER.indexOf(text(b.slot)))
-      .map((r) => [text(r.date), SLOT[text(r.slot)] ?? text(r.slot), text(r.name), r.prep_mode === "to_prep", r.prepared === true]),
+      .map((r) => [text(r.date), SLOT[text(r.slot)] ?? text(r.slot), text(r.name), r.prep_mode === "to_prep", r.prepared === true, r.eaten_out === true]),
   );
 
   const appEvents = alive(data.events).filter((e) => e.source === "app") as unknown as EventRow[];

@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useDayContext } from "@/lib/data/day-marks-hooks";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
-import { addMeal, hideMealIdea, removeMeal, renameMeal, setMealMode, setMealNutrients, setMealPrepared } from "@/lib/data/meals";
+import { addMeal, hideMealIdea, removeMeal, saveMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
@@ -23,7 +23,7 @@ import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary } from "@/lib/meals/micros";
 import { NUTRIENT_LABEL, balanceNote, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
-import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { SLOTS, SLOT_LABEL, mealDot, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
 import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
@@ -48,6 +48,10 @@ const DOT_CLASS: Record<MealDot, string> = {
 };
 
 const DOT_TEXT: Record<MealDot, string> = { empty: "non pianificato", ok: "a posto", prep: "da preparare" };
+
+function nutrientsLine(nutrients: Nutrient[]) {
+  return nutrients.length > 0 ? nutrients.map((n) => NUTRIENT_LABEL[n]).join(" · ") : "Nutrienti non riconosciuti: tocca per indicarli";
+}
 
 function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -98,6 +102,7 @@ export default function MealsPage() {
   const overrides = nutrientOverrides(memory);
   const balance = weekBalance(meals, days, overrides);
   const dayMeals = meals.filter((m) => m.date === day);
+  const extras = mealAt(day, "extra");
   const signsOf = (d: LocalDate) => daySigns(d, marks, workouts, today);
 
   // Idee: per la varietà contano anche la settimana prima e, da oggi, quella dopo.
@@ -124,11 +129,6 @@ export default function MealsPage() {
       actionLabel: "Annulla",
       onAction: () => void run(() => hideMealIdea(idea.slot, idea.name, idea.mode, false)),
     });
-  }
-
-  function saveMeal(meal: MealPlan, name: string, nutrients?: Nutrient[] | null) {
-    if (name !== meal.name) run(() => renameMeal(meal, name, nutrients));
-    else if (nutrients !== undefined) run(() => setMealNutrients(meal, nutrients));
   }
 
   return (
@@ -254,21 +254,54 @@ export default function MealsPage() {
                     onPrepared={(prepared) => run(() => setMealPrepared(meal, prepared))}
                   />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditing({ date: day, slot })}
-                    aria-label={`Aggiungi ${SLOT_LABEL[slot].toLowerCase()}`}
-                    className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
-                  >
-                    <Icon name="plus" size={16} />
-                    Aggiungi
-                  </button>
+                  <div className="-mx-2.5 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ date: day, slot })}
+                      aria-label={`Aggiungi ${SLOT_LABEL[slot].toLowerCase()}`}
+                      className="flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+                    >
+                      <Icon name="plus" size={16} />
+                      Aggiungi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => run(() => addMeal(day, slot, "", "ready", today, undefined, true))}
+                      aria-label={`${SLOT_LABEL[slot]}: mangiato fuori`}
+                      className="flex min-h-11 items-center rounded-lg px-2.5 text-sm text-text-3 hover:bg-surface-2 hover:text-text"
+                    >
+                      Mangiato fuori
+                    </button>
+                  </div>
                 )}
               </li>
             );
           })}
+          <li className="flex flex-col gap-2.5 rounded-[14px] border border-dashed border-line bg-surface px-4 py-3">
+            <span className="label-mono">
+              Extra <span className="font-normal normal-case tracking-normal">· facoltativo</span>
+            </span>
+            {extras ? (
+              <>
+                <button type="button" onClick={() => setEditing({ date: day, slot: "extra" })} aria-label={`Modifica gli extra: ${extras.name}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
+                  <span className="min-w-0 break-words">{extras.name}</span>
+                </button>
+                <p className="-mt-2 text-xs text-text-3">{nutrientsLine(nutrientsOf(extras.name, overrides))}</p>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing({ date: day, slot: "extra" })}
+                aria-label="Aggiungi extra: fuori pasto e condimenti"
+                className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-left text-sm text-text-2 hover:bg-surface-2 hover:text-text"
+              >
+                <Icon name="plus" size={16} />
+                Fuori pasto e condimenti
+              </button>
+            )}
+          </li>
         </ul>
-        <DayNutrients key={day} summary={daySummary(dayMeals, overrides)} />
+        <DayNutrients key={day} summary={daySummary(dayMeals, overrides)} extras={!!extras} />
         </>
       )}
 
@@ -284,14 +317,14 @@ export default function MealsPage() {
           pantry={unused}
           overrides={overrides}
           onClose={() => setEditing(null)}
-          onAdd={(name, mode, nutrients) => {
+          onAdd={(name, mode, nutrients, out) => {
             const { date, slot } = editing;
             setEditing(null);
-            run(() => addMeal(date, slot, name, mode, today, nutrients));
+            run(() => addMeal(date, slot, name, mode, today, nutrients, out));
           }}
-          onSave={(name, nutrients) => {
+          onSave={(name, out, nutrients) => {
             setEditing(null);
-            if (editingMeal) saveMeal(editingMeal, name, nutrients);
+            if (editingMeal) run(() => saveMeal(editingMeal, name, out, nutrients));
           }}
           onRemove={() => {
             setEditing(null);
@@ -333,12 +366,23 @@ function MealRow({
   // Cucinato o già in tavola: gli ingredienti in casa si possono segnare come finiti da qui.
   const eaten = meal.prepared || meal.date <= today;
 
+  if (meal.eaten_out) {
+    return (
+      <>
+        <button type="button" onClick={onOpen} aria-label={`Modifica: ${mealTitle(meal)}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
+          <span className={`min-w-0 break-words ${meal.name ? "text-text" : "text-text-2"}`}>{mealTitle(meal)}</span>
+        </button>
+        <p className="-mt-2 text-xs text-text-3">{meal.name ? `Fuori · ${nutrientsLine(nutrients)}` : "Non conta nei nutrienti. Tocca per dire cosa hai mangiato, se vuoi."}</p>
+      </>
+    );
+  }
+
   return (
     <>
       <button type="button" onClick={onOpen} aria-label={`Modifica: ${meal.name}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
         <span className={`min-w-0 break-words ${toPrep && meal.prepared ? "text-text-2" : "text-text"}`}>{meal.name}</span>
       </button>
-      <p className="-mt-2 text-xs text-text-3">{nutrients.length > 0 ? nutrients.map((n) => NUTRIENT_LABEL[n]).join(" · ") : "Nutrienti non riconosciuti: tocca il piatto per indicarli"}</p>
+      <p className="-mt-2 text-xs text-text-3">{nutrientsLine(nutrients)}</p>
       <Segmented label={`Modalità: ${meal.name}`} value={meal.prep_mode} options={MODES} onChange={onMode} />
       {toPrep ? (
         <div className="flex items-center justify-between gap-3">

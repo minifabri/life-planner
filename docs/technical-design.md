@@ -295,9 +295,10 @@ outfit_plans:   id, owner_id, date date, event_id null → events (on delete set
 **meal_plans** — planner pasti [APPROVATO, MVP]
 ```
 id, owner_id, date date not null,
-slot text check in ('breakfast','lunch','snack','dinner'),
-name text not null,
+slot text check in ('breakfast','lunch','snack','dinner','extra'),  -- 'extra': fuori pasto e condimenti, una riga per giorno
+name text not null,                -- vuoto solo per un pasto mangiato fuori
 prep_mode text check in ('ready','to_prep') not null,
+eaten_out boolean default false,
 prepared boolean default false, prepared_at timestamptz null,
 reminder_task_id uuid null references tasks on delete set null,
 unique (owner_id, date, slot)
@@ -905,6 +906,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Un test verifica che ogni piatto proposto dall'app abbia almeno un micronutriente riconosciuto.
 - Non incluso: correzione a mano, B12 e vitamina D, micronutrienti nel riepilogo della settimana e nel voto delle Idee.
 - Criteri: test di `lib/meals`; dal telefono: in un giorno con almeno due pasti leggi la riga dei micronutrienti, aprila e controlla che le barre seguano i piatti; cambia un piatto e guarda la barra muoversi.
+
+**Incremento 24 — Pasti: extra e mangiato fuori** *(12 ottobre 2026)*
+- Migrazione `20261013120000_meal_extras_eaten_out.sql`: `meal_plans.eaten_out`; `'extra'` tra i valori di `slot` in `meal_plans` e `meal_memory`; `search_all` ridefinita solo per l'etichetta "extra" e per il titolo "Mangiato fuori" dei pasti senza nome.
+- **Extra**: nessuna tabella nuova. Sono una riga di `meal_plans` con `slot = 'extra'`, sempre `ready`, una per giorno (il vincolo di unicità esistente). Così passano dalla outbox, contano in `weekBalance`, `daySummary` e nelle Idee come un pasto in più, e hanno ricorrenti e correzione dei nutrienti senza codice nuovo. `SLOTS` resta di quattro: striscia dei giorni e Idee non li vedono.
+- **Mangiato fuori**: `setEatenOutOps` in `lib/meals/rules.ts` (il pasto diventa `ready`, l'attività collegata si elimina; il trigger esistente fa lo stesso nel database). `addMeal(..., out)` e `saveMeal` in `lib/data/meals.ts`: un pasto fuori non scrive in `meal_memory`, salvo una correzione dei nutrienti. `saveMeal` prende il posto di `renameMeal` e `setMealNutrients`.
+- Un pasto con nome vuoto è escluso da `weekBalance` e `daySummary` (non è "un pasto di cui il nome non dice nulla"). `mealTitle` dà il testo da mostrare.
+- Interfaccia: casella nel `MealSheet`, pulsante "Mangiato fuori" sul pasto vuoto, riga Extra nel Giorno e nella `WeekView`. Export: colonna "Fuori" in `csv/pasti.csv`.
+- Non incluso: più righe di extra per giorno, quantità, idee per gli extra.
+- Criteri: test di `lib/meals`; dal telefono: segna una cena come mangiata fuori da vuota e da pasto "Da preparare" (l'attività sparisce da Oggi); aggiungi extra con olio e guarda i grassi salire nel giorno e nella settimana; ripeti senza rete.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

@@ -92,9 +92,9 @@ export type Balance = {
   rows: BalanceRow[];
 };
 
-/** Come si distribuiscono i nutrienti nei pasti dei giorni dati. */
+/** Come si distribuiscono i nutrienti nei pasti dei giorni dati. Gli extra contano come un pasto; un pasto fuori senza nome non conta. */
 export function weekBalance(meals: MealPlan[], days: LocalDate[], overrides?: Overrides): Balance {
-  const inWeek = meals.filter((m) => days.includes(m.date)).map((m) => ({ date: m.date, nutrients: nutrientsOf(m.name, overrides) }));
+  const inWeek = meals.filter((m) => m.name && days.includes(m.date)).map((m) => ({ date: m.date, nutrients: nutrientsOf(m.name, overrides) }));
   const recognized = inWeek.filter((m) => m.nutrients.length > 0).length;
   const rows = NUTRIENTS.map((nutrient) => {
     const perDay = days.map((d) => inWeek.filter((m) => m.date === d && m.nutrients.includes(nutrient)).length);
