@@ -306,7 +306,9 @@ unique (owner_id, date, slot)
 **meal_memory** — pasti ricorrenti, per i suggerimenti
 ```
 id, owner_id, slot, name_normalized, display_name,
-default_prep_mode text, use_count int, last_used_at
+default_prep_mode text, use_count int, last_used_at,
+nutrients text[] null,     -- corretti a mano; null = riconosciuti dal nome
+hidden_at timestamptz null -- "Non proporre" nelle Idee di questo momento
 unique (owner_id, slot, name_normalized)
 ```
 
@@ -876,6 +878,24 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 **Da decidere** [PROPOSTA]
 - Riconoscimento del tipo di capo dalla foto: richiede un modello di visione a pagamento, chiamato da una Edge Function con la chiave in Supabase Vault, e l'invio delle foto a un servizio esterno. Resterebbe facoltativo e separato dal funzionamento di base.
 - Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
+
+**Incrementi 20–22 — Pasti: settimana, nutrienti, idee** *(12 ottobre 2026; realizzati insieme)*
+- Migrazione `20261012140000_meal_nutrients.sql`: due colonne su `meal_memory` (`nutrients`, `hidden_at`). Nessuna tabella nuova: correzioni e idee nascoste passano dalla outbox come il resto della memoria dei pasti.
+- **20, vista settimanale**: selettore Giorno · Settimana · Idee in `/lists/meals`; `WeekView`. Il foglio del pasto si apre per giorno e momento, non più solo per il giorno scelto.
+- **21, nutrienti** (`lib/meals/nutrients.ts`, puro, con test):
+  - Dizionario italiano alimento → nutrienti. Le parole si confrontano per radice (singolare e plurale coincidono), con parole esatte dove la radice confonde ("pesce"/"pesca", "pera"/"per") e coppie di parole ("frutta secca", "fiocchi di latte"). "Integrale" aggiunge le fibre.
+  - `nutrientsOf` usa la correzione a mano, se c'è, altrimenti il nome. La correzione sta in `meal_memory.nutrients` e si legge per nome normalizzato: `setNutrientsOps` la scrive su tutte le righe con quel nome. Una riga creata solo per questo ha `use_count = 0` e non entra tra i ricorrenti.
+  - `weekBalance`: per ogni nutriente i pasti che lo portano, in tutto e per giorno. "Poco" sotto metà dei pasti riconosciuti (un quarto per i grassi), solo da quattro pasti riconosciuti in su.
+  - Interfaccia: `BalanceCard`, riga dei nutrienti sotto ogni pasto e nel giorno, pulsanti nel `MealSheet`.
+- **22, idee** (`lib/meals/suggest.ts`, puro, con test; piatti dell'app in `lib/meals/dishes.ts`):
+  - Candidati: i ricorrenti del momento (`use_count > 0`) e i piatti dell'app non già tra i ricorrenti; esclusi quelli nascosti e quelli già in programma nel giorno.
+  - Voto: media pesata di cinque fattori tra 0 e 1 (bilancio 3, in casa 2, varietà 2, abitudine 2, tipo di giorno 1; `WEIGHTS`). Un fattore senza dati vale 0,5.
+  - Ordine: due abituali ogni piatto nuovo, ciascun gruppo per voto; a parità, per nome. Stessi dati, stesse proposte.
+  - Varietà: conta la distanza in giorni dallo stesso piatto nella settimana del giorno, in quella prima e, da oggi, in quella dopo (quelle già in cache).
+  - I nutrienti dei piatti dell'app non sono scritti a mano: si ricavano dal nome, e un test verifica che il dizionario li riconosca tutti. Un altro test verifica che siano tutti vegani: chi aggiunge un piatto all'elenco non può introdurre carne, pesce, uova, latticini o miele.
+  - Interfaccia: `MealIdeasView`.
+- Non incluso: grammi e calorie, obiettivi, preferenze alimentari, pesi regolabili dall'interfaccia.
+- Criteri: test di `lib/meals`; dal telefono: passa a Settimana e aggiungi un pasto in un altro giorno; controlla il riepilogo dopo quattro o più pasti; correggi i nutrienti di un piatto e ritrovali la volta dopo; apri Idee su un giorno con momenti vuoti, aggiungi una proposta, nascondine una e annulla; ripeti un'aggiunta senza rete.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

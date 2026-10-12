@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { DayMarksLine, DaySigns } from "@/components/days/day-signs";
+import { BalanceCard } from "@/components/meals/balance-card";
+import { MealIdeasView } from "@/components/meals/ideas-view";
 import { MealSheet } from "@/components/meals/meal-sheet";
 import { PantrySection, type PantryUse } from "@/components/meals/pantry-section";
+import { WeekView } from "@/components/meals/week-view";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Segmented } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
@@ -11,15 +14,25 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useDayContext } from "@/lib/data/day-marks-hooks";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
-import { addMeal, removeMeal, renameMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
+import { addMeal, hideMealIdea, removeMeal, renameMeal, setMealMode, setMealNutrients, setMealPrepared } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
+import { NUTRIENT_LABEL, balanceNote, dayNutrients, listText, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
 import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
-import type { MealPlan, MealSlot, PrepMode } from "@/lib/supabase/types";
+import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
+
+type View = "day" | "week" | "ideas";
+
+const VIEWS: { value: View; label: string }[] = [
+  { value: "day", label: "Giorno" },
+  { value: "week", label: "Settimana" },
+  { value: "ideas", label: "Idee" },
+];
 
 const MODES: { value: PrepMode; label: string }[] = [
   { value: "ready", label: "Pronto" },
@@ -44,6 +57,7 @@ export default function MealsPage() {
   const toast = useToast();
   const offline = useOffline();
 
+  const [view, setView] = useState<View>("day");
   const [selected, setSelected] = useState<LocalDate | null>(null);
   const day = selected ?? today;
   const from = weekStart(day);
@@ -53,7 +67,7 @@ export default function MealsPage() {
   // Com'è fatto ogni giorno (ufficio, viaggio, allenamento): aiuta a decidere cosa preparare.
   const { marks, workouts } = useDayContext(from, days[6]);
   const memory = useMealMemory().data ?? [];
-  const [editing, setEditing] = useState<MealSlot | null>(null);
+  const [editing, setEditing] = useState<{ date: LocalDate; slot: MealSlot } | null>(null);
 
   const meals = mealsQuery.data ?? [];
   const mealAt = (date: LocalDate, slot: MealSlot) => meals.find((m) => m.date === date && m.slot === slot);
@@ -76,7 +90,45 @@ export default function MealsPage() {
   const finish = (entry: PantryEntry) => shopping.finish(entry.name, entry.items);
 
   const dayTitle = capitalize(weekdayName(day));
-  const editingMeal = editing ? mealAt(day, editing) : undefined;
+  const editingMeal = editing ? mealAt(editing.date, editing.slot) : undefined;
+
+  // Nutrienti: riconosciuti dal nome, o corretti a mano nel foglio del pasto.
+  const overrides = nutrientOverrides(memory);
+  const balance = weekBalance(meals, days, overrides);
+  const dayMeals = meals.filter((m) => m.date === day);
+  const inDay = dayNutrients(dayMeals, overrides);
+  const signsOf = (d: LocalDate) => daySigns(d, marks, workouts, today);
+
+  // Idee: per la varietà contano anche la settimana prima e, da oggi, quella dopo.
+  const before = useMeals(addDays(from, -7)).data;
+  const known = [...new Map([...(before ?? []), ...upcoming, ...meals].map((m) => [m.id, m])).values()];
+  const unused = uses.filter((u) => u.meals.length === 0).map((u) => u.entry);
+  const ideaSlots =
+    view === "ideas" && !missing
+      ? SLOTS.filter((slot) => !mealAt(day, slot)).map((slot) => ({
+          slot,
+          ideas: suggestMeals({ memory, meals: known, pantry: unused, overrides }, { day, slot, weekFrom: from, signs: signsOf(day) }),
+        }))
+      : [];
+
+  function addIdea(idea: Idea) {
+    run(() => addMeal(day, idea.slot, idea.name, idea.mode, today));
+    toast({ message: `Aggiunto: ${SLOT_LABEL[idea.slot].toLowerCase()} di ${day === today ? "oggi" : weekdayName(day)}` });
+  }
+
+  function hideIdea(idea: Idea) {
+    run(() => hideMealIdea(idea.slot, idea.name, idea.mode, true));
+    toast({
+      message: `Non lo propongo più per ${SLOT_LABEL[idea.slot].toLowerCase()}`,
+      actionLabel: "Annulla",
+      onAction: () => void run(() => hideMealIdea(idea.slot, idea.name, idea.mode, false)),
+    });
+  }
+
+  function saveMeal(meal: MealPlan, name: string, nutrients?: Nutrient[] | null) {
+    if (name !== meal.name) run(() => renameMeal(meal, name, nutrients));
+    else if (nutrients !== undefined) run(() => setMealNutrients(meal, nutrients));
+  }
 
   return (
     <>
@@ -95,49 +147,67 @@ export default function MealsPage() {
         }
       />
 
-      <nav aria-label="Giorni della settimana" className="grid grid-cols-7 gap-1">
-        {days.map((d) => {
-          const active = d === day;
-          const dots = SLOTS.map((slot) => mealDot(mealAt(d, slot)));
-          const planned = dots.filter((s) => s !== "empty").length;
-          const toPrep = dots.filter((s) => s === "prep").length;
-          const signs = daySigns(d, marks, workouts, today);
-          return (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={active}
-              aria-label={`${weekdayName(d)} ${shortDate(d)}: ${planned === 1 ? "1 pasto pianificato" : `${planned} pasti pianificati`}${toPrep ? `, ${toPrep} da preparare` : ""}${signs.length ? `, ${signsText(signs)}` : ""}`}
-              onClick={() => setSelected(d)}
-              className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border py-1.5 text-[13px] transition-colors ${
-                active ? "border-line-2 bg-surface-2 text-text" : "border-transparent text-text-2 hover:bg-surface-2"
-              }`}
-            >
-              <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-3">{weekdayName(d).slice(0, 3)}</span>
-              <span className={d === today ? "text-accent" : undefined}>{Number(d.slice(8))}</span>
-              <span aria-hidden className="flex gap-[3px]">
-                {dots.map((state, i) => (
-                  <span key={i} className={`size-1.5 rounded-full ${DOT_CLASS[state]}`} />
-                ))}
-              </span>
-              <DaySigns signs={signs} />
-            </button>
-          );
-        })}
-      </nav>
+      <Segmented label="Vista" value={view} options={VIEWS} onChange={setView} />
 
-      <div className="flex min-h-6 items-center justify-between gap-3">
-        <h2 className="label-mono">
-          {dayTitle} {shortDate(day)}
-          {day === today ? " · oggi" : ""}
-        </h2>
-        {day !== today ? (
-          <button type="button" onClick={() => setSelected(null)} className="-my-2.5 min-h-11 rounded-lg px-2.5 text-[13px] text-accent hover:bg-surface-2">
-            Torna a oggi
-          </button>
-        ) : null}
-      </div>
-      <DayMarksLine key={day} day={day} today={today} marks={marks} workouts={workouts} className="-my-3" />
+      {view === "week" ? (
+        <div className="flex min-h-6 items-center justify-between gap-3">
+          <h2 className="label-mono">
+            {shortDate(from)} – {shortDate(days[6])}
+            {from === weekStart(today) ? " · questa settimana" : ""}
+          </h2>
+          {from !== weekStart(today) ? (
+            <button type="button" onClick={() => setSelected(null)} className="-my-2.5 min-h-11 rounded-lg px-2.5 text-[13px] text-accent hover:bg-surface-2">
+              Torna a oggi
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <nav aria-label="Giorni della settimana" className="grid grid-cols-7 gap-1">
+            {days.map((d) => {
+              const active = d === day;
+              const dots = SLOTS.map((slot) => mealDot(mealAt(d, slot)));
+              const planned = dots.filter((s) => s !== "empty").length;
+              const toPrep = dots.filter((s) => s === "prep").length;
+              const signs = daySigns(d, marks, workouts, today);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={`${weekdayName(d)} ${shortDate(d)}: ${planned === 1 ? "1 pasto pianificato" : `${planned} pasti pianificati`}${toPrep ? `, ${toPrep} da preparare` : ""}${signs.length ? `, ${signsText(signs)}` : ""}`}
+                  onClick={() => setSelected(d)}
+                  className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border py-1.5 text-[13px] transition-colors ${
+                    active ? "border-line-2 bg-surface-2 text-text" : "border-transparent text-text-2 hover:bg-surface-2"
+                  }`}
+                >
+                  <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-3">{weekdayName(d).slice(0, 3)}</span>
+                  <span className={d === today ? "text-accent" : undefined}>{Number(d.slice(8))}</span>
+                  <span aria-hidden className="flex gap-[3px]">
+                    {dots.map((state, i) => (
+                      <span key={i} className={`size-1.5 rounded-full ${DOT_CLASS[state]}`} />
+                    ))}
+                  </span>
+                  <DaySigns signs={signs} />
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex min-h-6 items-center justify-between gap-3">
+            <h2 className="label-mono">
+              {dayTitle} {shortDate(day)}
+              {day === today ? " · oggi" : ""}
+            </h2>
+            {day !== today ? (
+              <button type="button" onClick={() => setSelected(null)} className="-my-2.5 min-h-11 rounded-lg px-2.5 text-[13px] text-accent hover:bg-surface-2">
+                Torna a oggi
+              </button>
+            ) : null}
+          </div>
+          <DayMarksLine key={day} day={day} today={today} marks={marks} workouts={workouts} className="-my-3" />
+        </>
+      )}
 
       {failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
@@ -150,7 +220,15 @@ export default function MealsPage() {
         <p className="text-sm text-text-3" aria-live="polite">
           Carico i pasti…
         </p>
+      ) : view === "week" ? (
+        <>
+            <BalanceCard balance={balance} days={days} today={today} />
+            <WeekView days={days} today={today} mealAt={mealAt} signsOf={signsOf} overrides={overrides} onOpen={(date, slot) => setEditing({ date, slot })} />
+        </>
+      ) : view === "ideas" ? (
+        <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onHide={hideIdea} />
       ) : (
+        <>
         <ul className="flex flex-col gap-2">
           {SLOTS.map((slot) => {
             const meal = mealAt(day, slot);
@@ -167,16 +245,17 @@ export default function MealsPage() {
                   <MealRow
                     meal={meal}
                     today={today}
+                    nutrients={nutrientsOf(meal.name, overrides)}
                     ingredients={ingredientsIn(meal.name, pantry)}
                     onFinish={finish}
-                    onOpen={() => setEditing(slot)}
+                    onOpen={() => setEditing({ date: day, slot })}
                     onMode={(mode) => run(() => setMealMode(meal, mode, today))}
                     onPrepared={(prepared) => run(() => setMealPrepared(meal, prepared))}
                   />
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setEditing(slot)}
+                    onClick={() => setEditing({ date: day, slot })}
                     aria-label={`Aggiungi ${SLOT_LABEL[slot].toLowerCase()}`}
                     className="-ml-2.5 flex min-h-11 items-center gap-2 self-start rounded-lg px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
                   >
@@ -188,27 +267,35 @@ export default function MealsPage() {
             );
           })}
         </ul>
+        {inDay.present.length > 0 ? (
+          <p className="-mt-1 text-xs text-text-3">
+            Nel giorno: {listText(inDay.present.map((n) => NUTRIENT_LABEL[n].toLowerCase()))}.
+            {inDay.missing.length > 0 ? ` ${inDay.missing.length === 1 ? "Manca" : "Mancano"}: ${listText(inDay.missing.map((n) => NUTRIENT_LABEL[n].toLowerCase()))}.` : ""}
+          </p>
+        ) : null}
+        </>
       )}
 
-      <PantrySection uses={uses} today={today} onFinish={finish} />
+      {view === "ideas" ? null : <PantrySection uses={uses} today={today} onFinish={finish} />}
 
       {editing ? (
         <MealSheet
-          key={`${day}-${editing}`}
-          slot={editing}
-          dayLabel={day === today ? "oggi" : `${weekdayName(day)} ${shortDate(day)}`}
+          key={`${editing.date}-${editing.slot}`}
+          slot={editing.slot}
+          dayLabel={editing.date === today ? "oggi" : `${weekdayName(editing.date)} ${shortDate(editing.date)}`}
           meal={editingMeal}
-          suggestions={suggestionsFor(memory, editing)}
-          pantry={uses.filter((u) => u.meals.length === 0).map((u) => u.entry)}
+          suggestions={suggestionsFor(memory, editing.slot)}
+          pantry={unused}
+          overrides={overrides}
           onClose={() => setEditing(null)}
-          onAdd={(name, mode) => {
-            const slot = editing;
+          onAdd={(name, mode, nutrients) => {
+            const { date, slot } = editing;
             setEditing(null);
-            run(() => addMeal(day, slot, name, mode, today));
+            run(() => addMeal(date, slot, name, mode, today, nutrients));
           }}
-          onRename={(name) => {
+          onSave={(name, nutrients) => {
             setEditing(null);
-            if (editingMeal) run(() => renameMeal(editingMeal, name));
+            if (editingMeal) saveMeal(editingMeal, name, nutrients);
           }}
           onRemove={() => {
             setEditing(null);
@@ -223,6 +310,7 @@ export default function MealsPage() {
 function MealRow({
   meal,
   today,
+  nutrients,
   ingredients,
   onFinish,
   onOpen,
@@ -231,6 +319,7 @@ function MealRow({
 }: {
   meal: MealPlan;
   today: LocalDate;
+  nutrients: Nutrient[];
   ingredients: PantryEntry[];
   onFinish: (entry: PantryEntry) => void;
   onOpen: () => void;
@@ -253,6 +342,7 @@ function MealRow({
       <button type="button" onClick={onOpen} aria-label={`Modifica: ${meal.name}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
         <span className={`min-w-0 break-words ${toPrep && meal.prepared ? "text-text-2" : "text-text"}`}>{meal.name}</span>
       </button>
+      <p className="-mt-2 text-xs text-text-3">{nutrients.length > 0 ? nutrients.map((n) => NUTRIENT_LABEL[n]).join(" · ") : "Nutrienti non riconosciuti: tocca il piatto per indicarli"}</p>
       <Segmented label={`Modalità: ${meal.name}`} value={meal.prep_mode} options={MODES} onChange={onMode} />
       {toPrep ? (
         <div className="flex items-center justify-between gap-3">

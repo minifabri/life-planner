@@ -234,6 +234,8 @@ export type MealPlan = {
   reminder_task_id: string | null;
 };
 
+export type Nutrient = "protein" | "carbs" | "fat" | "fiber";
+
 /** Un pasto ricorrente imparato dall'uso, per i suggerimenti. */
 export type MealMemory = {
   id: string;
@@ -243,6 +245,10 @@ export type MealMemory = {
   default_prep_mode: PrepMode;
   use_count: number;
   last_used_at: string | null;
+  /** Nutrienti scelti a mano; `null` = riconosciuti dal nome. */
+  nutrients: Nutrient[] | null;
+  /** "Non proporre": escluso dalle Idee di questo momento. */
+  hidden_at: string | null;
 };
 
 export type LogEntry = {

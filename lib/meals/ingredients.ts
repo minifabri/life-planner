@@ -13,7 +13,7 @@ const STOP = new Set(
 );
 
 /** Radice di una parola: "patata" e "patate", "fungo" e "funghi", "finocchio" e "finocchi" coincidono. */
-function stem(word: string): string {
+export function stem(word: string): string {
   if (word.length < 4) return word;
   return word.replace(/i?[aeiou]$/, "").replace(/h$/, "");
 }

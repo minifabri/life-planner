@@ -4,6 +4,7 @@ import type { MealMemory, MealPlan, PrepMode, Task } from "../supabase/types";
 import { applyToMealMemory, applyToMeals, applyToTasks, type Op } from "../sync/ops";
 import {
   addMealOps,
+  hideIdeaOp,
   mealDot,
   normalizeMealName,
   rememberMealOp,
@@ -15,6 +16,7 @@ import {
   removeMealOps,
   renameMealOps,
   setModeOps,
+  setNutrientsOps,
   setPreparedOps,
   suggestionsFor,
 } from "./rules";
@@ -216,6 +218,8 @@ describe("ricorrenti", () => {
     default_prep_mode: "ready",
     use_count: 1,
     last_used_at: null,
+    nutrients: null,
+    hidden_at: null,
     ...over,
   });
 
@@ -225,6 +229,33 @@ describe("ricorrenti", () => {
     const second = applyToMealMemory(first, rememberMealOp("id1", "lunch", "riso e lenticchie", "ready", first[0], NOW));
     expect(second).toHaveLength(1);
     expect(second[0]).toMatchObject({ use_count: 2, default_prep_mode: "ready" });
+  });
+
+  it("corregge i nutrienti su tutte le righe con lo stesso nome, senza contare un uso", () => {
+    const list = [memory({ id: "a", name_normalized: "avanzi" }), memory({ id: "b", slot: "dinner", name_normalized: "avanzi", use_count: 3 }), memory({ id: "c", name_normalized: "riso" })];
+    const after = setNutrientsOps(list, "a", "lunch", "Avanzi", "ready", ["protein"]).reduce(applyToMealMemory, list);
+    expect(after.map((m) => [m.id, m.nutrients, m.use_count])).toEqual([["a", ["protein"], 1], ["b", ["protein"], 3], ["c", null, 1]]);
+  });
+
+  it("corregge i nutrienti anche di un piatto che la memoria non conosce ancora: non diventa un ricorrente", () => {
+    const after = setNutrientsOps([], "new", "lunch", "Avanzi", "to_prep", ["fiber"]).reduce(applyToMealMemory, [] as MealMemory[]);
+    expect(after[0]).toMatchObject({ id: "new", name_normalized: "avanzi", nutrients: ["fiber"], use_count: 0, hidden_at: null });
+    expect(suggestionsFor(after, "lunch")).toEqual([]);
+  });
+
+  it("ricordare un piatto lascia stare la correzione dei nutrienti, se non ne arriva una nuova", () => {
+    const list = [memory({ id: "a", name_normalized: "avanzi", nutrients: ["protein"] })];
+    const again = applyToMealMemory(list, rememberMealOp("a", "lunch", "Avanzi", "ready", list[0], NOW));
+    expect(again[0]).toMatchObject({ nutrients: ["protein"], use_count: 2 });
+    const reset = applyToMealMemory(again, rememberMealOp("a", "lunch", "Avanzi", "ready", again[0], NOW, null));
+    expect(reset[0].nutrients).toBeNull();
+  });
+
+  it("nasconde un'idea e la rimette; metterla a mano la fa tornare", () => {
+    const hidden = applyToMealMemory([], hideIdeaOp("id1", "lunch", "Pasta e ceci", "to_prep", undefined, NOW));
+    expect(hidden[0]).toMatchObject({ hidden_at: NOW, use_count: 0, default_prep_mode: "to_prep" });
+    expect(applyToMealMemory(hidden, hideIdeaOp("id1", "lunch", "Pasta e ceci", "to_prep", hidden[0], null))[0].hidden_at).toBeNull();
+    expect(applyToMealMemory(hidden, rememberMealOp("id1", "lunch", "Pasta e ceci", "ready", hidden[0], NOW))[0]).toMatchObject({ hidden_at: null, use_count: 1 });
   });
 
   it("suggerisce solo quelli del momento, dal più usato; a parità il più recente", () => {
