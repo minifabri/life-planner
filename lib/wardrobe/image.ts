@@ -1,3 +1,5 @@
+import { dominantColors } from "./colors";
+
 const MAIN_MAX_DIM = 1600;
 const THUMB_MAX_DIM = 400;
 const QUALITY = 0.82;
@@ -34,5 +36,30 @@ export async function compressImage(file: File): Promise<{ main: Blob; thumb: Bl
     return { main, thumb };
   } finally {
     bitmap.close();
+  }
+}
+
+const SAMPLE_DIM = 48;
+
+/**
+ * I colori principali di una foto, letti nel browser dalla parte centrale dell'immagine
+ * (dove di solito c'è il capo, non lo sfondo). Se la foto non si legge, nessuna proposta.
+ */
+export async function detectColors(file: File): Promise<string[]> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = SAMPLE_DIM;
+      canvas.height = SAMPLE_DIM;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return [];
+      ctx.drawImage(bitmap, bitmap.width * 0.25, bitmap.height * 0.25, bitmap.width * 0.5, bitmap.height * 0.5, 0, 0, SAMPLE_DIM, SAMPLE_DIM);
+      return dominantColors(ctx.getImageData(0, 0, SAMPLE_DIM, SAMPLE_DIM).data);
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return [];
   }
 }
