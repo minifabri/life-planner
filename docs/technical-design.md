@@ -172,6 +172,7 @@ date date null, time time null, duration_min int null,    -- pianificazione
 due_date date null,                                       -- scadenza / fine finestra
 window_start date null,                                   -- inizio finestra "nel periodo"
 attention text check in ('low','medium','high') default 'low',
+remind boolean not null default false,                     -- promemoria: notifica anche con attenzione bassa (incremento 27)
 area_id uuid null,
 status text check in ('open','done','dismissed') default 'open',
 completed_at timestamptz null,
@@ -468,6 +469,7 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
   - Media: all'orario; senza orario all'ora del mattino (`morning_overview_time`). Le attività "nel periodo" avvisano nell'ultimo giorno utile.
   - Alta: in più il richiamo del giorno prima, alla stessa ora locale; senza orario all'ora della revisione serale.
   - Eventi: all'inizio (quelli di tutto il giorno al mattino); le serie rispettano eccezioni e cambio dell'ora.
+  - Promemoria (`tasks.remind`, incremento 27): la stessa notifica della media, anche con attenzione bassa o con il livello spento nelle impostazioni.
   - Pasti: l'attività "Preparare … di domani" avvisa a `meal_prep_reminder_time` se è ancora aperta, qualunque sia l'attenzione.
   - Silenzio: l'invio slitta alla fine della fascia e il testo si adegua ("Ieri alle 23:00"); le alte la attraversano solo con `quiet_allow_high`. Un elemento con orario dentro la fascia viene quindi avvisato dopo il suo orario.
   - Panoramica del mattino e revisione della sera: facoltative, spente in partenza; la sera solo se resta qualcosa di aperto.
@@ -944,6 +946,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Voto** (`WEIGHTS`): due fattori in più, peso 1 ciascuno, che contano solo per i piatti nuovi (per gli abituali valgono 0,5). `taste`: quota degli alimenti del piatto che compaiono nei piatti già usati, in qualunque momento. `fresh`: un numero tra 0 e 1 ricavato da settimana, momento e nome: stesso ordine dentro la settimana, diverso la settimana dopo.
 - Non incluso: piatti scaricati da internet (servirebbe un servizio esterno), aggiornamento dell'elenco senza una nuova versione dell'app, "Meno spesso" di durata regolabile.
 - Criteri: test di `lib/meals`; dal telefono: apri una merenda vuota e controlla esempio e idee; tocca "Meno" e guarda arrivare un'altra idea, poi annulla dal toast; "Altre idee" gira; aggiungi un'idea con un tocco; ripeti senza rete.
+
+**Incremento 27 — Promemoria sulle attività** *(12 ottobre 2026, su richiesta di Bibi)*
+- Migrazione `20261013140000_task_remind.sql`: `tasks.remind`.
+- **Regola** (`lib/reminders/plan.ts`): un'attività con `remind` e una data (`date` o `due_date`) manda una notifica all'orario, al mattino se non ha un orario, nell'ultimo giorno utile se è "nel periodo". Vale con qualunque attenzione e anche con il livello spento in Impostazioni: è una richiesta fatta su quell'attività. La chiave è la stessa della notifica per livello, quindi media + promemoria avvisa una volta sola. Il richiamo del giorno prima resta dell'attenzione alta. Fascia di silenzio, completamento, eliminazione e spostamento valgono come per le altre.
+- **Interfaccia**: casella "Promemoria" nell'editor dell'attività, sotto giorno e ora, solo con "Un giorno" o "Nel periodo" (senza data il flag si azzera al salvataggio). Se il dispositivo non riceve notifiche, sotto la casella compare "Attiva notifiche" (il permesso si chiede da lì, sezione 7.3). Campanella grigia sulla riga dell'attività in Oggi.
+- **Ripetizioni**: il flag entra nel `template` della ricorrenza (`remind`, assente = no) e passa alle occorrenze.
+- La Edge Function `dispatch-reminders` legge la colonna: va ripubblicata dopo la migrazione.
+- Non incluso: anticipo scelto ("10 minuti prima"), promemoria sugli eventi (restano per livello di attenzione), casella nel Quick Capture e nei template ("ricordami" continua a dare attenzione media), campanella nella griglia della settimana.
+- Criteri: test di `lib/reminders`; dal telefono: attività ad attenzione bassa con promemoria e orario tra pochi minuti → notifica con app chiusa; la stessa completata prima → nessuna notifica; senza promemoria → nessuna notifica.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

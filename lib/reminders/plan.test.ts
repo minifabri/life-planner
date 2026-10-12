@@ -31,6 +31,7 @@ function task(patch: Partial<PlanTask>): PlanTask {
     due_date: null,
     window_start: null,
     attention: "medium",
+    remind: false,
     status: "open",
     completed_at: null,
     original_date: null,
@@ -139,6 +140,27 @@ describe("attività", () => {
     expect(planDay({ tasks: [task({ deleted_at: "2026-10-02T00:00:00Z" })] }, day)).toEqual([]);
     expect(planDay({ tasks: [task({})], settings: { ...settings, notify_medium: false } }, day)).toEqual([]);
     expect(planDay({ tasks: [task({ attention: "high" })], settings: { ...settings, notify_high: false } }, day)).toEqual([]);
+  });
+
+  it("promemoria: una notifica anche con attenzione bassa o con il livello spento", () => {
+    const low = [task({ attention: "low", remind: true, time: "10:00:00" })];
+    expect(planDay({ tasks: low }, "2026-10-12").map((r) => [r.fireAt, r.body])).toEqual([[at("2026-10-12", "10:00"), "Oggi alle 10:00"]]);
+    expect(planDay({ tasks: low }, "2026-10-11")).toEqual([]);
+    const off = { ...settings, notify_medium: false, notify_high: false };
+    expect(planDay({ tasks: [task({ remind: true })], settings: off }, "2026-10-12").map((r) => r.body)).toEqual(["Da fare oggi"]);
+    // Con l'alta spenta resta la notifica chiesta, senza il richiamo del giorno prima.
+    const high = [task({ attention: "high", remind: true, time: "10:00:00" })];
+    expect(planDay({ tasks: high, settings: off }, "2026-10-11")).toEqual([]);
+    expect(planDay({ tasks: high, settings: off }, "2026-10-12")).toHaveLength(1);
+  });
+
+  it("promemoria: senza orario al mattino, nel periodo l'ultimo giorno, mai due volte", () => {
+    const low = { attention: "low" as const, remind: true };
+    expect(planDay({ tasks: [task(low)] }, "2026-10-12").map((r) => [r.fireAt, r.body])).toEqual([[at("2026-10-12", "07:30"), "Da fare oggi"]]);
+    expect(planDay({ tasks: [task({ ...low, date: null, due_date: "2026-10-12" })] }, "2026-10-12").map((r) => r.body)).toEqual(["Scade oggi"]);
+    expect(planDay({ tasks: [task({ ...low, date: null })] }, "2026-10-12")).toEqual([]);
+    expect(planDay({ tasks: [task({ remind: true, time: "10:00:00" })] }, "2026-10-12")).toHaveLength(1);
+    expect(planDay({ tasks: [task({ ...low, status: "done" })] }, "2026-10-12")).toEqual([]);
   });
 
   it("in silenzio l'invio slitta e il testo resta vero", () => {

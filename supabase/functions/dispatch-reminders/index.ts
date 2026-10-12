@@ -21,7 +21,7 @@ const PROFILE_COLUMNS =
   "display_name, timezone, morning_overview_time, evening_review_time, quiet_start, quiet_end, meal_prep_reminder_time, " +
   "notify_medium, notify_high, quiet_allow_high, notify_meal_prep, notify_morning, notify_evening";
 const TASK_COLUMNS =
-  "id, title, notes, date, time, due_date, window_start, attention, status, completed_at, original_date, source, deleted_at, created_at, updated_at";
+  "id, title, notes, date, time, due_date, window_start, attention, remind, status, completed_at, original_date, source, deleted_at, created_at, updated_at";
 
 type Db = ReturnType<typeof createClient>;
 type Planned = { key: string; targetType: string; targetId: string | null; fireAt: Date; title: string; body: string; url: string };

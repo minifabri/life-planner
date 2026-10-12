@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { LessonSheet } from "@/components/today/lesson-sheet";
@@ -32,6 +32,7 @@ import {
 } from "@/lib/dates/local";
 import { localDateString } from "@/lib/dates/today";
 import type { Occurrence } from "@/lib/events/day";
+import { checkPushSupport, currentSubscription, subscribeToPush } from "@/lib/push/subscribe";
 import {
   DAY_FULL,
   DAY_SHORT,
@@ -49,6 +50,7 @@ export type EditorDraft = Partial<{
   type: "task" | "event";
   title: string;
   attention: Attention;
+  remind: boolean;
   when: When;
   date: LocalDate;
   time: string;
@@ -78,6 +80,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     notes: "",
     areaId: "",
     attention: "low" as Attention,
+    remind: false,
     when: "day" as When,
     date: today,
     time: "",
@@ -105,6 +108,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
       notes: t.notes ?? "",
       areaId: t.area_id ?? "",
       attention: t.attention,
+      remind: t.remind,
       when: (t.date ? "day" : t.due_date ? "window" : "none") as When,
       date: t.date ?? today,
       time: t.time ? trimTime(t.time) : "",
@@ -134,6 +138,55 @@ function initialState(target: EditorTarget, today: LocalDate) {
     weekDays: rule?.byDay ?? [isoWeekday(date)],
     until: rule?.until ?? "",
   };
+}
+
+/** Promemoria di un'attività con una data; se il dispositivo non riceve notifiche, propone di attivarle. */
+function RemindField({ checked, onChange, hint }: { checked: boolean; onChange: (value: boolean) => void; hint: string }) {
+  // null: non ancora noto, o già a posto.
+  const [push, setPush] = useState<"off" | "unavailable" | "failed" | null>(null);
+
+  useEffect(() => {
+    if (!checked) return;
+    let stale = false;
+    currentSubscription()
+      .then((s) => {
+        if (!stale) setPush(s ? null : checkPushSupport().ok ? "off" : "unavailable");
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [checked]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex min-h-11 items-center gap-3 text-[15px]">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-5 accent-(--accent-fill)" />
+        Promemoria
+      </label>
+      {checked ? <p className="text-xs text-text-3">{hint}</p> : null}
+      {checked && push === "off" ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="text-xs text-text-2">Su questo dispositivo le notifiche non sono attive.</p>
+          <Button
+            onClick={() =>
+              subscribeToPush().then(
+                () => setPush(null),
+                () => setPush("failed"),
+              )
+            }
+          >
+            Attiva notifiche
+          </Button>
+        </div>
+      ) : null}
+      {checked && (push === "unavailable" || push === "failed") ? (
+        <p className="text-xs text-text-2">
+          Su questo dispositivo le notifiche non sono attive: guarda Impostazioni → Notifiche. Il promemoria arriva comunque sugli altri dispositivi dove sono attive.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function ItemEditor({
@@ -216,6 +269,7 @@ export function ItemEditor({
     if (f.type === "task") {
       const input: TaskInput = {
         ...common,
+        remind: f.when !== "none" && f.remind,
         date: f.when === "day" ? f.date : null,
         time: f.when === "day" && f.time ? f.time : null,
         duration_min: f.duration ? Number(f.duration) : null,
@@ -378,7 +432,19 @@ export function ItemEditor({
             ) : null}
             {f.when === "none" ? (
               <p className="text-xs text-text-3">Senza data non compare in Today: la ritroverai nella ricerca.</p>
-            ) : null}
+            ) : (
+              <RemindField
+                checked={f.remind}
+                onChange={(v) => set("remind", v)}
+                hint={
+                  f.when === "window"
+                    ? "Una notifica al mattino dell’ultimo giorno."
+                    : f.time
+                      ? `Una notifica alle ${f.time}.`
+                      : "Una notifica al mattino. Con un’ora, arriva a quell’ora."
+                }
+              />
+            )}
           </>
         ) : (
           <>

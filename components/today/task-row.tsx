@@ -72,6 +72,12 @@ export function TaskRow({
         <span className={`min-w-0 break-words text-[15px] leading-snug ${done ? "text-text-3 line-through" : "text-text"}`}>{task.title}</span>
         {details.length ? <span className="text-xs text-text-3">{details.join(" · ")}</span> : null}
       </button>
+      {!done && task.remind && (task.date || task.due_date) ? (
+        <span className="shrink-0 text-text-3">
+          <Icon name="bell" size={14} />
+          <span className="sr-only">Con promemoria</span>
+        </span>
+      ) : null}
       {done ? null : <AttentionMark level={task.attention} className="mx-1.5" />}
       {onRemove ? (
         <button
