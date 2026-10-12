@@ -13,6 +13,7 @@ const meal = (name: string, slot: MealSlot = "lunch"): MealPlan => ({
   slot,
   name,
   prep_mode: "ready",
+  eaten_out: false,
   prepared: false,
   prepared_at: null,
   reminder_task_id: null,
@@ -62,6 +63,14 @@ describe("daySummary", () => {
     expect(summary.recognized).toBe(2);
     expect(count(summary.nutrients)).toEqual({ protein: 1, carbs: 2, fat: 0, fiber: 2 });
     expect(count(summary.micros)).toEqual({ iron: 2, calcium: 0, zinc: 2, omega3: 0, vitA: 0, vitC: 0, folate: 1 });
+  });
+
+  it("gli extra contano come un pasto in più; un pasto fuori senza nome non conta", () => {
+    const summary = daySummary([meal("Riso e lenticchie"), meal("Olio e noci", "extra"), { ...meal("", "dinner"), eaten_out: true }]);
+    expect(summary.planned).toBe(2);
+    expect(summary.recognized).toBe(2);
+    expect(count(summary.nutrients)).toEqual({ protein: 1, carbs: 1, fat: 1, fiber: 2 });
+    expect(count(summary.micros).omega3).toBe(1);
   });
 
   it("un pasto corretto a mano conta tra i riconosciuti anche se il nome non dice nulla", () => {

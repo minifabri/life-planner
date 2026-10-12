@@ -40,7 +40,7 @@ function Bars({ title, rows, total }: { title: string; rows: DayRow<string>[]; t
  * Nutrienti e micronutrienti del giorno. Chiuso è una riga discreta che dice cosa c'è e cosa manca;
  * aperto mostra, per ciascuno, in quanti pasti del giorno compare.
  */
-export function DayNutrients({ summary }: { summary: DaySummary }) {
+export function DayNutrients({ summary, extras = false }: { summary: DaySummary; /** Tra i pasti contati ci sono gli extra del giorno. */ extras?: boolean }) {
   const [open, setOpen] = useState(false);
   const panel = useId();
   if (summary.recognized === 0) return null;
@@ -77,7 +77,7 @@ export function DayNutrients({ summary }: { summary: DaySummary }) {
             {summary.recognized === summary.planned
               ? `Su ${mealsText(summary.planned)} del giorno.`
               : `Su ${summary.recognized} di ${mealsText(summary.planned)}: degli altri il nome non dice nulla.`}{" "}
-            Sono le buone fonti che compaiono nei nomi dei piatti, non le quantità.
+            {extras ? "Gli extra contano come un pasto in più. " : ""}Sono le buone fonti che compaiono nei nomi dei piatti, non le quantità.
           </p>
         </div>
       ) : null}

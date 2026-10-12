@@ -6,7 +6,7 @@ const pantry = (...names: string[]) => names.map((name) => ({ name }));
 const names = (found: { name: string }[]) => found.map((f) => f.name);
 
 function meal(name: string, date: string, slot: MealSlot = "dinner"): MealPlan {
-  return { id: `${date}-${slot}`, date, slot, name, prep_mode: "ready", prepared: false, prepared_at: null, reminder_task_id: null };
+  return { id: `${date}-${slot}`, date, slot, name, prep_mode: "ready", eaten_out: false, prepared: false, prepared_at: null, reminder_task_id: null };
 }
 
 describe("ingredienti nominati in un pasto", () => {

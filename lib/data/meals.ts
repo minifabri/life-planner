@@ -7,6 +7,7 @@ import {
   rememberMealOp,
   removeMealOps,
   renameMealOps,
+  setEatenOutOps,
   setModeOps,
   setNutrientsOps,
   setPreparedOps,
@@ -28,7 +29,7 @@ export async function fetchMeals(from: LocalDate): Promise<MealPlan[]> {
     check(
       await getSupabase()
         .from("meal_plans")
-        .select("id, date, slot, name, prep_mode, prepared, prepared_at, reminder_task_id")
+        .select("id, date, slot, name, prep_mode, eaten_out, prepared, prepared_at, reminder_task_id")
         .gte("date", from)
         .lte("date", addDays(from, 6)),
     ),
@@ -70,9 +71,16 @@ async function rememberOps(slot: MealSlot, name: string, mode: PrepMode, now: st
   return [remember, ...setNutrientsOps(memory.filter((m) => m.id !== id), id, slot, name, mode, nutrients).filter((op) => op.kind === "update")];
 }
 
-export async function addMeal(date: LocalDate, slot: MealSlot, name: string, mode: PrepMode, today: LocalDate, nutrients?: Nutrient[] | null): Promise<void> {
-  const meal = { id: uuidv7(), date, slot, name, prep_mode: mode };
-  await commit([...addMealOps(meal, uuidv7(), today), ...(await rememberOps(slot, name, mode, new Date().toISOString(), nutrients))]);
+/** Corregge i nutrienti di un piatto senza contarlo come un uso in più. */
+async function nutrientsOps(slot: MealSlot, name: string, mode: PrepMode, nutrients: Nutrient[] | null): Promise<Op[]> {
+  return setNutrientsOps(knownMemory(), await memoryId(slot, name), slot, name, mode, nutrients);
+}
+
+/** Un pasto mangiato fuori (`out`) non entra tra i ricorrenti e può non avere un nome. */
+export async function addMeal(date: LocalDate, slot: MealSlot, name: string, mode: PrepMode, today: LocalDate, nutrients?: Nutrient[] | null, out = false): Promise<void> {
+  const meal = { id: uuidv7(), date, slot, name, prep_mode: out ? ("ready" as const) : mode, eaten_out: out };
+  const memory = out ? (name && nutrients !== undefined ? await nutrientsOps(slot, name, "ready", nutrients) : []) : await rememberOps(slot, name, mode, new Date().toISOString(), nutrients);
+  await commit([...addMealOps(meal, uuidv7(), today), ...memory]);
 }
 
 export async function setMealMode(meal: MealPlan, mode: PrepMode, today: LocalDate): Promise<void> {
@@ -83,13 +91,18 @@ export async function setMealPrepared(meal: MealPlan, prepared: boolean): Promis
   await commit(setPreparedOps(meal, prepared, new Date().toISOString()));
 }
 
-export async function renameMeal(meal: MealPlan, name: string, nutrients?: Nutrient[] | null): Promise<void> {
-  await commit([...renameMealOps(meal, name), ...(await rememberOps(meal.slot, name, meal.prep_mode, new Date().toISOString(), nutrients))]);
-}
-
-/** Corregge i nutrienti del piatto di un pasto, senza contarlo come un uso in più. */
-export async function setMealNutrients(meal: MealPlan, nutrients: Nutrient[] | null): Promise<void> {
-  await commit(setNutrientsOps(knownMemory(), await memoryId(meal.slot, meal.name), meal.slot, meal.name, meal.prep_mode, nutrients));
+/**
+ * Salva il foglio di un pasto: piatto, "mangiato fuori" e nutrienti corretti (`undefined` = non toccati).
+ * Un piatto nuovo, o uno che non è più fuori, entra tra i ricorrenti; uno mangiato fuori no.
+ */
+export async function saveMeal(meal: MealPlan, name: string, out: boolean, nutrients?: Nutrient[] | null): Promise<void> {
+  const now = new Date().toISOString();
+  const outOps = setEatenOutOps(meal, out, now);
+  // Passando a fuori l'attività è già eliminata: il nuovo nome non ha note da aggiornare.
+  const ops: Op[] = [...outOps, ...(name === meal.name ? [] : renameMealOps(out ? { ...meal, reminder_task_id: null } : meal, name))];
+  if (!out && (name !== meal.name || meal.eaten_out)) ops.push(...(await rememberOps(meal.slot, name, meal.prep_mode, now, nutrients)));
+  else if (name && nutrients !== undefined) ops.push(...(await nutrientsOps(meal.slot, name, meal.prep_mode, nutrients)));
+  if (ops.length > 0) await commit(ops);
 }
 
 /** "Non proporre" nelle Idee di un momento; `hidden` falso lo rimette. */

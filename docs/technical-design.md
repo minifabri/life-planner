@@ -295,9 +295,10 @@ outfit_plans:   id, owner_id, date date, event_id null → events (on delete set
 **meal_plans** — planner pasti [APPROVATO, MVP]
 ```
 id, owner_id, date date not null,
-slot text check in ('breakfast','lunch','snack','dinner'),
-name text not null,
+slot text check in ('breakfast','lunch','snack','dinner','extra'),  -- 'extra': fuori pasto e condimenti, una riga per giorno
+name text not null,                -- vuoto solo per un pasto mangiato fuori
 prep_mode text check in ('ready','to_prep') not null,
+eaten_out boolean default false,
 prepared boolean default false, prepared_at timestamptz null,
 reminder_task_id uuid null references tasks on delete set null,
 unique (owner_id, date, slot)
@@ -924,6 +925,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Licenza: i pesi convertiti (`Xenova/mobileclip_s0`) portano la licenza Apple del codice di esempio, che ne consente uso e ridistribuzione; il repository originale Apple li indica per ricerca. Va bene per uso personale; se l'app venisse distribuita, passare a un modello Apache 2.0 (es. `Marqo/marqo-fashionSigLIP`, 54–94 MB).
 - Limiti noti: capi indossati o foto con più oggetti spesso non danno proposta; sfondi molto vari tornano al riquadro centrale; un capo dello stesso colore dello sfondo può perdere il secondo colore; stile e materiale sono le proposte meno affidabili; il riconoscimento vale solo per i capi nuovi.
 - Criteri: test di `lib/wardrobe/colors`, `lib/wardrobe/vision` e `lib/wardrobe/wardrobe`; dal telefono: fotografa un capo nero su fondo chiaro, uno blu scuro e uno marrone e verifica colori, categoria, tipo e nome; cambia la categoria a mano e verifica che resti la tua; attiva la modalità aereo e fotografa un altro capo: il riconoscimento deve funzionare ancora.
+
+**Incremento 25 — Pasti: extra e mangiato fuori** *(12 ottobre 2026)*
+- Migrazione `20261013120000_meal_extras_eaten_out.sql`: `meal_plans.eaten_out`; `'extra'` tra i valori di `slot` in `meal_plans` e `meal_memory`; `search_all` ridefinita solo per l'etichetta "extra" e per il titolo "Mangiato fuori" dei pasti senza nome.
+- **Extra**: nessuna tabella nuova. Sono una riga di `meal_plans` con `slot = 'extra'`, sempre `ready`, una per giorno (il vincolo di unicità esistente). Così passano dalla outbox, contano in `weekBalance`, `daySummary` e nelle Idee come un pasto in più, e hanno ricorrenti e correzione dei nutrienti senza codice nuovo. `SLOTS` resta di quattro: striscia dei giorni e Idee non li vedono.
+- **Mangiato fuori**: `setEatenOutOps` in `lib/meals/rules.ts` (il pasto diventa `ready`, l'attività collegata si elimina; il trigger esistente fa lo stesso nel database). `addMeal(..., out)` e `saveMeal` in `lib/data/meals.ts`: un pasto fuori non scrive in `meal_memory`, salvo una correzione dei nutrienti. `saveMeal` prende il posto di `renameMeal` e `setMealNutrients`.
+- Un pasto con nome vuoto è escluso da `weekBalance` e `daySummary` (non è "un pasto di cui il nome non dice nulla"). `mealTitle` dà il testo da mostrare.
+- Interfaccia: casella nel `MealSheet`, pulsante "Mangiato fuori" sul pasto vuoto, riga Extra nel Giorno e nella `WeekView`. Export: colonna "Fuori" in `csv/pasti.csv`.
+- Non incluso: più righe di extra per giorno, quantità, idee per gli extra.
+- Criteri: test di `lib/meals`; dal telefono: segna una cena come mangiata fuori da vuota e da pasto "Da preparare" (l'attività sparisce da Oggi); aggiungi extra con olio e guarda i grassi salire nel giorno e nella settimana; ripeti senza rete.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

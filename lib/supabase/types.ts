@@ -219,7 +219,8 @@ export type IcloudCalendar = {
   last_synced_at: string | null;
 };
 
-export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
+/** I quattro pasti, più "extra": ciò che si mangia fuori pasto o in accompagnamento, una riga per giorno. */
+export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner" | "extra";
 export type PrepMode = "ready" | "to_prep";
 
 export type MealPlan = {
@@ -228,6 +229,8 @@ export type MealPlan = {
   slot: MealSlot;
   name: string;
   prep_mode: PrepMode;
+  /** Mangiato fuori: il nome può essere vuoto, e allora il pasto non conta nei nutrienti. */
+  eaten_out: boolean;
   prepared: boolean;
   prepared_at: string | null;
   /** Attività "Preparare … di domani" collegata, se esiste ancora. */

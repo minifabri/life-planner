@@ -56,11 +56,11 @@ export type DaySummary = {
   micros: DayRow<Micro>[];
 };
 
-/** Nutrienti e micronutrienti nei pasti di un giorno: per ciascuno, in quanti pasti compare. */
+/** Nutrienti e micronutrienti nei pasti di un giorno: per ciascuno, in quanti pasti compare. Gli extra contano come un pasto; un pasto fuori senza nome non conta. */
 export function daySummary(meals: MealPlan[], overrides?: Overrides): DaySummary {
-  const known = meals.map((m) => ({ nutrients: nutrientsOf(m.name, overrides), micros: recognizeMicros(m.name) }));
+  const known = meals.filter((m) => m.name).map((m) => ({ nutrients: nutrientsOf(m.name, overrides), micros: recognizeMicros(m.name) }));
   return {
-    planned: meals.length,
+    planned: known.length,
     recognized: known.filter((m) => m.nutrients.length > 0 || m.micros.length > 0).length,
     nutrients: NUTRIENTS.map((key) => ({ key, label: NUTRIENT_LABEL[key], meals: known.filter((m) => m.nutrients.includes(key)).length })),
     micros: MICROS.map((key) => ({ key, label: MICRO_LABEL[key], meals: known.filter((m) => m.micros.includes(key)).length })),
