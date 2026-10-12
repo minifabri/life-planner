@@ -143,7 +143,6 @@ export function ItemSheet({
             ref={fileInput}
             type="file"
             accept="image/*"
-            capture="environment"
             className="sr-only"
             onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
           />
