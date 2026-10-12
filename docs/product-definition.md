@@ -119,6 +119,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D56 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D57 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D58 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D59 | **Micronutrienti del giorno**: nel Giorno dei Pasti, riepilogo di ferro, calcio, zinco, omega-3, vitamina A, vitamina C e folati, riconosciuti dal nome del piatto con un dizionario locale di buone fonti. La riga resta discreta; aperta mostra un piccolo grafico a barre di nutrienti e micronutrienti nei pasti del giorno | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -511,10 +512,15 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Viste** (D56): selettore **Giorno · Settimana · Idee**. *Settimana*: il riepilogo dei nutrienti e, sotto, i sette giorni con i quattro pasti (su desktop in due colonne); un tocco su un pasto o su "Aggiungi" apre lo stesso foglio del Giorno. Le frecce in alto cambiano settimana in tutte le viste.
 - **Nutrienti** (D57):
   - *Sotto ogni pasto*: i nutrienti del piatto ("Proteine · Carboidrati · Fibre"), oppure l'invito a indicarli se il nome non li dice.
-  - *Nel giorno*: una riga dice cosa c'è e cosa manca ("Nel giorno: proteine e carboidrati. Mancano: grassi e fibre.").
+  - *Nel giorno*: una riga discreta dice cosa c'è e cosa manca ("Nel giorno: proteine e carboidrati. Mancano: grassi e fibre."), con sotto i micronutrienti (D59). Un tocco la apre.
   - *Nella settimana*: tabella nutrienti × giorni (un segno più pieno dove più pasti del giorno portano quel nutriente), il totale dei pasti e una frase ("Poche fibre nella settimana.", "Settimana ben distribuita."). Il giudizio arriva solo con almeno quattro pasti riconosciuti.
   - *Correggere*: nel foglio del pasto, quattro pulsanti. La correzione vale per quel piatto ogni volta che torna, in qualunque momento della giornata; rimettere ciò che il nome dice già la toglie.
   - È un'indicazione dai nomi, non dalle quantità: il condimento e le porzioni non si vedono. Per questo la soglia dei grassi è più bassa delle altre.
+- **Micronutrienti del giorno** (D59):
+  - *Quali*: ferro, calcio, zinco, omega-3, vitamina A, vitamina C, folati. Riconosciuti dal nome del piatto, come i nutrienti: un piatto "porta" un micronutriente se nomina un alimento che ne è una buona fonte (lenticchie → ferro, zinco e folati; noci → omega-3 e zinco).
+  - *Riga chiusa*: nomina il gruppo più corto ("Micronutrienti: mancano calcio e omega-3.", "Micronutrienti: solo ferro e vitamina C.", "Micronutrienti: ci sono tutti.").
+  - *Aperta*: un piccolo grafico a barre, nutrienti e micronutrienti. Ogni barra ha un segmento per pasto riconosciuto del giorno, pieno per i pasti che lo portano, e il conto ("2/3"). Colori neutri: niente rosso né oro.
+  - Non incluso: correzione a mano dei micronutrienti, vitamina B12 e vitamina D (nei piatti vegetali non ci sono: vengono da integratore e sole), micronutrienti nella settimana e nelle Idee.
 - **Idee** (D58): per il giorno scelto, fino a tre proposte per ogni momento ancora vuoto; "Altre idee" mostra le successive.
   - *Da dove vengono*: i piatti già usati in quel momento e quaranta piatti semplici inclusi nell'app (segnati "Nuovo"), tutti vegani. Ogni terza proposta è un piatto nuovo.
   - *Cosa conta*: i nutrienti che scarseggiano nella settimana e quelli che mancano nel giorno, gli ingredienti in casa da usare, la varietà rispetto ai giorni vicini, l'abitudine, il tipo di giorno (proteine nel giorno di allenamento; a pranzo in ufficio ciò che si prepara prima).

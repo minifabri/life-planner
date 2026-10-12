@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DayMarksLine, DaySigns } from "@/components/days/day-signs";
 import { BalanceCard } from "@/components/meals/balance-card";
+import { DayNutrients } from "@/components/meals/day-nutrients";
 import { MealIdeasView } from "@/components/meals/ideas-view";
 import { MealSheet } from "@/components/meals/meal-sheet";
 import { PantrySection, type PantryUse } from "@/components/meals/pantry-section";
@@ -20,7 +21,8 @@ import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
-import { NUTRIENT_LABEL, balanceNote, dayNutrients, listText, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
+import { daySummary } from "@/lib/meals/micros";
+import { NUTRIENT_LABEL, balanceNote, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
 import { SLOTS, SLOT_LABEL, mealDot, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
@@ -96,7 +98,6 @@ export default function MealsPage() {
   const overrides = nutrientOverrides(memory);
   const balance = weekBalance(meals, days, overrides);
   const dayMeals = meals.filter((m) => m.date === day);
-  const inDay = dayNutrients(dayMeals, overrides);
   const signsOf = (d: LocalDate) => daySigns(d, marks, workouts, today);
 
   // Idee: per la varietà contano anche la settimana prima e, da oggi, quella dopo.
@@ -267,12 +268,7 @@ export default function MealsPage() {
             );
           })}
         </ul>
-        {inDay.present.length > 0 ? (
-          <p className="-mt-1 text-xs text-text-3">
-            Nel giorno: {listText(inDay.present.map((n) => NUTRIENT_LABEL[n].toLowerCase()))}.
-            {inDay.missing.length > 0 ? ` ${inDay.missing.length === 1 ? "Manca" : "Mancano"}: ${listText(inDay.missing.map((n) => NUTRIENT_LABEL[n].toLowerCase()))}.` : ""}
-          </p>
-        ) : null}
+        <DayNutrients key={day} summary={daySummary(dayMeals, overrides)} />
         </>
       )}
 
