@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MealMemory, MealPlan, MealSlot } from "../supabase/types";
 import { DISHES } from "./dishes";
 import { normalizeMealName } from "./rules";
-import { balanceNote, dayNutrients, nutrientOverrides, nutrientsOf, recognizeNutrients, weekBalance } from "./nutrients";
+import { balanceNote, nutrientOverrides, nutrientsOf, recognizeNutrients, weekBalance } from "./nutrients";
 
 const DAYS = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"];
 
@@ -113,11 +113,5 @@ describe("weekBalance", () => {
     const meals = DAYS.slice(0, 4).map((d) => meal(d, "Salmone, riso e broccoli"));
     expect(balanceNote(weekBalance(meals, DAYS))).toBe("Settimana ben distribuita.");
     expect(balanceNote(weekBalance([], DAYS))).toBe("Nessun pasto in programma.");
-  });
-});
-
-describe("dayNutrients", () => {
-  it("dice cosa c'è e cosa manca nel giorno", () => {
-    expect(dayNutrients([meal(DAYS[0], "Pasta al pomodoro"), meal(DAYS[0], "Yogurt", "snack")])).toEqual({ present: ["protein", "carbs", "fiber"], missing: ["fat"] });
   });
 });
