@@ -112,7 +112,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D49 | **Idee** (suggerimenti): terza voce del selettore in Guardaroba. Regole locali, deterministiche e spiegabili, senza servizi esterni né AI; tre modalità (per oggi, intorno a un capo, scopri); profilo di stile come orientamento, mai divieto; giudizi solo espliciti | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D51 | **Outfit pianificati**: un outfit (salvato, o una proposta delle Idee) si pianifica per un giorno, con un evento di quel giorno o un'occasione scritta a mano. Non è un utilizzo e non crea eventi nel calendario. Si vede in Guardaroba ("In programma") e in Oggi. Un capo da lavare o rimosso si segnala, la scelta non cambia da sola | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D52 | Guardaroba, passi successivi nell'ordine: passaggio dalla Wishlist al guardaroba e compatibilità; statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
+| D52 | **Wishlist e guardaroba**: un articolo della wishlist può essere segnato come capo (tipo, colori, stili) e viene confrontato con il guardaroba; un articolo acquistato diventa un capo senza reinserire i dati, e il capo ricorda l'articolo da cui nasce. Resta una sola wishlist | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D53 | Guardaroba, passi successivi: statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
 
 ---
 
@@ -513,7 +514,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Guardaroba [APPROVATO, D46–D49 e D51; passi successivi PROPOSTA, D52]
+### 7.15 Guardaroba [APPROVATO, D46–D49, D51 e D52; passi successivi PROPOSTA, D53]
 Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee**; in Capi e Outfit c'è il campo di ricerca.
 
 **Capi**
@@ -559,7 +560,13 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - **Capi non disponibili**: "Un capo è da lavare" o "Un capo non è più nel guardaroba" compaiono sulla pianificazione; la scelta resta com'è finché non la cambi tu.
 - Se l'outfit salvato viene modificato, la pianificazione mostra i capi nuovi; se viene eliminato, restano quelli del momento in cui è stato pianificato.
 
-Non incluso per ora (D52): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+**Wishlist** (D52)
+- **Articolo di abbigliamento**: nella scheda di un articolo della Wishlist, "È un capo di abbigliamento" apre tipo di capo (proposto dal nome), colori e stili. Sono facoltativi; la categoria a testo libero resta com'è.
+- **Nel guardaroba**: sotto quei campi compare il confronto con ciò che possiedi: "Hai già qualcosa di simile" (stesso tipo, un colore in comune), "Si abbinerebbe con" (capi di tipi complementari con colori in armonia, prima quelli dello stesso stile), "Completerebbe questi outfit" (outfit salvati a cui manca quel tipo di capo).
+- **Solo dati presenti**: senza il tipo di capo o senza i colori il confronto non azzarda nulla e dice cosa manca; i capi del guardaroba senza colori non vengono proposti come abbinamento.
+- **Dall'acquisto al capo**: su un articolo in Acquistati, "Salva e aggiungi al guardaroba" crea il capo con nome, marca, tipo, colori, stili, note e l'immagine del negozio (finché non scatti una foto tua). Stagioni, occasioni e pesantezza sono proposte come per ogni capo nuovo. Se l'articolo è già nel guardaroba, la scheda lo dice.
+
+Non incluso per ora (D53): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, statistiche, riconoscimento delle foto.
 
 ### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
 - **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).

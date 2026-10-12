@@ -278,6 +278,10 @@ export type WishlistItem = {
   interest: 1 | 2 | 3;
   status: WishlistStatus;
   source: "manual" | "link" | "chatgpt";
+  /** Tipo di capo, se l'articolo è abbigliamento: abilita il confronto con il guardaroba. */
+  garment: WardrobeCategory | null;
+  colors: string[];
+  styles: string[];
   metadata_fetched_at: string | null;
   deleted_at: string | null;
   created_at: string;
@@ -307,6 +311,8 @@ export type WardrobeItem = {
   status: WardrobeStatus;
   favorite: boolean;
   notes: string | null;
+  /** L'articolo della wishlist da cui nasce il capo, se c'è. */
+  wishlist_item_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

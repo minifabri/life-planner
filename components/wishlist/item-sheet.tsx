@@ -3,14 +3,26 @@
 import { useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
+import { WardrobeMatch } from "@/components/wishlist/wardrobe-match";
 import { fetchLinkMetadata, type WishlistInput } from "@/lib/data/wishlist";
 import { INTEREST_LABEL, STATUS_LABEL, metadataPatch } from "@/lib/wishlist/list";
 import { failureMessage } from "@/lib/wishlist/metadata";
 import { parseAmount } from "@/lib/wishlist/price";
-import type { WishlistItem, WishlistStatus } from "@/lib/supabase/types";
+import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
+import { guessGarment } from "@/lib/wardrobe/wishlist";
+import type { WardrobeCategory, WishlistItem, WishlistStatus } from "@/lib/supabase/types";
 
 const INTERESTS = ([1, 2, 3] as const).map((value) => ({ value: String(value) as "1" | "2" | "3", label: INTEREST_LABEL[value] }));
 const STATUSES = (["wanted", "bought", "discarded"] as const).map((value) => ({ value, label: STATUS_LABEL[value] }));
+
+const chip = (active: boolean) =>
+  `flex min-h-9 shrink-0 items-center rounded-lg border px-2.5 text-[13px] transition-colors ${
+    active ? "border-line-2 bg-surface-2 text-text" : "border-line text-text-2 hover:text-text"
+  }`;
+
+function toggle(values: string[], value: string): string[] {
+  return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+}
 
 export type ItemSave = WishlistInput & { status: WishlistStatus; metadata_fetched_at: string | null };
 
@@ -21,6 +33,8 @@ export function ItemSheet({
   offline,
   onSave,
   onDelete,
+  inWardrobe,
+  onAddToWardrobe,
   onClose,
 }: {
   item: WishlistItem | null;
@@ -28,6 +42,10 @@ export function ItemSheet({
   offline: boolean;
   onSave: (input: ItemSave) => Promise<boolean>;
   onDelete: () => void;
+  /** L'articolo è già diventato un capo del guardaroba. */
+  inWardrobe?: boolean;
+  /** Porta l'articolo acquistato nel guardaroba, con i dati scritti qui. */
+  onAddToWardrobe?: (input: ItemSave) => Promise<boolean>;
   onClose: () => void;
 }) {
   const [name, setName] = useState(item?.name ?? "");
@@ -41,6 +59,10 @@ export function ItemSheet({
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [interest, setInterest] = useState<"1" | "2" | "3">(String(item?.interest ?? 2) as "1" | "2" | "3");
   const [status, setStatus] = useState<WishlistStatus>(item?.status ?? "wanted");
+  const [garment, setGarment] = useState<WardrobeCategory | null>(item?.garment ?? null);
+  const [colors, setColors] = useState<string[]>(item?.colors ?? []);
+  const [styles, setStyles] = useState<string[]>(item?.styles ?? []);
+  const [clothing, setClothing] = useState(!!item?.garment);
   const [fetchedAt, setFetchedAt] = useState(item?.metadata_fetched_at ?? null);
   const [fetchedHere, setFetchedHere] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -92,6 +114,10 @@ export function ItemSheet({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    await send(onSave);
+  }
+
+  async function send(action: (input: ItemSave) => Promise<boolean>) {
     const clean = name.trim() || (validLink ? link : "");
     if (!clean) return setError("Scrivi un nome o incolla un link.");
     if (link && !validLink) return setError("Il link deve iniziare con http:// o https://");
@@ -99,7 +125,7 @@ export function ItemSheet({
     if (price.trim() && amount === null) return setError("Il prezzo non è un numero.");
     setBusy(true);
     setError(null);
-    const ok = await onSave({
+    const ok = await action({
       name: clean,
       url: link || null,
       brand: brand.trim() || null,
@@ -110,6 +136,9 @@ export function ItemSheet({
       image_url: image || null,
       notes: notes.trim() || null,
       interest: Number(interest) as 1 | 2 | 3,
+      garment: clothing ? garment : null,
+      colors: clothing ? colors : [],
+      styles: clothing ? styles : [],
       status,
       // Cambiando il link senza rileggerlo, i dati del nuovo indirizzo si recuperano alla prossima apertura della wishlist.
       metadata_fetched_at: !link ? null : link === (item?.url ?? "") || fetchedHere ? fetchedAt : null,
@@ -177,6 +206,54 @@ export function ItemSheet({
           <span className="text-xs text-text-2">Quanto lo desideri</span>
           <Segmented label="Interesse" value={interest} options={INTERESTS} onChange={setInterest} />
         </div>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={clothing}
+            onChange={(e) => {
+              setClothing(e.target.checked);
+              // Il nome suggerisce il tipo di capo; si corregge con un tocco.
+              if (e.target.checked && !garment) setGarment(guessGarment(name));
+            }}
+            className="size-5 accent-[var(--accent-fill)]"
+          />
+          È un capo di abbigliamento
+        </label>
+        {clothing ? (
+          <div className="-mt-1 flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-text-2">Tipo di capo</span>
+              <div role="group" aria-label="Tipo di capo" className="flex flex-wrap gap-1.5">
+                {CATEGORIES.map((c) => (
+                  <button key={c} type="button" aria-pressed={garment === c} onClick={() => setGarment(garment === c ? null : c)} className={chip(garment === c)}>
+                    {CATEGORY_LABEL[c]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-text-2">Colori</span>
+              <div role="group" aria-label="Colori" className="flex flex-wrap gap-1.5">
+                {COLOR_OPTIONS.map((c) => (
+                  <button key={c} type="button" aria-pressed={colors.includes(c)} onClick={() => setColors(toggle(colors, c))} className={`${chip(colors.includes(c))} capitalize`}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-text-2">Stili</span>
+              <div role="group" aria-label="Stili" className="flex flex-wrap gap-1.5">
+                {STYLE_OPTIONS.map((c) => (
+                  <button key={c} type="button" aria-pressed={styles.includes(c)} onClick={() => setStyles(toggle(styles, c))} className={`${chip(styles.includes(c))} capitalize`}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <WardrobeMatch garment={garment} colors={colors} styles={styles} />
+          </div>
+        ) : null}
         <Field label="Note" htmlFor="wish-notes">
           <textarea id="wish-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputClass} py-2.5`} />
         </Field>
@@ -185,6 +262,15 @@ export function ItemSheet({
             <span className="text-xs text-text-2">Stato</span>
             <Segmented label="Stato" value={status} options={STATUSES} onChange={setStatus} />
           </div>
+        ) : null}
+        {item && status === "bought" ? (
+          inWardrobe ? (
+            <p className="text-sm text-text-2">Questo articolo è già nel guardaroba.</p>
+          ) : onAddToWardrobe ? (
+            <Button onClick={() => void send(onAddToWardrobe)} disabled={busy || fetching} className="self-start">
+              Salva e aggiungi al guardaroba
+            </Button>
+          ) : null
         ) : null}
         {error ? (
           <p role="alert" className="text-sm">

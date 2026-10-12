@@ -1,10 +1,11 @@
 import { uuidv7 } from "../ids";
 import { getSupabase } from "../supabase/client";
-import type { WardrobeItem } from "../supabase/types";
+import type { WardrobeItem, WishlistItem } from "../supabase/types";
 import { commit, currentOwner, withPendingWardrobe } from "../sync/engine";
 import { byId, type Row } from "../sync/ops";
 import { compressImage } from "../wardrobe/image";
 import { duplicateName } from "../wardrobe/list";
+import { wardrobeRowFromWish } from "../wardrobe/wishlist";
 
 function check<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
@@ -12,7 +13,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 const COLUMNS =
-  "id, name, image_path, thumb_path, image_url, category, subcategory, colors, seasons, styles, occasions, material, brand, warmth, layerable, status, favorite, notes, deleted_at, created_at, updated_at";
+  "id, name, image_path, thumb_path, image_url, category, subcategory, colors, seasons, styles, occasions, material, brand, warmth, layerable, status, favorite, notes, wishlist_item_id, deleted_at, created_at, updated_at";
 
 export const WARDROBE_KEY = ["wardrobe-items"];
 
@@ -49,6 +50,13 @@ export async function createWardrobeItem(input: WardrobeInput): Promise<string> 
 
 export async function updateWardrobeItem(item: WardrobeItem, patch: Partial<WardrobeItem>): Promise<void> {
   await commit([{ kind: "update", table: "wardrobe_items", patch, where: byId(item.id), snapshot: { ...item, ...patch } }]);
+}
+
+/** Porta nel guardaroba un articolo della wishlist, con i dati che ha già e il legame con l'articolo. */
+export async function addWishToWardrobe(wish: WishlistItem): Promise<string> {
+  const id = uuidv7();
+  await commit([{ kind: "insert", table: "wardrobe_items", row: { id, ...wardrobeRowFromWish(wish) } }]);
+  return id;
 }
 
 /** Copia un capo senza la foto propria (restano l'eventuale immagine esterna, i tag e i dettagli). */
