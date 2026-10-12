@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MealMemory, MealPlan, MealSlot } from "../supabase/types";
 import { DISHES } from "./dishes";
+import { normalizeMealName } from "./rules";
 import { balanceNote, dayNutrients, nutrientOverrides, nutrientsOf, recognizeNutrients, weekBalance } from "./nutrients";
 
 const DAYS = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"];
@@ -64,6 +65,12 @@ describe("recognizeNutrients", () => {
   it("vuoto se il nome non dice nulla", () => {
     expect(recognizeNutrients("Avanzi di ieri")).toEqual([]);
     expect(recognizeNutrients("")).toEqual([]);
+  });
+
+  it("i piatti proposti dall'app sono tutti vegani", () => {
+    const animal =
+      /\b(carne|pollo|tacchino|manzo|vitello|maiale|prosciutto|bresaola|speck|salame|salsiccia|ragu|pesce|tonno|salmone|merluzzo|sgombro|gamber\w+|uov[oa]|frittata|formaggio|mozzarella|ricotta|parmigiano|grana|feta|burrata|panna|kefir|miele|pesto|gnocchi|piadina|pancake)\b|\byogurt(?! di soia)|\blatte(?! di soia)|\bburro(?! di arachidi)/;
+    expect(DISHES.filter((d) => animal.test(normalizeMealName(d.name))).map((d) => d.name)).toEqual([]);
   });
 
   it("riconosce tutti i piatti proposti dall'app", () => {

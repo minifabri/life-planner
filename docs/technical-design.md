@@ -859,7 +859,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - Voto: media pesata di cinque fattori tra 0 e 1 (bilancio 3, in casa 2, varietà 2, abitudine 2, tipo di giorno 1; `WEIGHTS`). Un fattore senza dati vale 0,5.
   - Ordine: due abituali ogni piatto nuovo, ciascun gruppo per voto; a parità, per nome. Stessi dati, stesse proposte.
   - Varietà: conta la distanza in giorni dallo stesso piatto nella settimana del giorno, in quella prima e, da oggi, in quella dopo (quelle già in cache).
-  - I nutrienti dei piatti dell'app non sono scritti a mano: si ricavano dal nome, e un test verifica che il dizionario li riconosca tutti.
+  - I nutrienti dei piatti dell'app non sono scritti a mano: si ricavano dal nome, e un test verifica che il dizionario li riconosca tutti. Un altro test verifica che siano tutti vegani: chi aggiunge un piatto all'elenco non può introdurre carne, pesce, uova, latticini o miele.
   - Interfaccia: `MealIdeasView`.
 - Non incluso: grammi e calorie, obiettivi, preferenze alimentari, pesi regolabili dall'interfaccia.
 - Criteri: test di `lib/meals`; dal telefono: passa a Settimana e aggiungi un pasto in un altro giorno; controlla il riepilogo dopo quattro o più pasti; correggi i nutrienti di un piatto e ritrovali la volta dopo; apri Idee su un giorno con momenti vuoti, aggiungi una proposta, nascondine una e annulla; ripeti un'aggiunta senza rete.
