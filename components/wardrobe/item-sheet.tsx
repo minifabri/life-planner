@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
@@ -11,7 +11,8 @@ import { suggestName } from "@/lib/wardrobe/colors";
 import { detectColors } from "@/lib/wardrobe/image";
 import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUSES, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
 import type { WardrobeCategory, WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
-import type { WardrobeInput } from "@/lib/data/wardrobe";
+import { useOffline } from "@/lib/data/hooks";
+import { recognizeGarment, type WardrobeInput } from "@/lib/data/wardrobe";
 
 export type ItemSave = WardrobeInput & { photo: File | null };
 
@@ -81,6 +82,15 @@ export function ItemSheet({
   const [nameAuto, setNameAuto] = useState(!item);
   const [colorsAuto, setColorsAuto] = useState(!item);
   const [detected, setDetected] = useState(false);
+  const [categoryAuto, setCategoryAuto] = useState(!item);
+  const [recognizing, setRecognizing] = useState(false);
+  const [recognized, setRecognized] = useState<string | null>(null);
+  const offline = useOffline();
+  // Il riconoscimento risponde dopo qualche secondo: quando arriva deve rispettare ciò che nel frattempo è stato toccato.
+  const live = useRef({ nameAuto, colorsAuto, categoryAuto, autoFilled, category, subcategory, colors });
+  useEffect(() => {
+    live.current = { nameAuto, colorsAuto, categoryAuto, autoFilled, category, subcategory, colors };
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -106,8 +116,38 @@ export function ItemSheet({
     proposeName(category, subcategory, found);
   }
 
+  /**
+   * Chiede al servizio di visione tipo, colori e nome del capo. In automatico riempie solo i campi non toccati;
+   * su richiesta esplicita (`force`) li sostituisce tutti. Se non riesce, la scheda resta com'è.
+   */
+  async function recognize(file: File, force: boolean) {
+    setRecognizing(true);
+    setRecognized(null);
+    const result = await recognizeGarment(file);
+    setRecognizing(false);
+    if (!result) return;
+    const now = live.current;
+    const nextCategory = force || now.categoryAuto ? result.category : now.category;
+    const nextSubcategory = force || !now.subcategory.trim() ? (result.subcategory ?? now.subcategory) : now.subcategory;
+    const nextColors = (force || now.colorsAuto) && result.colors.length > 0 ? result.colors : now.colors;
+    const nextName = force || now.nameAuto ? (result.name ?? suggestName(nextCategory, nextSubcategory || null, nextColors)) : null;
+    setCategory(nextCategory);
+    setSubcategory(nextSubcategory);
+    setColors(nextColors);
+    if (nextName !== null) setName(nextName);
+    if (force || now.autoFilled) {
+      applySuggestion(nextCategory, nextName ?? name);
+      if (result.styles.length > 0) setStyles(result.styles);
+    }
+    setDetected(false);
+    setRecognized([result.subcategory ?? CATEGORY_LABEL[nextCategory], ...nextColors].join(" · "));
+  }
+
   function pickPhoto(file: File | null) {
     if (file && colorsAuto) void readColors(file);
+    // Per un capo nuovo il riconoscimento parte da solo; per uno esistente si chiede con il pulsante.
+    if (file && !item && !offline) void recognize(file, false);
+    if (!file) setRecognized(null);
     setPhoto(file);
     setPhotoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -202,6 +242,7 @@ export function ItemSheet({
                 aria-pressed={category === c}
                 onClick={() => {
                   setCategory(c);
+                  setCategoryAuto(false);
                   if (autoFilled) applySuggestion(c, name);
                   proposeName(c, subcategory, colors);
                 }}
@@ -213,10 +254,19 @@ export function ItemSheet({
           </div>
         </div>
 
-        {detected ? (
-          <p role="status" className="-mt-1 text-xs text-text-3">
-            Dalla foto: {colors.join(", ")}. Se non torna, correggi i colori in &quot;Altri dettagli&quot;.
-          </p>
+        <p role="status" aria-live="polite" className={recognizing || recognized || detected ? "-mt-1 text-xs text-text-3" : "sr-only"}>
+          {recognizing
+            ? "Riconosco il capo dalla foto…"
+            : recognized
+              ? `Riconosciuto dalla foto: ${recognized}. Correggi ciò che non torna.`
+              : detected
+                ? `Dalla foto: ${colors.join(", ")}. Se non torna, correggi i colori in "Altri dettagli".`
+                : ""}
+        </p>
+        {item && photo && !offline ? (
+          <Button onClick={() => void recognize(photo, true)} disabled={recognizing} className="-mt-1 self-start">
+            {recognizing ? "Riconosco…" : "Riconosci dalla foto"}
+          </Button>
         ) : null}
 
         <button type="button" onClick={() => setShowMore((v) => !v)} className="-mx-1 flex min-h-9 items-center gap-1.5 self-start rounded-lg px-1 text-sm text-accent">

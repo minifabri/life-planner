@@ -29,6 +29,7 @@ const npmSpecifiers = {
 const targets = [
   { entry: "lib/reminders/plan.ts", out: "supabase/functions/dispatch-reminders/plan.gen.js" },
   { entry: "lib/health/edge.ts", out: "supabase/functions/health-workouts/health.gen.js" },
+  { entry: "lib/wardrobe/recognize.ts", out: "supabase/functions/wardrobe-recognize/recognize.gen.js" },
 ];
 const check = process.argv.includes("--check");
 let stale = false;

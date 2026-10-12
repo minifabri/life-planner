@@ -63,3 +63,20 @@ export async function detectColors(file: File): Promise<string[]> {
     return [];
   }
 }
+
+const RECOGNIZE_MAX_DIM = 768;
+const RECOGNIZE_QUALITY = 0.7;
+
+/** La foto ridotta e codificata in base64 (JPEG) per il riconoscimento: piccola, così l'invio costa poco. */
+export async function recognitionImage(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const blob = await resize(bitmap, RECOGNIZE_MAX_DIM, RECOGNIZE_QUALITY);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(binary);
+  } finally {
+    bitmap.close();
+  }
+}

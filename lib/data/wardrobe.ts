@@ -3,7 +3,8 @@ import { getSupabase } from "../supabase/client";
 import type { WardrobeItem, WishlistItem } from "../supabase/types";
 import { commit, currentOwner, withPendingWardrobe } from "../sync/engine";
 import { byId, type Row } from "../sync/ops";
-import { compressImage } from "../wardrobe/image";
+import { compressImage, recognitionImage } from "../wardrobe/image";
+import type { Recognition } from "../wardrobe/recognize";
 import { duplicateName } from "../wardrobe/list";
 import { wardrobeRowFromWish } from "../wardrobe/wishlist";
 
@@ -128,5 +129,22 @@ export async function purgeDeletedWardrobePhotos(now: Date = new Date()): Promis
     const { error } = await supabase.storage.from("wardrobe").remove(paths);
     if (error) continue;
     await supabase.from("wardrobe_items").update({ image_path: null, thumb_path: null }).eq("id", row.id);
+  }
+}
+
+type RecognizeReply = { ok?: boolean; error?: string; recognition?: Recognition };
+
+/**
+ * Chiede al servizio di visione di riconoscere il capo nella foto (tipo, colori, nome). Richiede la rete.
+ * `null` se il riconoscimento non è configurato, non è riuscito o non ha visto un capo: la scheda resta com'è.
+ */
+export async function recognizeGarment(file: File): Promise<Recognition | null> {
+  try {
+    const image = await recognitionImage(file);
+    const { data, error } = await getSupabase().functions.invoke<RecognizeReply>("wardrobe-recognize", { body: { image } });
+    if (error || !data?.ok || !data.recognition) return null;
+    return data.recognition;
+  } catch {
+    return null;
   }
 }

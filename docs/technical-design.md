@@ -870,11 +870,19 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Statistiche**: logica pura con test in `lib/wardrobe/stats.ts` (`itemUsage`, `outfitUsage`, `wardrobeStats`), calcolata nel browser da capi, outfit e utilizzi già in cache; `StatsView` come quarta voce del selettore; riga d'uso nella scheda del capo. Lo storico letto è limitato agli ultimi 1000 utilizzi.
 - **Colori dalla foto**: `detectColors` in `lib/wardrobe/image.ts` riduce la metà centrale della foto a 48 × 48 px su un canvas; `dominantColors` in `lib/wardrobe/colors.ts` (puro, con test) assegna ogni pixel al colore più vicino della tavolozza dell'app e tiene al più due colori che coprono almeno il 22% dell'area. Nessun servizio esterno, nessun invio della foto.
 - **Nome proposto**: `suggestName` accorda il colore al nome generico della categoria; per "Pantaloni/Gonne" senza sottocategoria propone "Pantaloni", perché dalla sola categoria non si distingue una gonna.
-- Limiti noti: uno sfondo colorato al centro della foto falsa i colori; fantasie e più colori vicini vengono ridotti a uno o due; il tipo di capo non viene riconosciuto.
+- Limiti noti della lettura locale: uno sfondo colorato al centro della foto falsa i colori; fantasie e più colori vicini vengono ridotti a uno o due; il tipo di capo non viene riconosciuto (lo fa il riconoscimento dell'incremento 20, quando è configurato).
 - Criteri: test di `lib/wardrobe/stats` e `lib/wardrobe/colors`; dal telefono: fotografa un capo nero e uno chiaro e verifica colori e nome proposti; scrivi un nome a mano, cambia categoria e verifica che resti il tuo; apri Numeri dopo qualche "Indossato oggi".
 
+**Incremento 20 — Guardaroba, riconoscimento dalla foto** *(12 ottobre 2026)*
+- Edge Function `wardrobe-recognize` (JWT verificato, token dell'utente): riceve la foto ridotta a 768 px in JPEG base64, chiama l'API di Anthropic con l'SDK ufficiale (`npm:@anthropic-ai/sdk`), modello `claude-opus-5-5`, impegno basso, risposta vincolata a uno schema JSON i cui valori ammessi sono categorie, colori e stili dell'app. Se il modello declina, il servizio riprova sul modello di riserva nella stessa chiamata (`fallbacks: "default"`).
+- Segreto: `anthropic_api_key` in Supabase Vault, letto solo dalla funzione tramite `public.wardrobe_ai_key()` (security definer, eseguibile solo da `service_role`; migrazione `20261013120000_wardrobe_recognize.sql`). Senza segreto la funzione risponde `not_configured`.
+- Logica condivisa e testata in `lib/wardrobe/recognize.ts` (schema, richiesta, lettura e pulizia della risposta, controllo della foto), impacchettata in `recognize.gen.js` da `scripts/build-functions.mjs`.
+- Client: `recognitionImage` (riduzione e base64) e `recognizeGarment` (`functions.invoke`); nella scheda del capo parte in automatico per i capi nuovi e rispetta i campi toccati durante l'attesa.
+- Privacy e costi: la foto ridotta lascia l'app solo per la richiesta e la funzione non la salva; una richiesta per ogni foto scelta su un capo nuovo. Limite di 700 000 caratteri base64 per foto.
+- Non verificato con una chiave vera: la forma della chiamata segue la documentazione dell'SDK, la prima prova reale è quella dal telefono.
+- Criteri: test di `lib/wardrobe/recognize`; con il segreto in Vault, dal telefono: fotografa una gonna, un paio di scarpe e una borsa e verifica tipo, colori e nome; scrivi un nome mentre riconosce e verifica che resti il tuo; senza rete verifica che restino le proposte locali; fotografa un oggetto che non è un capo e verifica che non proponga nulla.
+
 **Da decidere** [PROPOSTA]
-- Riconoscimento del tipo di capo dalla foto: richiede un modello di visione a pagamento, chiamato da una Edge Function con la chiave in Supabase Vault, e l'invio delle foto a un servizio esterno. Resterebbe facoltativo e separato dal funzionamento di base.
 - Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
