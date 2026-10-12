@@ -279,6 +279,8 @@ outfits:        id, owner_id, name null, item_ids uuid[], styles text[], occasio
 wardrobe_wears: id, owner_id, worn_on date, outfit_id null → outfits (on delete set null), item_ids uuid[]
 wardrobe_style: owner_id pk, liked_styles text[], liked_colors text[], avoid text[], weights jsonb null
 outfit_feedback: id, owner_id, item_ids uuid[], signature text, verdict text check in ('like','dislike')
+outfit_plans:   id, owner_id, date date, event_id null → events (on delete set null), label text null,
+                outfit_id null → outfits (on delete set null), item_ids uuid[]
 ```
 - Foto in Supabase Storage, bucket privato `wardrobe`: `<owner_id>/<id>.jpg` e `<owner_id>/<id>_thumb.jpg`, con policy sul primo segmento del percorso. Si mostrano con URL firmati di un'ora. Compressione nel browser prima dell'upload (lato lungo 1600 px, miniatura 400 px, JPEG).
 - `image_url` è l'immagine esterna di un capo arrivato senza foto propria (previsto per il passaggio dalla Wishlist).
@@ -286,6 +288,7 @@ outfit_feedback: id, owner_id, item_ids uuid[], signature text, verdict text che
 - `wardrobe_wears` registra solo utilizzi effettivi; `item_ids` è la fotografia dei capi indossati quel giorno, indipendente dalle modifiche successive all'outfit.
 - `wardrobe_style` ha una riga per utente e si scrive direttamente, con la rete (non passa dalla outbox). Senza riga vale il profilo di partenza dell'app (`DEFAULT_STYLE`). `weights` contiene solo i pesi diversi da quelli predefiniti.
 - `outfit_feedback.signature` è l'elenco degli id ordinati e uniti da "|": una combinazione ha un solo giudizio, a prescindere dall'ordine dei capi. L'unicità è garantita dall'app (aggiorna il giudizio esistente), non da un vincolo.
+- `outfit_plans` non ha eliminazione reversibile: la riga sparisce e "Annulla" la reinserisce con lo stesso id. `label` è il titolo dell'evento al momento della scelta (non segue le modifiche successive al titolo) o un testo libero. I capi mostrati sono quelli di `outfit_id` finché l'outfit esiste, altrimenti `item_ids`.
 - Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
@@ -844,8 +847,17 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: meteo reale (richiede un servizio esterno e la posizione: da decidere), regolazione dei pesi dall'interfaccia, motivazione quando si scarta.
 - Criteri: test di `lib/wardrobe/suggest`; dal telefono, con almeno una decina di capi classificati: apri Idee, cambia occasione e tempo, dai un "Non mi piace" e verifica che la proposta sparisca e torni con Annulla; "Abbina" da un capo e ottieni tre proposte diverse; salva una proposta come outfit; modifica "Il mio stile" e verifica che l'ordine cambi.
 
-**Incrementi 17–19 — Guardaroba, passi successivi** [PROPOSTA]
-- 17 pianificazione di un outfit su un giorno o un evento; 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
+**Incremento 17 — Guardaroba, outfit pianificati** *(12 ottobre 2026)*
+- Migrazione `20261013100000_outfit_plans.sql`: `outfit_plans`, con RLS e le quattro policy.
+- Logica pura con test in `lib/wardrobe/plans.ts`: pianificazioni da oggi in avanti, capi di una pianificazione, problemi da segnalare, titolo.
+- Dati in `lib/data/outfits.ts` (`createPlan`, `updatePlan`, `deletePlan`, `restorePlan`), dalla outbox; `outfit-plans` è tra le query salvate sul dispositivo. Si leggono le pianificazioni da ieri in avanti.
+- Interfaccia: `PlanSheet` (giorno, eventi del giorno letti con `useEvents` ed `eventsForDay`, occasione), `PlanList` nella vista Outfit, `DayOutfits` in Oggi. "Pianifica" in `OutfitSheet` e nelle Idee.
+- Oggi legge anche capi, outfit e pianificazioni del guardaroba (tre query in più, dalla cache del dispositivo quando c'è).
+- Non incluso: pianificazioni in Settimana, in Mese e nella scheda dell'evento; scelta dell'evento senza rete per i giorni non ancora scaricati.
+- Criteri: test di `lib/wardrobe/plans`; dal telefono: pianifica un outfit per domani legandolo a un evento, ritrovalo in "In programma"; pianificane uno per oggi e ritrovalo in Oggi; metti da lavare un suo capo e verifica la segnalazione; "Indossato oggi" dalla pianificazione; Togli e Annulla.
+
+**Incrementi 18–19 — Guardaroba, passi successivi** [PROPOSTA]
+- 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

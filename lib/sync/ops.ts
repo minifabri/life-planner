@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -21,7 +21,8 @@ export type Table =
   | "wardrobe_items"
   | "outfits"
   | "wardrobe_wears"
-  | "outfit_feedback";
+  | "outfit_feedback"
+  | "outfit_plans";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -298,6 +299,16 @@ export function applyToWears(wears: WardrobeWear[], op: Op, at: string): Wardrob
     op,
     (row) => ({ outfit_id: null, item_ids: [], created_at: at, ...(row as Partial<WardrobeWear> & { id: string; worn_on: string }) }) as WardrobeWear,
   ).sort((a, b) => b.worn_on.localeCompare(a.worn_on) || b.created_at.localeCompare(a.created_at));
+}
+
+/** Le pianificazioni degli outfit dopo una modifica in attesa, dal giorno più vicino. */
+export function applyToPlans(plans: OutfitPlan[], op: Op, at: string): OutfitPlan[] {
+  if (op.table !== "outfit_plans") return plans;
+  return applyToRows(
+    plans,
+    op,
+    (row) => ({ event_id: null, label: null, outfit_id: null, item_ids: [], created_at: at, ...(row as Partial<OutfitPlan> & { id: string; date: string }) }) as OutfitPlan,
+  ).sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at));
 }
 
 /** I giudizi sulle combinazioni dopo una modifica in attesa. */

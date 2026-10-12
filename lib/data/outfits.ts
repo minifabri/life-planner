@@ -1,7 +1,9 @@
 import { uuidv7 } from "../ids";
 import { getSupabase } from "../supabase/client";
-import type { Outfit, OutfitFeedback, WardrobeItem, WardrobeStatus, WardrobeStyle, WardrobeWear } from "../supabase/types";
-import { commit, withPendingFeedback, withPendingOutfits, withPendingWears } from "../sync/engine";
+import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStatus, WardrobeStyle, WardrobeWear } from "../supabase/types";
+import { addDays } from "../dates/local";
+import { localDateString } from "../dates/today";
+import { commit, withPendingFeedback, withPendingOutfits, withPendingPlans, withPendingWears } from "../sync/engine";
 import { byId, type Op } from "../sync/ops";
 import { signatureOf } from "../wardrobe/suggest";
 
@@ -98,4 +100,41 @@ export async function fetchWardrobeStyle(): Promise<WardrobeStyle | null> {
 /** Salva il profilo di stile. Come le altre impostazioni, richiede la rete. */
 export async function saveWardrobeStyle(style: WardrobeStyle): Promise<void> {
   check(await getSupabase().from("wardrobe_style").upsert(style, { onConflict: "owner_id" }).select("owner_id"));
+}
+
+export const PLANS_KEY = ["outfit-plans"];
+
+/** Le pianificazioni da ieri in avanti (ieri compreso, per chi apre l'app dopo mezzanotte in un altro fuso). */
+export async function fetchPlans(): Promise<OutfitPlan[]> {
+  const rows: OutfitPlan[] = check(
+    await getSupabase()
+      .from("outfit_plans")
+      .select("id, date, event_id, label, outfit_id, item_ids, created_at")
+      .gte("date", addDays(localDateString(), -1))
+      .order("date")
+      .order("created_at"),
+  );
+  return withPendingPlans(rows);
+}
+
+export type PlanInput = Pick<OutfitPlan, "date" | "event_id" | "label" | "outfit_id" | "item_ids">;
+
+export async function createPlan(input: PlanInput): Promise<string> {
+  const id = uuidv7();
+  await commit([{ kind: "insert", table: "outfit_plans", row: { id, ...input } }]);
+  return id;
+}
+
+export async function updatePlan(plan: OutfitPlan, patch: Partial<PlanInput>): Promise<void> {
+  await commit([{ kind: "update", table: "outfit_plans", patch, where: byId(plan.id), snapshot: { ...plan, ...patch } }]);
+}
+
+export async function deletePlan(plan: OutfitPlan): Promise<void> {
+  await commit([{ kind: "delete", table: "outfit_plans", where: byId(plan.id) }]);
+}
+
+/** Rimette una pianificazione appena tolta (stesso id: rifarlo non la duplica). */
+export async function restorePlan(plan: OutfitPlan): Promise<void> {
+  const { id, date, event_id, label, outfit_id, item_ids } = plan;
+  await commit([{ kind: "insert", table: "outfit_plans", row: { id, date, event_id, label, outfit_id, item_ids } }]);
 }

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { DayMarksLine } from "@/components/days/day-signs";
+import { DayOutfits } from "@/components/wardrobe/today-outfit";
 import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
@@ -394,6 +395,8 @@ export default function TodayPage() {
               ) : null}
             </section>
           ) : null}
+
+          <DayOutfits day={day} />
         </>
       )}
 
