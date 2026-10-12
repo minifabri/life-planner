@@ -84,6 +84,9 @@ export function ItemSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  // Senza foto l'anteprima è una scorciatoia per la fotocamera; con una foto già presente fa scegliere, come il pulsante.
+  const hasPhoto = !!(photo || item?.thumb_path || item?.image_url);
 
   function applySuggestion(nextCategory: WardrobeCategory, nextName: string) {
     const s = suggestDefaults(nextCategory, nextName);
@@ -148,8 +151,8 @@ export function ItemSheet({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => fileInput.current?.click()}
-            aria-label={photo || item ? "Cambia foto" : "Aggiungi foto"}
+            onClick={() => (hasPhoto ? fileInput : cameraInput).current?.click()}
+            aria-label={hasPhoto ? "Cambia foto" : "Scatta una foto"}
             className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface-2 text-text-3"
           >
             {photoPreview ? (
@@ -165,6 +168,17 @@ export function ItemSheet({
             ref={fileInput}
             type="file"
             accept="image/*"
+            className="sr-only"
+            onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
+          />
+          {/* Con `capture` il telefono apre subito la fotocamera, senza chiedere da dove prendere la foto. */}
+          <input
+            ref={cameraInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            tabIndex={-1}
+            aria-hidden="true"
             className="sr-only"
             onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
           />
