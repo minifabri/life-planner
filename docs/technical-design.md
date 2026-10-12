@@ -865,7 +865,17 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: confronto nelle card dell'elenco, tipo e colori letti dal link, ricerca per colore.
 - Criteri: test di `lib/wardrobe/wishlist`; dal telefono: segna un articolo come capo con tipo e colori e leggi il confronto; spostalo in Acquistati e aggiungilo al guardaroba; ritrovalo tra i capi con l'immagine del negozio; riapri l'articolo e verifica "già nel guardaroba".
 
-**Incremento 19 — Guardaroba, statistiche** [PROPOSTA]
+**Incremento 19 — Guardaroba, numeri e proposte dalla foto** *(12 ottobre 2026)*
+- Nessuna migrazione.
+- **Statistiche**: logica pura con test in `lib/wardrobe/stats.ts` (`itemUsage`, `outfitUsage`, `wardrobeStats`), calcolata nel browser da capi, outfit e utilizzi già in cache; `StatsView` come quarta voce del selettore; riga d'uso nella scheda del capo. Lo storico letto è limitato agli ultimi 1000 utilizzi.
+- **Colori dalla foto**: `detectColors` in `lib/wardrobe/image.ts` riduce la metà centrale della foto a 48 × 48 px su un canvas; `dominantColors` in `lib/wardrobe/colors.ts` (puro, con test) assegna ogni pixel al colore più vicino della tavolozza dell'app e tiene al più due colori che coprono almeno il 22% dell'area. Nessun servizio esterno, nessun invio della foto.
+- **Nome proposto**: `suggestName` accorda il colore al nome generico della categoria; per "Pantaloni/Gonne" senza sottocategoria propone "Pantaloni", perché dalla sola categoria non si distingue una gonna.
+- Limiti noti: uno sfondo colorato al centro della foto falsa i colori; fantasie e più colori vicini vengono ridotti a uno o due; il tipo di capo non viene riconosciuto.
+- Criteri: test di `lib/wardrobe/stats` e `lib/wardrobe/colors`; dal telefono: fotografa un capo nero e uno chiaro e verifica colori e nome proposti; scrivi un nome a mano, cambia categoria e verifica che resti il tuo; apri Numeri dopo qualche "Indossato oggi".
+
+**Da decidere** [PROPOSTA]
+- Riconoscimento del tipo di capo dalla foto: richiede un modello di visione a pagamento, chiamato da una Edge Function con la chiave in Supabase Vault, e l'invio delle foto a un servizio esterno. Resterebbe facoltativo e separato dal funzionamento di base.
+- Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

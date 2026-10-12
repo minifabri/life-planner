@@ -9,6 +9,7 @@ import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
 import { PlanList } from "@/components/wardrobe/plan-list";
 import { PlanSheet, type PlanChoice } from "@/components/wardrobe/plan-sheet";
+import { StatsView } from "@/components/wardrobe/stats-view";
 import { StyleSheet } from "@/components/wardrobe/style-sheet";
 import { WearSheet } from "@/components/wardrobe/wear-sheet";
 import { WardrobeTile } from "@/components/wardrobe/item-tile";
@@ -16,6 +17,7 @@ import { Button, Segmented, inputClass } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
+import { relativeDay } from "@/lib/dates/local";
 import { STYLE_KEY, createOutfit, createPlan, deletePlan, recordWear, restorePlan, saveWardrobeStyle, setFeedback, undoWear, updateOutfit, updatePlan, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
 import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDeletedWardrobePhotos, updateWardrobeItem } from "@/lib/data/wardrobe";
 import { useOutfitFeedback, useOutfitPlans, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
@@ -23,10 +25,11 @@ import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categ
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
 import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
 import { resolvePlan, upcomingPlans, type ResolvedPlan } from "@/lib/wardrobe/plans";
+import { itemUsage, timesLabel } from "@/lib/wardrobe/stats";
 import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
 import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
 
-type View = "items" | "outfits" | "ideas";
+type View = "items" | "outfits" | "ideas" | "stats";
 /** L'outfit aperto nel foglio: uno esistente, oppure uno nuovo che parte da questi capi. */
 type OutfitEditor = { outfit: Outfit | null; itemIds: string[] };
 /** Capi di cui si sta registrando l'utilizzo, con l'outfit da cui vengono (se c'è). */
@@ -268,6 +271,11 @@ export default function WardrobePage() {
     return true;
   }
 
+  function usageText(itemId: string): string {
+    const usage = itemUsage(wears).get(itemId);
+    return usage?.last ? `Indossato ${timesLabel(usage.count)} · ultima volta ${relativeDay(usage.last, today)}` : "Mai indossato.";
+  }
+
   function endSelection(): WardrobeItem[] {
     const ids = [...selected];
     setSelecting(false);
@@ -314,6 +322,7 @@ export default function WardrobePage() {
           { value: "items", label: "Capi" },
           { value: "outfits", label: "Outfit" },
           { value: "ideas", label: "Idee" },
+          { value: "stats", label: "Numeri" },
         ]}
         onChange={(v) => {
           setView(v);
@@ -322,7 +331,7 @@ export default function WardrobePage() {
         }}
       />
 
-      {view === "ideas" ? null : (
+      {view === "ideas" || view === "stats" ? null : (
         <div className="flex flex-wrap gap-2">
           {view === "items" ? (
             <>
@@ -430,6 +439,14 @@ export default function WardrobePage() {
             </ul>
           )}
         </>
+      ) : view === "stats" ? (
+        missing ? (
+          <p className="text-sm text-text-3" aria-live="polite">
+            Carico il guardaroba…
+          </p>
+        ) : (
+          <StatsView items={items} outfits={outfits} wears={wears} today={today} onOpenItem={setEditing} onOpenOutfit={(outfit) => setOutfitEditor({ outfit, itemIds: outfit.item_ids })} />
+        )
       ) : view === "ideas" ? (
         missing ? (
           <p className="text-sm text-text-3" aria-live="polite">
@@ -514,6 +531,7 @@ export default function WardrobePage() {
             if (editing !== "new") void remove(editing);
           }}
           onDuplicate={editing !== "new" ? () => void duplicate(editing) : undefined}
+          usage={editing !== "new" ? usageText(editing.id) : undefined}
           onMatch={
             editing !== "new"
               ? () => {

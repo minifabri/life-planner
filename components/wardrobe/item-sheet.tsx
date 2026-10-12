@@ -7,6 +7,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { CategoryIcon } from "@/components/wardrobe/category-icon";
 import { WardrobePhoto } from "@/components/wardrobe/photo";
 import { suggestDefaults } from "@/lib/wardrobe/catalog";
+import { suggestName } from "@/lib/wardrobe/colors";
+import { detectColors } from "@/lib/wardrobe/image";
 import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUSES, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
 import type { WardrobeCategory, WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
 import type { WardrobeInput } from "@/lib/data/wardrobe";
@@ -44,6 +46,7 @@ export function ItemSheet({
   onDelete,
   onDuplicate,
   onMatch,
+  usage,
   onClose,
 }: {
   item: WardrobeItem | null;
@@ -52,6 +55,8 @@ export function ItemSheet({
   onDuplicate?: () => void;
   /** Apre le idee di abbinamento intorno a questo capo. */
   onMatch?: () => void;
+  /** Quante volte è stato indossato e quando l'ultima, già in parole. */
+  usage?: string;
   onClose: () => void;
 }) {
   const [name, setName] = useState(item?.name ?? "");
@@ -72,6 +77,10 @@ export function ItemSheet({
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [autoFilled, setAutoFilled] = useState(!item);
+  // Nome e colori proposti dall'app finché non li tocchi: il nome segue tipo e colore, i colori vengono dalla foto.
+  const [nameAuto, setNameAuto] = useState(!item);
+  const [colorsAuto, setColorsAuto] = useState(!item);
+  const [detected, setDetected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -85,7 +94,20 @@ export function ItemSheet({
     setLayerable(s.layerable);
   }
 
+  function proposeName(nextCategory: WardrobeCategory, nextSubcategory: string, nextColors: string[]) {
+    if (nameAuto) setName(suggestName(nextCategory, nextSubcategory || null, nextColors));
+  }
+
+  async function readColors(file: File) {
+    const found = await detectColors(file);
+    if (found.length === 0) return;
+    setColors(found);
+    setDetected(true);
+    proposeName(category, subcategory, found);
+  }
+
   function pickPhoto(file: File | null) {
+    if (file && colorsAuto) void readColors(file);
     setPhoto(file);
     setPhotoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -156,7 +178,11 @@ export function ItemSheet({
           <input
             id="wardrobe-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              // Svuotando il campo si torna alla proposta dell'app.
+              setNameAuto(e.target.value.trim() === "");
+            }}
             onBlur={() => {
               if (autoFilled) applySuggestion(category, name);
             }}
@@ -177,6 +203,7 @@ export function ItemSheet({
                 onClick={() => {
                   setCategory(c);
                   if (autoFilled) applySuggestion(c, name);
+                  proposeName(c, subcategory, colors);
                 }}
                 className={chip(category === c)}
               >
@@ -185,6 +212,12 @@ export function ItemSheet({
             ))}
           </div>
         </div>
+
+        {detected ? (
+          <p role="status" className="-mt-1 text-xs text-text-3">
+            Dalla foto: {colors.join(", ")}. Se non torna, correggi i colori in &quot;Altri dettagli&quot;.
+          </p>
+        ) : null}
 
         <button type="button" onClick={() => setShowMore((v) => !v)} className="-mx-1 flex min-h-9 items-center gap-1.5 self-start rounded-lg px-1 text-sm text-accent">
           {showMore ? "Nascondi altri dettagli" : "Altri dettagli"}
@@ -195,14 +228,21 @@ export function ItemSheet({
           <div className="flex flex-col gap-4">
             <div className="flex gap-3">
               <Field label="Sottocategoria" htmlFor="wardrobe-subcategory">
-                <input id="wardrobe-subcategory" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} autoComplete="off" className={inputClass} />
+                <input
+                  id="wardrobe-subcategory"
+                  value={subcategory}
+                  onChange={(e) => setSubcategory(e.target.value)}
+                  onBlur={() => proposeName(category, subcategory.trim(), colors)}
+                  autoComplete="off"
+                  className={inputClass}
+                />
               </Field>
               <Field label="Marca" htmlFor="wardrobe-brand">
                 <input id="wardrobe-brand" value={brand} onChange={(e) => setBrand(e.target.value)} autoComplete="off" className={inputClass} />
               </Field>
             </div>
 
-            <ChipGroup label="Colori" options={COLOR_OPTIONS} value={colors} onChange={(v) => { setColors(v); setAutoFilled(false); }} />
+            <ChipGroup label="Colori" options={COLOR_OPTIONS} value={colors} onChange={(v) => { setColors(v); setColorsAuto(false); setDetected(false); setAutoFilled(false); proposeName(category, subcategory, v); }} />
             <ChipGroup label="Stagioni" options={SEASONS} labels={SEASON_LABEL} value={seasons} onChange={(v) => { setSeasons(v); setAutoFilled(false); }} />
             <ChipGroup label="Stili" options={STYLE_OPTIONS} value={styles} onChange={(v) => { setStyles(v); setAutoFilled(false); }} />
             <ChipGroup label="Occasioni" options={OCCASION_OPTIONS} value={occasions} onChange={(v) => { setOccasions(v); setAutoFilled(false); }} />
@@ -247,6 +287,8 @@ export function ItemSheet({
             </Field>
           </div>
         ) : null}
+
+        {item && usage ? <p className="text-xs text-text-3">{usage}</p> : null}
 
         {error ? (
           <p role="alert" className="text-sm">

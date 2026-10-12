@@ -113,7 +113,9 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D51 | **Outfit pianificati**: un outfit (salvato, o una proposta delle Idee) si pianifica per un giorno, con un evento di quel giorno o un'occasione scritta a mano. Non è un utilizzo e non crea eventi nel calendario. Si vede in Guardaroba ("In programma") e in Oggi. Un capo da lavare o rimosso si segnala, la scelta non cambia da sola | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D52 | **Wishlist e guardaroba**: un articolo della wishlist può essere segnato come capo (tipo, colori, stili) e viene confrontato con il guardaroba; un articolo acquistato diventa un capo senza reinserire i dati, e il capo ricorda l'articolo da cui nasce. Resta una sola wishlist | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D53 | Guardaroba, passi successivi: statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
+| D53 | **Numeri** (statistiche del guardaroba): quarta voce del selettore. Poche cifre ricavate dallo storico: più indossati, outfit più indossati, mai indossati, fermi da più di due mesi, mai abbinati. Niente grafici | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D54 | **Capo nuovo, proposte automatiche**: i colori vengono letti dalla foto e il nome viene proposto da tipo di capo e colore, tutto nel dispositivo e sempre correggibile. Il tipo di capo resta scelto a mano | [RICHIESTO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D55 | Guardaroba, da decidere: riconoscimento del tipo di capo dalla foto (richiede un servizio AI a pagamento e l'invio delle foto fuori dall'app); meteo reale nelle Idee (servizio esterno e posizione) | [PROPOSTA] |
 
 ---
 
@@ -514,11 +516,12 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Guardaroba [APPROVATO, D46–D49, D51 e D52; passi successivi PROPOSTA, D53]
-Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee**; in Capi e Outfit c'è il campo di ricerca.
+### 7.15 Guardaroba [APPROVATO, D46–D49 e D51–D54; da decidere, D55]
+Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee · Numeri**; in Capi e Outfit c'è il campo di ricerca.
 
 **Capi**
 - **Aggiungere**: "Aggiungi" → foto scattata o caricata (facoltativa), nome (facoltativo), categoria. Tutto il resto sta in "Altri dettagli" e si completa quando si vuole: sottocategoria, marca, colori, stagioni, stili, occasioni, pesantezza da 1 a 5, uso a strati, materiale, preferito, stato, note.
+- **Proposte dalla foto e dal tipo** (D54): scelta la foto, l'app legge i colori principali dalla parte centrale dell'immagine (al più due) e li dice subito sotto la categoria; il nome viene proposto da tipo di capo e colore ("Top nero", "Scarpe bianche"), o dalla sottocategoria se la scrivi. Nome e colori smettono di aggiornarsi da soli appena li tocchi; svuotando il nome torna la proposta. Tutto avviene nel dispositivo.
 - **Classificazione assistita**: stagioni, stili, occasioni, pesantezza e uso a strati vengono proposti dalla categoria e dalle parole del nome ("cappotto", "pizzo"…), con regole locali. Si correggono liberamente; dopo una correzione il sistema non le riscrive.
 - **Stagionalità**: stagioni e pesantezza sono indicazioni, mai vincoli. Nessun capo viene escluso per la stagione.
 - **Catalogo**: griglia fotografica; filtri a scelta multipla per categoria, stato, colore, stagione, stile, occasione e preferiti; ricerca per nome, marca e sottocategoria.
@@ -566,7 +569,14 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - **Solo dati presenti**: senza il tipo di capo o senza i colori il confronto non azzarda nulla e dice cosa manca; i capi del guardaroba senza colori non vengono proposti come abbinamento.
 - **Dall'acquisto al capo**: su un articolo in Acquistati, "Salva e aggiungi al guardaroba" crea il capo con nome, marca, tipo, colori, stili, note e l'immagine del negozio (finché non scatti una foto tua). Stagioni, occasioni e pesantezza sono proposte come per ogni capo nuovo. Se l'articolo è già nel guardaroba, la scheda lo dice.
 
-Non incluso per ora (D53): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, statistiche, riconoscimento delle foto.
+**Numeri** (D53)
+- In alto: quanti capi, quanti outfit, quanti capi indossati negli ultimi 30 giorni.
+- **I più indossati** e **Outfit più indossati**: i primi cinque, con numero di volte e ultima volta.
+- **Mai indossati**, **Fermi da più di due mesi**, **Mai abbinati** (in nessun outfit salvato e mai indossati insieme ad altri capi): i primi otto, poi "e altri N".
+- Un tocco su un capo o un outfit lo apre. Nella scheda di ogni capo compare "Indossato N volte · ultima volta…".
+- I numeri contano solo gli utilizzi registrati con "Indossato oggi", e la vista dice da quando.
+
+Non incluso per ora (D55): tipo di capo riconosciuto dalla foto, meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, grafici e andamento nel tempo.
 
 ### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
 - **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
