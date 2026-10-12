@@ -2,7 +2,7 @@ import { addDays, diffDays, type LocalDate } from "../dates/local";
 import type { DaySign } from "../days/marks";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { DISHES } from "./dishes";
-import { ingredientsIn } from "./ingredients";
+import { ingredientsIn, words } from "./ingredients";
 import { NUTRIENTS, NUTRIENT_LABEL, listText, nutrientsOf, weekBalance, type Overrides } from "./nutrients";
 import { normalizeMealName } from "./rules";
 
@@ -10,12 +10,13 @@ import { normalizeMealName } from "./rules";
  * Idee per i pasti: regole locali, deterministiche e spiegabili, senza servizi esterni.
  * Propone i piatti già usati in quel momento della giornata e alcuni piatti nuovi (`DISHES`),
  * ordinati da ciò che manca nella settimana e nel giorno, dagli ingredienti in casa da usare,
- * dalla varietà rispetto ai giorni vicini, dall'abitudine e dal tipo di giorno.
+ * dalla varietà rispetto ai giorni vicini, dall'abitudine e dal tipo di giorno. Tra i piatti nuovi contano
+ * anche la somiglianza con ciò che si mangia di solito e un giro settimanale, così non sono sempre gli stessi.
  */
 
-export type Factor = "balance" | "pantry" | "variety" | "habit" | "day";
+export type Factor = "balance" | "pantry" | "variety" | "habit" | "day" | "taste" | "fresh";
 
-export const WEIGHTS: Record<Factor, number> = { balance: 3, pantry: 2, variety: 2, habit: 2, day: 1 };
+export const WEIGHTS: Record<Factor, number> = { balance: 3, pantry: 2, variety: 2, habit: 2, day: 1, taste: 1, fresh: 1 };
 
 export type IdeaData = {
   memory: MealMemory[];
@@ -64,6 +65,13 @@ function varietyScore(gap: number | undefined): number {
   return 1;
 }
 
+/** Un numero tra 0 e 1 che dipende solo dal testo: dà ai piatti nuovi un ordine diverso ogni settimana. */
+function turn(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967295;
+}
+
 /** Le idee per un momento di un giorno, dalla più adatta. Due piatti abituali ogni piatto nuovo, finché ce ne sono. */
 export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[] {
   const { memory, meals, pantry, overrides } = data;
@@ -78,7 +86,10 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
   const planned = new Set(sameDay.map((m) => normalizeMealName(m.name)));
 
   const inSlot = memory.filter((m) => m.slot === ctx.slot);
-  const hidden = new Set(inSlot.filter((m) => m.hidden_at).map((m) => m.name_normalized));
+  // "Non proporre" vale sempre, "Meno spesso" fino al suo giorno.
+  const hidden = new Set(inSlot.filter((m) => m.hidden_at || (m.snoozed_until && m.snoozed_until >= ctx.day)).map((m) => m.name_normalized));
+  // Ciò che si mangia di solito, in qualunque momento: gli alimenti dei piatti già usati.
+  const usualFoods = new Set(memory.filter((m) => m.use_count > 0).flatMap((m) => words(m.display_name)));
   const own: Candidate[] = inSlot
     .filter((m) => m.use_count > 0)
     .map((m) => ({ key: m.name_normalized, name: m.display_name, mode: m.default_prep_mode, uses: m.use_count }));
@@ -97,6 +108,8 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
     const inHouse = ingredientsIn(c.name, pantry);
     const gaps = others.filter((m) => normalizeMealName(m.name) === c.key).map((m) => Math.abs(diffDays(m.date, ctx.day)));
     const protein = nutrients.includes("protein");
+    const foods = words(c.name);
+    const familiar = c.uses > 0 || usualFoods.size === 0 || foods.length === 0 ? null : foods.filter((w) => usualFoods.has(w)).length / foods.length;
 
     const factors: Record<Factor, number> = {
       balance: most === 0 ? 0.5 : nutrients.reduce((sum, n) => sum + wanted(n), 0) / most,
@@ -104,6 +117,9 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
       variety: varietyScore(gaps.length ? Math.min(...gaps) : undefined),
       habit: c.uses > 0 ? 0.6 + 0.4 * Math.min(1, c.uses / 5) : 0.4,
       day: workout ? (protein ? 1 : 0.3) : office ? (c.mode === "to_prep" ? 1 : 0.4) : 0.5,
+      // Solo per i piatti nuovi: tra gli abituali decide già l'abitudine.
+      taste: familiar === null ? 0.5 : 0.2 + 0.8 * familiar,
+      fresh: c.uses > 0 ? 0.5 : turn(`${ctx.weekFrom}:${ctx.slot}:${c.key}`),
     };
     const total = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
     const score = (Object.keys(WEIGHTS) as Factor[]).reduce((sum, f) => sum + factors[f] * WEIGHTS[f], 0) / total;
@@ -116,6 +132,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
       completes.length > 0 ? `Completa il giorno con ${labels(completes)}` : null,
       workout && protein && !bringsLow.includes("protein") && !completes.includes("protein") ? "Proteine nel giorno di allenamento" : null,
       office && c.mode === "to_prep" ? "Si prepara prima, per il giorno in ufficio" : null,
+      familiar !== null && familiar >= 0.5 ? "Con ingredienti che usi spesso" : null,
       c.uses >= 3 ? `Lo fai spesso: ${c.uses} volte` : null,
       c.uses === 0 ? "Un piatto nuovo" : null,
     ].filter((part): part is string => part !== null);

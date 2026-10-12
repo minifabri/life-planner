@@ -122,6 +122,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D59 | **Micronutrienti del giorno**: nel Giorno dei Pasti, riepilogo di ferro, calcio, zinco, omega-3, vitamina A, vitamina C e folati, riconosciuti dal nome del piatto con un dizionario locale di buone fonti. La riga resta discreta; aperta mostra un piccolo grafico a barre di nutrienti e micronutrienti nei pasti del giorno | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D60 | **Extra del giorno**: nei Pasti, sotto i quattro pasti, una riga facoltativa per ciò che si mangia fuori pasto o in accompagnamento (condimenti, spuntini). Testo libero, una riga per giorno; conta nei nutrienti e nei micronutrienti come un pasto in più | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D61 | **Mangiato fuori**: un pasto si può segnare come mangiato fuori senza scrivere il piatto. Il momento risulta occupato; senza nome non conta nei nutrienti, con il nome (facoltativo) sì | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D62 | **Idee nel foglio del pasto**: aggiungendo un pasto, sotto i ricorrenti compaiono tre idee per quel momento, con "Altre idee" e **Meno** ("Meno spesso": il piatto non viene proposto per tre settimane, poi torna). L'esempio nel campo segue il momento (a merenda non "riso e lenticchie") | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D63 | **Più piatti proposti, che cambiano**: l'elenco dei piatti dell'app (vegani, con almeno due nutrienti e un micronutriente riconosciuti) passa da 40 a circa 150 e resta nell'app, senza servizi esterni. I piatti nuovi girano di settimana in settimana e vengono prima quelli con ingredienti già usati spesso | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 

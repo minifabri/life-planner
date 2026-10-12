@@ -29,6 +29,7 @@ const memory = (name: string, over: Partial<MealMemory> = {}): MealMemory => ({
   last_used_at: null,
   nutrients: null,
   hidden_at: null,
+  snoozed_until: null,
   ...over,
 });
 

@@ -8,8 +8,21 @@ import { Sheet } from "@/components/ui/sheet";
 import { addIngredient, ingredientsIn } from "@/lib/meals/ingredients";
 import { NUTRIENTS, NUTRIENT_LABEL, nutrientsOf, recognizeNutrients, sameNutrients, type Overrides } from "@/lib/meals/nutrients";
 import { SLOT_LABEL, normalizeMealName } from "@/lib/meals/rules";
+import type { Idea } from "@/lib/meals/suggest";
 import type { PantryEntry } from "@/lib/shopping/pantry";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
+
+const PLACEHOLDER: Record<MealSlot, string> = {
+  breakfast: "Es. porridge di avena e banana",
+  lunch: "Es. riso e lenticchie",
+  snack: "Es. frutta e mandorle",
+  dinner: "Es. zuppa di ceci e crostini",
+  extra: "Es. olio, noci, cioccolato fondente",
+};
+
+/** Quante idee si vedono insieme nel foglio. */
+const IDEAS = 3;
+const RECURRING = 6;
 
 const MODES: { value: PrepMode; label: string }[] = [
   { value: "ready", label: "Pronto" },
@@ -25,6 +38,8 @@ export function MealSheet({
   dayLabel,
   meal,
   suggestions,
+  ideas,
+  onLess,
   pantry,
   overrides,
   onAdd,
@@ -36,6 +51,10 @@ export function MealSheet({
   dayLabel: string;
   meal: MealPlan | undefined;
   suggestions: MealMemory[];
+  /** Le idee per questo momento, dalla più adatta (vuoto dove non servono: pasto già scelto, extra, giorni passati). */
+  ideas: Idea[];
+  /** "Meno spesso": l'idea esce dall'elenco e ne arriva un'altra. */
+  onLess: (idea: Idea) => void;
   /** Gli ingredienti in casa non ancora usati in un pasto: un tocco li mette nel nome. */
   pantry: PantryEntry[];
   /** I nutrienti già corretti a mano, per nome del piatto. */
@@ -50,6 +69,12 @@ export function MealSheet({
   const [mode, setMode] = useState<PrepMode>(meal?.prep_mode ?? "ready");
   const trimmed = name.trim();
   const extra = slot === "extra";
+  // Idee: non quelle già qui sopra tra i ricorrenti. Tre alla volta, "Altre idee" gira.
+  const listed = new Set(suggestions.slice(0, RECURRING).map((s) => s.name_normalized));
+  const fresh = ideas.filter((i) => !listed.has(i.key));
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(fresh.length / IDEAS));
+  const shown = fresh.slice((page % pages) * IDEAS, (page % pages) * IDEAS + IDEAS);
   // Mangiato fuori: il piatto è facoltativo e non c'è niente da preparare.
   const [out, setOut] = useState(meal?.eaten_out ?? false);
   // Scrivendo un nome già noto si riprende la sua modalità abituale, finché non la si cambia a mano.
@@ -84,7 +109,7 @@ export function MealSheet({
         <section className="flex flex-col gap-1.5">
           <h3 className="label-mono">{extra ? "Extra ricorrenti" : "Ricorrenti"}</h3>
           <ul className="flex flex-col rounded-xl border border-line bg-bg px-3">
-            {suggestions.slice(0, 6).map((s) => (
+            {suggestions.slice(0, RECURRING).map((s) => (
               <li key={s.id} className="border-b border-line last:border-b-0">
                 <button
                   type="button"
@@ -100,6 +125,35 @@ export function MealSheet({
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {!meal && shown.length > 0 ? (
+        <section className="flex flex-col gap-1.5">
+          <h3 className="label-mono">Idee</h3>
+          <ul className="flex flex-col rounded-xl border border-line bg-bg pl-3 pr-1">
+            {shown.map((idea) => (
+              <li key={idea.key} className="flex items-center gap-1 border-b border-line last:border-b-0">
+                <button type="button" onClick={() => onAdd(idea.name, idea.mode)} className="flex min-h-11 min-w-0 flex-1 flex-col gap-0.5 py-1.5 text-left text-[15px]">
+                  <span className="break-words">{idea.name}</span>
+                  <span className="text-xs text-text-3">{idea.reason}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLess(idea)}
+                  aria-label={`Meno spesso: ${idea.name}`}
+                  className="min-h-11 shrink-0 rounded-lg px-2.5 text-[13px] text-text-2 hover:bg-surface-2 hover:text-text"
+                >
+                  Meno
+                </button>
+              </li>
+            ))}
+          </ul>
+          {pages > 1 ? (
+            <Button variant="quiet" className="-ml-4 self-start" onClick={() => setPage(page + 1)}>
+              Altre idee
+            </Button>
+          ) : null}
         </section>
       ) : null}
 
@@ -120,14 +174,14 @@ export function MealSheet({
           </label>
         )}
         <Field
-          label={extra ? "Fuori pasto e condimenti" : out ? "Piatto (facoltativo)" : meal ? "Piatto" : suggestions.length > 0 ? "Oppure un piatto nuovo" : "Piatto"}
+          label={extra ? "Fuori pasto e condimenti" : out ? "Piatto (facoltativo)" : meal ? "Piatto" : suggestions.length > 0 || shown.length > 0 ? "Oppure un piatto nuovo" : "Piatto"}
           htmlFor="meal-name"
         >
           <input
             id="meal-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={extra ? "Es. olio, noci, cioccolato fondente" : "Es. riso e lenticchie"}
+            placeholder={PLACEHOLDER[slot]}
             autoComplete="off"
             enterKeyHint="done"
             className={inputClass}

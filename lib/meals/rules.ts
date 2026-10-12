@@ -192,6 +192,7 @@ export function rememberMealOp(
       use_count: (known?.use_count ?? 0) + 1,
       last_used_at: now,
       hidden_at: null,
+      snoozed_until: null,
       ...(nutrients === undefined ? {} : { nutrients }),
     },
   };
@@ -217,10 +218,23 @@ export function setNutrientsOps(memory: MealMemory[], id: string, slot: MealSlot
   return ops;
 }
 
+/** Una scelta sulle Idee di un momento, scritta sulla riga della memoria (creata, se il piatto non c'era mai stato). */
+function ideaChoiceOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, patch: Partial<Pick<MealMemory, "hidden_at" | "snoozed_until">>): Op {
+  if (known) return { kind: "update", table: "meal_memory", patch, where: byId(known.id), snapshot: { ...known, ...patch } };
+  return { kind: "insert", table: "meal_memory", merge: true, row: { ...unusedMemoryRow(id, slot, name, mode), ...patch } };
+}
+
 /** "Non proporre": toglie un piatto dalle Idee di un momento (`hiddenAt` nullo lo rimette). */
 export function hideIdeaOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, hiddenAt: string | null): Op {
-  if (known) return { kind: "update", table: "meal_memory", patch: { hidden_at: hiddenAt }, where: byId(known.id), snapshot: { ...known, hidden_at: hiddenAt } };
-  return { kind: "insert", table: "meal_memory", merge: true, row: { ...unusedMemoryRow(id, slot, name, mode), hidden_at: hiddenAt } };
+  return ideaChoiceOp(id, slot, name, mode, known, { hidden_at: hiddenAt });
+}
+
+/** Per quanti giorni vale "Meno spesso". */
+export const SNOOZE_DAYS = 21;
+
+/** "Meno spesso": il piatto resta fuori dalle Idee di un momento fino a `until` compreso (nullo lo rimette subito). */
+export function snoozeIdeaOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, until: LocalDate | null): Op {
+  return ideaChoiceOp(id, slot, name, mode, known, { snoozed_until: until });
 }
 
 /** I ricorrenti di un momento, dal più usato; a parità, il più recente. */

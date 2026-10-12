@@ -310,6 +310,7 @@ id, owner_id, slot, name_normalized, display_name,
 default_prep_mode text, use_count int, last_used_at,
 nutrients text[] null,     -- corretti a mano; null = riconosciuti dal nome
 hidden_at timestamptz null -- "Non proporre" nelle Idee di questo momento
+snoozed_until date null    -- "Meno spesso": fuori dalle Idee di questo momento fino a questo giorno
 unique (owner_id, slot, name_normalized)
 ```
 
@@ -934,6 +935,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Interfaccia: casella nel `MealSheet`, pulsante "Mangiato fuori" sul pasto vuoto, riga Extra nel Giorno e nella `WeekView`. Export: colonna "Fuori" in `csv/pasti.csv`.
 - Non incluso: più righe di extra per giorno, quantità, idee per gli extra.
 - Criteri: test di `lib/meals`; dal telefono: segna una cena come mangiata fuori da vuota e da pasto "Da preparare" (l'attività sparisce da Oggi); aggiungi extra con olio e guarda i grassi salire nel giorno e nella settimana; ripeti senza rete.
+
+**Incremento 26 — Pasti: idee nel foglio, "Meno spesso", più piatti** *(12 ottobre 2026)*
+- Migrazione `20261013130000_meal_idea_snooze.sql`: `meal_memory.snoozed_until`.
+- **Meno spesso**: `snoozeIdeaOp` (`SNOOZE_DAYS` = 21) scrive il giorno fino a cui non proporre; `suggestMeals` esclude il piatto finché `snoozed_until >= giorno`. Rimettere il piatto a mano (`rememberMealOp`) lo azzera, come per `hidden_at`.
+- **Idee nel foglio**: `MealSheet` riceve le stesse idee della vista Idee (`ideasFor` nella pagina), tolte quelle già tra i ricorrenti mostrati; tre alla volta. Solo per un pasto vuoto, da oggi in avanti, non per gli extra. Segnaposto del campo per momento (`PLACEHOLDER`).
+- **Piatti** (`lib/meals/dishes.ts`): 148 piatti (28 colazioni, 30 merende, 90 tra pranzo e cena). Gli stessi test di prima ne verificano veganità e riconoscimento.
+- **Voto** (`WEIGHTS`): due fattori in più, peso 1 ciascuno, che contano solo per i piatti nuovi (per gli abituali valgono 0,5). `taste`: quota degli alimenti del piatto che compaiono nei piatti già usati, in qualunque momento. `fresh`: un numero tra 0 e 1 ricavato da settimana, momento e nome: stesso ordine dentro la settimana, diverso la settimana dopo.
+- Non incluso: piatti scaricati da internet (servirebbe un servizio esterno), aggiornamento dell'elenco senza una nuova versione dell'app, "Meno spesso" di durata regolabile.
+- Criteri: test di `lib/meals`; dal telefono: apri una merenda vuota e controlla esempio e idee; tocca "Meno" e guarda arrivare un'altra idea, poi annulla dal toast; "Altre idee" gira; aggiungi un'idea con un tocco; ripeti senza rete.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 
