@@ -111,10 +111,14 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D48 | **Indossato oggi**: registra l'utilizzo e chiede, capo per capo, se resta pulito, riutilizzabile o da lavare. Nessun capo diventa da lavare da solo. Un outfit con capi da lavare si segnala, non si nasconde | [APPROVATO l'11 ottobre 2026] |
 | D49 | **Idee** (suggerimenti): terza voce del selettore in Guardaroba. Regole locali, deterministiche e spiegabili, senza servizi esterni né AI; tre modalità (per oggi, intorno a un capo, scopri); profilo di stile come orientamento, mai divieto; giudizi solo espliciti | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D51 | Guardaroba, passi successivi nell'ordine: pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
-| D52 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D53 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D54 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D51 | **Outfit pianificati**: un outfit (salvato, o una proposta delle Idee) si pianifica per un giorno, con un evento di quel giorno o un'occasione scritta a mano. Non è un utilizzo e non crea eventi nel calendario. Si vede in Guardaroba ("In programma") e in Oggi. Un capo da lavare o rimosso si segnala, la scelta non cambia da sola | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D52 | **Wishlist e guardaroba**: un articolo della wishlist può essere segnato come capo (tipo, colori, stili) e viene confrontato con il guardaroba; un articolo acquistato diventa un capo senza reinserire i dati, e il capo ricorda l'articolo da cui nasce. Resta una sola wishlist | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D53 | **Numeri** (statistiche del guardaroba): quarta voce del selettore. Poche cifre ricavate dallo storico: più indossati, outfit più indossati, mai indossati, fermi da più di due mesi, mai abbinati. Niente grafici | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D54 | **Capo nuovo, proposte automatiche**: i colori vengono letti dalla foto e il nome viene proposto da tipo di capo e colore, tutto nel dispositivo e sempre correggibile. Il tipo di capo resta scelto a mano | [RICHIESTO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D55 | Guardaroba, da decidere: riconoscimento del tipo di capo dalla foto (richiede un servizio AI a pagamento e l'invio delle foto fuori dall'app); meteo reale nelle Idee (servizio esterno e posizione) | [PROPOSTA] |
+| D56 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D57 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D58 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -504,14 +508,14 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
   - *Sotto il pasto*: riga discreta "In casa" con gli ingredienti riconosciuti. Se il pasto è preparato, di oggi o passato, la riga diventa "Finito?" e un tocco sull'ingrediente lo toglie da In casa, con annulla.
   - *Foglio del pasto*: sotto il nome, "In casa, da usare": un tocco aggiunge l'ingrediente al nome ("Patate" → "Patate e fagiolini").
 
-- **Viste** (D52): selettore **Giorno · Settimana · Idee**. *Settimana*: il riepilogo dei nutrienti e, sotto, i sette giorni con i quattro pasti (su desktop in due colonne); un tocco su un pasto o su "Aggiungi" apre lo stesso foglio del Giorno. Le frecce in alto cambiano settimana in tutte le viste.
-- **Nutrienti** (D53):
+- **Viste** (D56): selettore **Giorno · Settimana · Idee**. *Settimana*: il riepilogo dei nutrienti e, sotto, i sette giorni con i quattro pasti (su desktop in due colonne); un tocco su un pasto o su "Aggiungi" apre lo stesso foglio del Giorno. Le frecce in alto cambiano settimana in tutte le viste.
+- **Nutrienti** (D57):
   - *Sotto ogni pasto*: i nutrienti del piatto ("Proteine · Carboidrati · Fibre"), oppure l'invito a indicarli se il nome non li dice.
   - *Nel giorno*: una riga dice cosa c'è e cosa manca ("Nel giorno: proteine e carboidrati. Mancano: grassi e fibre.").
   - *Nella settimana*: tabella nutrienti × giorni (un segno più pieno dove più pasti del giorno portano quel nutriente), il totale dei pasti e una frase ("Poche fibre nella settimana.", "Settimana ben distribuita."). Il giudizio arriva solo con almeno quattro pasti riconosciuti.
   - *Correggere*: nel foglio del pasto, quattro pulsanti. La correzione vale per quel piatto ogni volta che torna, in qualunque momento della giornata; rimettere ciò che il nome dice già la toglie.
   - È un'indicazione dai nomi, non dalle quantità: il condimento e le porzioni non si vedono. Per questo la soglia dei grassi è più bassa delle altre.
-- **Idee** (D54): per il giorno scelto, fino a tre proposte per ogni momento ancora vuoto; "Altre idee" mostra le successive.
+- **Idee** (D58): per il giorno scelto, fino a tre proposte per ogni momento ancora vuoto; "Altre idee" mostra le successive.
   - *Da dove vengono*: i piatti già usati in quel momento e quaranta piatti semplici inclusi nell'app (segnati "Nuovo"), tutti vegani. Ogni terza proposta è un piatto nuovo.
   - *Cosa conta*: i nutrienti che scarseggiano nella settimana e quelli che mancano nel giorno, gli ingredienti in casa da usare, la varietà rispetto ai giorni vicini, l'abitudine, il tipo di giorno (proteine nel giorno di allenamento; a pranzo in ufficio ciò che si prepara prima).
   - *Motivazione*: ogni proposta dice in una frase perché è lì.
@@ -530,11 +534,12 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Guardaroba [APPROVATO, D46–D49; passi successivi PROPOSTA, D51]
-Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee**; in Capi e Outfit c'è il campo di ricerca.
+### 7.15 Guardaroba [APPROVATO, D46–D49 e D51–D54; da decidere, D55]
+Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee · Numeri**; in Capi e Outfit c'è il campo di ricerca.
 
 **Capi**
 - **Aggiungere**: "Aggiungi" → foto scattata o caricata (facoltativa), nome (facoltativo), categoria. Tutto il resto sta in "Altri dettagli" e si completa quando si vuole: sottocategoria, marca, colori, stagioni, stili, occasioni, pesantezza da 1 a 5, uso a strati, materiale, preferito, stato, note.
+- **Proposte dalla foto e dal tipo** (D54): scelta la foto, l'app legge i colori principali dalla parte centrale dell'immagine (al più due) e li dice subito sotto la categoria; il nome viene proposto da tipo di capo e colore ("Top nero", "Scarpe bianche"), o dalla sottocategoria se la scrivi. Nome e colori smettono di aggiornarsi da soli appena li tocchi; svuotando il nome torna la proposta. Tutto avviene nel dispositivo.
 - **Classificazione assistita**: stagioni, stili, occasioni, pesantezza e uso a strati vengono proposti dalla categoria e dalle parole del nome ("cappotto", "pizzo"…), con regole locali. Si correggono liberamente; dopo una correzione il sistema non le riscrive.
 - **Stagionalità**: stagioni e pesantezza sono indicazioni, mai vincoli. Nessun capo viene escluso per la stagione.
 - **Catalogo**: griglia fotografica; filtri a scelta multipla per categoria, stato, colore, stagione, stile, occasione e preferiti; ricerca per nome, marca e sottocategoria.
@@ -554,7 +559,7 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - Dall'outfit ("Indossato oggi") o dalla selezione multipla dei capi ("Indossati oggi").
 - Per ogni capo si sceglie Pulito · Riutilizzabile · Da lavare. Proposta di partenza: riutilizzabile; scarpe, borse, accessori e capispalla restano come sono; un capo già da lavare resta da lavare.
 - L'utilizzo entra nello storico (giorno, outfit, capi) e si può annullare dal toast, che riporta anche i capi allo stato di prima.
-- Un utilizzo è distinto da una pianificazione (D51, non ancora realizzata).
+- Un utilizzo è distinto da una pianificazione (D51).
 
 **Offline**: capi, outfit e utilizzi si leggono e si modificano senza rete; solo il caricamento della foto la richiede.
 
@@ -564,10 +569,32 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - **Scopri**: parte dai capi mai indossati o meno usati e propone abbinamenti mai indossati né salvati.
 - **Cosa conta**: armonia dei colori, coerenza di stile, occasione, comfort termico (pesantezza, capospalla, stagione come indicazione), disponibilità dei capi, profilo di stile, giudizi dati, varietà rispetto agli ultimi 14 giorni.
 - **Motivazione**: ogni proposta dice in una frase perché è lì, usando solo ciò che i dati dei capi permettono di affermare. Senza temperatura indicata compare "Non considera il meteo"; i capi da lavare sono segnalati, non esclusi.
-- **Azioni**: Mi piace · Non mi piace · Salva (apre il nuovo outfit con quei capi) · Indossato oggi. Una combinazione scartata non viene riproposta (si annulla dal toast); ciò che non viene scelto non conta come giudizio negativo.
+- **Azioni**: Mi piace · Non mi piace · Salva (apre il nuovo outfit con quei capi) · Pianifica · Indossato oggi. Una combinazione scartata non viene riproposta (si annulla dal toast); ciò che non viene scelto non conta come giudizio negativo.
 - **Il mio stile**: stili e colori preferiti e parole da evitare, cercate nei testi dei capi. Parte dalle preferenze indicate da Bibi e si modifica quando si vuole; richiede la rete, come le altre impostazioni.
 
-Non incluso per ora (D51): meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, pianificazione su giorno o evento, collegamento con la Wishlist, statistiche, riconoscimento delle foto.
+**Pianificare** (D51)
+- **Da dove**: "Pianifica" nell'outfit salvato o su una proposta delle Idee.
+- **Cosa si sceglie**: il giorno (da oggi in avanti); facoltativi un evento di quel giorno, scelto dall'elenco, oppure un'occasione scritta a mano ("Cena fuori"). Più outfit nello stesso giorno sono ammessi.
+- **Tre cose distinte**: proposta (Idee), pianificazione (In programma), utilizzo (storico). Pianificare non registra un utilizzo e non crea né modifica eventi.
+- **In programma**: in Guardaroba → Outfit, dal giorno più vicino, con Cambia giorno e Togli (con annulla). Nel giorno stesso compare "Indossato oggi".
+- **Oggi**: nel giorno pianificato compare la sezione "Outfit" con le foto dei capi; un tocco porta al Guardaroba.
+- **Capi non disponibili**: "Un capo è da lavare" o "Un capo non è più nel guardaroba" compaiono sulla pianificazione; la scelta resta com'è finché non la cambi tu.
+- Se l'outfit salvato viene modificato, la pianificazione mostra i capi nuovi; se viene eliminato, restano quelli del momento in cui è stato pianificato.
+
+**Wishlist** (D52)
+- **Articolo di abbigliamento**: nella scheda di un articolo della Wishlist, "È un capo di abbigliamento" apre tipo di capo (proposto dal nome), colori e stili. Sono facoltativi; la categoria a testo libero resta com'è.
+- **Nel guardaroba**: sotto quei campi compare il confronto con ciò che possiedi: "Hai già qualcosa di simile" (stesso tipo, un colore in comune), "Si abbinerebbe con" (capi di tipi complementari con colori in armonia, prima quelli dello stesso stile), "Completerebbe questi outfit" (outfit salvati a cui manca quel tipo di capo).
+- **Solo dati presenti**: senza il tipo di capo o senza i colori il confronto non azzarda nulla e dice cosa manca; i capi del guardaroba senza colori non vengono proposti come abbinamento.
+- **Dall'acquisto al capo**: su un articolo in Acquistati, "Salva e aggiungi al guardaroba" crea il capo con nome, marca, tipo, colori, stili, note e l'immagine del negozio (finché non scatti una foto tua). Stagioni, occasioni e pesantezza sono proposte come per ogni capo nuovo. Se l'articolo è già nel guardaroba, la scheda lo dice.
+
+**Numeri** (D53)
+- In alto: quanti capi, quanti outfit, quanti capi indossati negli ultimi 30 giorni.
+- **I più indossati** e **Outfit più indossati**: i primi cinque, con numero di volte e ultima volta.
+- **Mai indossati**, **Fermi da più di due mesi**, **Mai abbinati** (in nessun outfit salvato e mai indossati insieme ad altri capi): i primi otto, poi "e altri N".
+- Un tocco su un capo o un outfit lo apre. Nella scheda di ogni capo compare "Indossato N volte · ultima volta…".
+- I numeri contano solo gli utilizzi registrati con "Indossato oggi", e la vista dice da quando.
+
+Non incluso per ora (D55): tipo di capo riconosciuto dalla foto, meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, grafici e andamento nel tempo.
 
 ### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
 - **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).

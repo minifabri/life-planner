@@ -279,6 +279,8 @@ outfits:        id, owner_id, name null, item_ids uuid[], styles text[], occasio
 wardrobe_wears: id, owner_id, worn_on date, outfit_id null → outfits (on delete set null), item_ids uuid[]
 wardrobe_style: owner_id pk, liked_styles text[], liked_colors text[], avoid text[], weights jsonb null
 outfit_feedback: id, owner_id, item_ids uuid[], signature text, verdict text check in ('like','dislike')
+outfit_plans:   id, owner_id, date date, event_id null → events (on delete set null), label text null,
+                outfit_id null → outfits (on delete set null), item_ids uuid[]
 ```
 - Foto in Supabase Storage, bucket privato `wardrobe`: `<owner_id>/<id>.jpg` e `<owner_id>/<id>_thumb.jpg`, con policy sul primo segmento del percorso. Si mostrano con URL firmati di un'ora. Compressione nel browser prima dell'upload (lato lungo 1600 px, miniatura 400 px, JPEG).
 - `image_url` è l'immagine esterna di un capo arrivato senza foto propria (previsto per il passaggio dalla Wishlist).
@@ -286,6 +288,8 @@ outfit_feedback: id, owner_id, item_ids uuid[], signature text, verdict text che
 - `wardrobe_wears` registra solo utilizzi effettivi; `item_ids` è la fotografia dei capi indossati quel giorno, indipendente dalle modifiche successive all'outfit.
 - `wardrobe_style` ha una riga per utente e si scrive direttamente, con la rete (non passa dalla outbox). Senza riga vale il profilo di partenza dell'app (`DEFAULT_STYLE`). `weights` contiene solo i pesi diversi da quelli predefiniti.
 - `outfit_feedback.signature` è l'elenco degli id ordinati e uniti da "|": una combinazione ha un solo giudizio, a prescindere dall'ordine dei capi. L'unicità è garantita dall'app (aggiorna il giudizio esistente), non da un vincolo.
+- `outfit_plans` non ha eliminazione reversibile: la riga sparisce e "Annulla" la reinserisce con lo stesso id. `label` è il titolo dell'evento al momento della scelta (non segue le modifiche successive al titolo) o un testo libero. I capi mostrati sono quelli di `outfit_id` finché l'outfit esiste, altrimenti `item_ids`.
+- `wardrobe_items.wishlist_item_id` (null, → `wishlist_items` on delete set null) lega il capo all'articolo da cui nasce. `wishlist_items` ha in più `garment` (stessi valori di `wardrobe_items.category`, null se non è abbigliamento), `colors text[]` e `styles text[]`.
 - Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
@@ -846,6 +850,35 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: meteo reale (richiede un servizio esterno e la posizione: da decidere), regolazione dei pesi dall'interfaccia, motivazione quando si scarta.
 - Criteri: test di `lib/wardrobe/suggest`; dal telefono, con almeno una decina di capi classificati: apri Idee, cambia occasione e tempo, dai un "Non mi piace" e verifica che la proposta sparisca e torni con Annulla; "Abbina" da un capo e ottieni tre proposte diverse; salva una proposta come outfit; modifica "Il mio stile" e verifica che l'ordine cambi.
 
+**Incremento 17 — Guardaroba, outfit pianificati** *(12 ottobre 2026)*
+- Migrazione `20261013100000_outfit_plans.sql`: `outfit_plans`, con RLS e le quattro policy.
+- Logica pura con test in `lib/wardrobe/plans.ts`: pianificazioni da oggi in avanti, capi di una pianificazione, problemi da segnalare, titolo.
+- Dati in `lib/data/outfits.ts` (`createPlan`, `updatePlan`, `deletePlan`, `restorePlan`), dalla outbox; `outfit-plans` è tra le query salvate sul dispositivo. Si leggono le pianificazioni da ieri in avanti.
+- Interfaccia: `PlanSheet` (giorno, eventi del giorno letti con `useEvents` ed `eventsForDay`, occasione), `PlanList` nella vista Outfit, `DayOutfits` in Oggi. "Pianifica" in `OutfitSheet` e nelle Idee.
+- Oggi legge anche capi, outfit e pianificazioni del guardaroba (tre query in più, dalla cache del dispositivo quando c'è).
+- Non incluso: pianificazioni in Settimana, in Mese e nella scheda dell'evento; scelta dell'evento senza rete per i giorni non ancora scaricati.
+- Criteri: test di `lib/wardrobe/plans`; dal telefono: pianifica un outfit per domani legandolo a un evento, ritrovalo in "In programma"; pianificane uno per oggi e ritrovalo in Oggi; metti da lavare un suo capo e verifica la segnalazione; "Indossato oggi" dalla pianificazione; Togli e Annulla.
+
+**Incremento 18 — Guardaroba e Wishlist** *(12 ottobre 2026)*
+- Migrazione `20261013110000_wardrobe_wishlist.sql`: solo colonne aggiunte (`wishlist_items.garment`, `colors`, `styles`; `wardrobe_items.wishlist_item_id`), nessuna tabella nuova.
+- Logica pura con test in `lib/wardrobe/wishlist.ts`: `guessGarment` (tipo di capo dal nome), `wardrobeRowFromWish` (il capo da creare), `compatibility` (simili, abbinamenti, outfit da completare, e cosa manca per dire di più). I colori neutri sono gli stessi del motore delle Idee (`NEUTRALS`).
+- Interfaccia: campi di abbigliamento e `WardrobeMatch` nella scheda della Wishlist; "Salva e aggiungi al guardaroba" sugli acquistati (`addWishToWardrobe`, dalla outbox).
+- Le righe salvate sul dispositivo da una versione precedente non hanno i campi nuovi: il codice li tratta come vuoti.
+- Non incluso: confronto nelle card dell'elenco, tipo e colori letti dal link, ricerca per colore.
+- Criteri: test di `lib/wardrobe/wishlist`; dal telefono: segna un articolo come capo con tipo e colori e leggi il confronto; spostalo in Acquistati e aggiungilo al guardaroba; ritrovalo tra i capi con l'immagine del negozio; riapri l'articolo e verifica "già nel guardaroba".
+
+**Incremento 19 — Guardaroba, numeri e proposte dalla foto** *(12 ottobre 2026)*
+- Nessuna migrazione.
+- **Statistiche**: logica pura con test in `lib/wardrobe/stats.ts` (`itemUsage`, `outfitUsage`, `wardrobeStats`), calcolata nel browser da capi, outfit e utilizzi già in cache; `StatsView` come quarta voce del selettore; riga d'uso nella scheda del capo. Lo storico letto è limitato agli ultimi 1000 utilizzi.
+- **Colori dalla foto**: `detectColors` in `lib/wardrobe/image.ts` riduce la metà centrale della foto a 48 × 48 px su un canvas; `dominantColors` in `lib/wardrobe/colors.ts` (puro, con test) assegna ogni pixel al colore più vicino della tavolozza dell'app e tiene al più due colori che coprono almeno il 22% dell'area. Nessun servizio esterno, nessun invio della foto.
+- **Nome proposto**: `suggestName` accorda il colore al nome generico della categoria; per "Pantaloni/Gonne" senza sottocategoria propone "Pantaloni", perché dalla sola categoria non si distingue una gonna.
+- Limiti noti: uno sfondo colorato al centro della foto falsa i colori; fantasie e più colori vicini vengono ridotti a uno o due; il tipo di capo non viene riconosciuto.
+- Criteri: test di `lib/wardrobe/stats` e `lib/wardrobe/colors`; dal telefono: fotografa un capo nero e uno chiaro e verifica colori e nome proposti; scrivi un nome a mano, cambia categoria e verifica che resti il tuo; apri Numeri dopo qualche "Indossato oggi".
+
+**Da decidere** [PROPOSTA]
+- Riconoscimento del tipo di capo dalla foto: richiede un modello di visione a pagamento, chiamato da una Edge Function con la chiave in Supabase Vault, e l'invio delle foto a un servizio esterno. Resterebbe facoltativo e separato dal funzionamento di base.
+- Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
+
 **Incrementi 20–22 — Pasti: settimana, nutrienti, idee** *(12 ottobre 2026; realizzati insieme)*
 - Migrazione `20261012140000_meal_nutrients.sql`: due colonne su `meal_memory` (`nutrients`, `hidden_at`). Nessuna tabella nuova: correzioni e idee nascoste passano dalla outbox come il resto della memoria dei pasti.
 - **20, vista settimanale**: selettore Giorno · Settimana · Idee in `/lists/meals`; `WeekView`. Il foglio del pasto si apre per giorno e momento, non più solo per il giorno scelto.
@@ -863,9 +896,6 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - Interfaccia: `MealIdeasView`.
 - Non incluso: grammi e calorie, obiettivi, preferenze alimentari, pesi regolabili dall'interfaccia.
 - Criteri: test di `lib/meals`; dal telefono: passa a Settimana e aggiungi un pasto in un altro giorno; controlla il riepilogo dopo quattro o più pasti; correggi i nutrienti di un piatto e ritrovali la volta dopo; apri Idee su un giorno con momenti vuoti, aggiungi una proposta, nascondine una e annulla; ripeti un'aggiunta senza rete.
-
-**Incrementi 17–19 — Guardaroba, passi successivi** [PROPOSTA]
-- 17 pianificazione di un outfit su un giorno o un evento; 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

@@ -62,7 +62,8 @@ export type Suggestion = {
   notes: string[];
 };
 
-const NEUTRALS = ["nero", "bianco", "grigio", "beige", "oro", "argento"];
+/** Colori che stanno con tutto: non contano come accento. */
+export const NEUTRALS = ["nero", "bianco", "grigio", "beige", "oro", "argento"];
 const POOL_SIZE = 6;
 const SIDE_POOL_SIZE = 4;
 const RECENT_DAYS = 14;

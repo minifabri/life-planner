@@ -284,6 +284,10 @@ export type WishlistItem = {
   interest: 1 | 2 | 3;
   status: WishlistStatus;
   source: "manual" | "link" | "chatgpt";
+  /** Tipo di capo, se l'articolo è abbigliamento: abilita il confronto con il guardaroba. */
+  garment: WardrobeCategory | null;
+  colors: string[];
+  styles: string[];
   metadata_fetched_at: string | null;
   deleted_at: string | null;
   created_at: string;
@@ -313,6 +317,8 @@ export type WardrobeItem = {
   status: WardrobeStatus;
   favorite: boolean;
   notes: string | null;
+  /** L'articolo della wishlist da cui nasce il capo, se c'è. */
+  wishlist_item_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -338,6 +344,19 @@ export type WardrobeWear = {
   id: string;
   worn_on: string;
   outfit_id: string | null;
+  item_ids: string[];
+  created_at: string;
+};
+
+/** Outfit pianificato per un giorno (non un utilizzo, non un evento del calendario). */
+export type OutfitPlan = {
+  id: string;
+  date: string;
+  event_id: string | null;
+  /** Titolo dell'evento al momento della scelta, oppure un'occasione scritta a mano. */
+  label: string | null;
+  outfit_id: string | null;
+  /** I capi fissati al momento della pianificazione: valgono se l'outfit salvato non c'è (più). */
   item_ids: string[];
   created_at: string;
 };

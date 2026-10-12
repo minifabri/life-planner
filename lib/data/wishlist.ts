@@ -14,7 +14,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 const COLUMNS =
-  "id, list_id, name, brand, category, url, price_amount, price_currency, price_is_estimate, image_url, notes, interest, status, source, metadata_fetched_at, deleted_at, created_at";
+  "id, list_id, name, brand, category, url, price_amount, price_currency, price_is_estimate, image_url, notes, interest, status, source, garment, colors, styles, metadata_fetched_at, deleted_at, created_at";
 
 export async function fetchWishlistItems(): Promise<WishlistItem[]> {
   const rows: WishlistItem[] = check(await getSupabase().from("wishlist_items").select(COLUMNS).is("deleted_at", null).order("created_at", { ascending: false }));
@@ -27,7 +27,8 @@ export const WISHLIST_KEY = ["wishlist-items"];
 export type WishlistInput = Pick<
   WishlistItem,
   "name" | "brand" | "category" | "url" | "price_amount" | "price_currency" | "price_is_estimate" | "image_url" | "notes" | "interest"
->;
+> &
+  Partial<Pick<WishlistItem, "garment" | "colors" | "styles">>;
 
 export async function createWishlistItems(inputs: (WishlistInput & Partial<Pick<WishlistItem, "source" | "metadata_fetched_at">>)[]): Promise<void> {
   if (inputs.length === 0) return;

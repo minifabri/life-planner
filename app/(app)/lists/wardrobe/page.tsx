@@ -7,6 +7,9 @@ import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
 import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
+import { PlanList } from "@/components/wardrobe/plan-list";
+import { PlanSheet, type PlanChoice } from "@/components/wardrobe/plan-sheet";
+import { StatsView } from "@/components/wardrobe/stats-view";
 import { StyleSheet } from "@/components/wardrobe/style-sheet";
 import { WearSheet } from "@/components/wardrobe/wear-sheet";
 import { WardrobeTile } from "@/components/wardrobe/item-tile";
@@ -14,20 +17,25 @@ import { Button, Segmented, inputClass } from "@/components/ui/form";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
-import { STYLE_KEY, createOutfit, recordWear, saveWardrobeStyle, setFeedback, undoWear, updateOutfit, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
+import { relativeDay } from "@/lib/dates/local";
+import { STYLE_KEY, createOutfit, createPlan, deletePlan, recordWear, restorePlan, saveWardrobeStyle, setFeedback, undoWear, updateOutfit, updatePlan, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
 import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDeletedWardrobePhotos, updateWardrobeItem } from "@/lib/data/wardrobe";
-import { useOutfitFeedback, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
+import { useOutfitFeedback, useOutfitPlans, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
 import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
+import { resolvePlan, upcomingPlans, type ResolvedPlan } from "@/lib/wardrobe/plans";
+import { itemUsage, timesLabel } from "@/lib/wardrobe/stats";
 import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
-import type { Outfit, OutfitFeedback, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
+import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
 
-type View = "items" | "outfits" | "ideas";
+type View = "items" | "outfits" | "ideas" | "stats";
 /** L'outfit aperto nel foglio: uno esistente, oppure uno nuovo che parte da questi capi. */
 type OutfitEditor = { outfit: Outfit | null; itemIds: string[] };
 /** Capi di cui si sta registrando l'utilizzo, con l'outfit da cui vengono (se c'è). */
 type Wearing = { outfitId: string | null; items: WardrobeItem[] };
+/** Ciò che si sta pianificando: una pianificazione esistente da spostare, oppure un outfit o dei capi sciolti. */
+type Planning = { plan: OutfitPlan | null; outfitId: string | null; itemIds: string[] };
 
 const chip = (active: boolean) =>
   `flex min-h-11 shrink-0 items-center rounded-xl border px-3 text-[13px] transition-colors capitalize ${
@@ -87,6 +95,7 @@ export default function WardrobePage() {
   const [view, setView] = useState<View>("items");
   const [outfitEditor, setOutfitEditor] = useState<OutfitEditor | null>(null);
   const [wearing, setWearing] = useState<Wearing | null>(null);
+  const [planning, setPlanning] = useState<Planning | null>(null);
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [editingStyle, setEditingStyle] = useState(false);
 
@@ -100,6 +109,7 @@ export default function WardrobePage() {
   const visibleOutfits = filterOutfits(outfits, filters.text ?? "");
   const activeQuery = view === "outfits" ? outfitsQuery : query;
   const anchor = items.find((i) => i.id === anchorId) ?? null;
+  const plans = upcomingPlans(useOutfitPlans().data ?? [], today).map((p) => resolvePlan(p, outfits, items));
   const missing = activeQuery.data === undefined;
   const failed = missing && (offline || activeQuery.isError);
 
@@ -184,6 +194,36 @@ export default function WardrobePage() {
     return true;
   }
 
+  /** Salva l'outfit aperto e passa a scegliere il giorno. */
+  async function planOutfit(input: OutfitInput): Promise<boolean> {
+    const target = outfitEditor?.outfit;
+    if (!target) return false;
+    if (!(await attempt(() => updateOutfit(target, input)))) return false;
+    setOutfitEditor(null);
+    setPlanning({ plan: null, outfitId: target.id, itemIds: input.item_ids });
+    return true;
+  }
+
+  async function savePlan(choice: PlanChoice): Promise<boolean> {
+    const target = planning;
+    if (!target) return false;
+    const write = target.plan
+      ? () => updatePlan(target.plan!, choice)
+      : () => createPlan({ ...choice, outfit_id: target.outfitId, item_ids: target.itemIds });
+    if (!(await attempt(write))) return false;
+    setPlanning(null);
+    toast({ message: target.plan ? "Pianificazione aggiornata" : "Outfit pianificato" });
+    return true;
+  }
+
+  async function removePlan(resolved: ResolvedPlan) {
+    if (!(await attempt(() => deletePlan(resolved.plan)))) {
+      toast({ message: "Non tolto. Riprova.", tone: "warn" });
+      return;
+    }
+    toast({ message: "Pianificazione tolta", actionLabel: "Annulla", onAction: () => void attempt(() => restorePlan(resolved.plan)) });
+  }
+
   async function removeOutfit(outfit: Outfit) {
     setOutfitEditor(null);
     if (!(await attempt(() => updateOutfit(outfit, { deleted_at: new Date().toISOString() })))) {
@@ -229,6 +269,11 @@ export default function WardrobePage() {
     queryClient.setQueryData(STYLE_KEY, next);
     setEditingStyle(false);
     return true;
+  }
+
+  function usageText(itemId: string): string {
+    const usage = itemUsage(wears).get(itemId);
+    return usage?.last ? `Indossato ${timesLabel(usage.count)} · ultima volta ${relativeDay(usage.last, today)}` : "Mai indossato.";
   }
 
   function endSelection(): WardrobeItem[] {
@@ -277,6 +322,7 @@ export default function WardrobePage() {
           { value: "items", label: "Capi" },
           { value: "outfits", label: "Outfit" },
           { value: "ideas", label: "Idee" },
+          { value: "stats", label: "Numeri" },
         ]}
         onChange={(v) => {
           setView(v);
@@ -285,7 +331,7 @@ export default function WardrobePage() {
         }}
       />
 
-      {view === "ideas" ? null : (
+      {view === "ideas" || view === "stats" ? null : (
         <div className="flex flex-wrap gap-2">
           {view === "items" ? (
             <>
@@ -310,6 +356,16 @@ export default function WardrobePage() {
           />
         </div>
       )}
+
+      {view === "outfits" ? (
+        <PlanList
+          plans={plans}
+          today={today}
+          onWear={(p) => setWearing({ outfitId: p.outfit?.id ?? null, items: p.items })}
+          onChange={(p) => setPlanning({ plan: p.plan, outfitId: p.plan.outfit_id, itemIds: p.itemIds })}
+          onRemove={(p) => void removePlan(p)}
+        />
+      ) : null}
 
       {view === "items" ? (
         <>
@@ -383,6 +439,14 @@ export default function WardrobePage() {
             </ul>
           )}
         </>
+      ) : view === "stats" ? (
+        missing ? (
+          <p className="text-sm text-text-3" aria-live="polite">
+            Carico il guardaroba…
+          </p>
+        ) : (
+          <StatsView items={items} outfits={outfits} wears={wears} today={today} onOpenItem={setEditing} onOpenOutfit={(outfit) => setOutfitEditor({ outfit, itemIds: outfit.item_ids })} />
+        )
       ) : view === "ideas" ? (
         missing ? (
           <p className="text-sm text-text-3" aria-live="polite">
@@ -396,6 +460,7 @@ export default function WardrobePage() {
             onClearAnchor={() => setAnchorId(null)}
             onFeedback={(s, v) => void giveFeedback(s, v)}
             onSave={(s) => setOutfitEditor({ outfit: null, itemIds: s.itemIds })}
+            onPlan={(s) => setPlanning({ plan: null, outfitId: null, itemIds: s.itemIds })}
             onWear={(s) => setWearing({ outfitId: null, items: s.items })}
             onEditStyle={() => setEditingStyle(true)}
           />
@@ -434,10 +499,22 @@ export default function WardrobePage() {
           today={today}
           onSave={saveOutfit}
           onWear={wearOutfit}
+          onPlan={planOutfit}
           onDelete={() => {
             if (outfitEditor.outfit) void removeOutfit(outfitEditor.outfit);
           }}
           onClose={() => setOutfitEditor(null)}
+        />
+      ) : null}
+
+      {planning ? (
+        <PlanSheet
+          key={planning.plan?.id ?? "new"}
+          items={resolveItems(planning.itemIds, items).items}
+          today={today}
+          initial={planning.plan}
+          onSave={savePlan}
+          onClose={() => setPlanning(null)}
         />
       ) : null}
 
@@ -454,6 +531,7 @@ export default function WardrobePage() {
             if (editing !== "new") void remove(editing);
           }}
           onDuplicate={editing !== "new" ? () => void duplicate(editing) : undefined}
+          usage={editing !== "new" ? usageText(editing.id) : undefined}
           onMatch={
             editing !== "new"
               ? () => {

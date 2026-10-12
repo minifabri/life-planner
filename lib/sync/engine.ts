@@ -3,9 +3,9 @@ import type { LocalDate } from "../dates/local";
 import { DEFAULT_TZ } from "../dates/today";
 import { getSupabase } from "../supabase/client";
 import { addDays } from "../dates/local";
-import type { DayMark, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, Profile, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 import { enqueue, flush, onOutboxChange, pendingCount, pendingEntries, type FlushResult } from "./outbox";
-import { applyToDayEvents, applyToDayMarks, applyToFeedback, applyToLog, applyToMealMemory, applyToMeals, applyToOutfits, applyToPantry, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWears, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
+import { applyToDayEvents, applyToDayMarks, applyToFeedback, applyToLog, applyToMealMemory, applyToMeals, applyToOutfits, applyToPantry, applyToPlans, applyToRecurrences, applyToShopping, applyToTasks, applyToWardrobe, applyToWears, applyToWishlist, applyToWorkouts, classifyStatus, type DayEvents, type Op, type SendOutcome } from "./ops";
 
 /** L'utente della sessione salvata sul dispositivo: si legge anche senza rete. */
 export async function currentOwner(): Promise<string | null> {
@@ -61,6 +61,8 @@ function applyToCache(op: Op, at: string) {
     queryClient.setQueryData<Outfit[]>(["outfits"], (old) => old && applyToOutfits(old, op, at));
   } else if (op.table === "wardrobe_wears") {
     queryClient.setQueryData<WardrobeWear[]>(["wardrobe-wears"], (old) => old && applyToWears(old, op, at));
+  } else if (op.table === "outfit_plans") {
+    queryClient.setQueryData<OutfitPlan[]>(["outfit-plans"], (old) => old && applyToPlans(old, op, at));
   } else if (op.table === "outfit_feedback") {
     queryClient.setQueryData<OutfitFeedback[]>(["outfit-feedback"], (old) => old && applyToFeedback(old, op, at));
   } else if (op.table === "meal_memory") {
@@ -147,6 +149,10 @@ export async function withPendingOutfits(outfits: Outfit[]): Promise<Outfit[]> {
 
 export async function withPendingWears(wears: WardrobeWear[]): Promise<WardrobeWear[]> {
   return (await pending()).reduce((acc, e) => applyToWears(acc, e.op, e.at), wears);
+}
+
+export async function withPendingPlans(plans: OutfitPlan[]): Promise<OutfitPlan[]> {
+  return (await pending()).reduce((acc, e) => applyToPlans(acc, e.op, e.at), plans);
 }
 
 export async function withPendingFeedback(feedback: OutfitFeedback[]): Promise<OutfitFeedback[]> {

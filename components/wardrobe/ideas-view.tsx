@@ -24,12 +24,14 @@ function IdeaCard({
   verdict,
   onFeedback,
   onSave,
+  onPlan,
   onWear,
 }: {
   suggestion: Suggestion;
   verdict: OutfitFeedback["verdict"] | null;
   onFeedback: (verdict: OutfitFeedback["verdict"] | null) => void;
   onSave: () => void;
+  onPlan: () => void;
   onWear: () => void;
 }) {
   return (
@@ -55,6 +57,7 @@ function IdeaCard({
           Non mi piace
         </button>
         <Button onClick={onSave}>Salva</Button>
+        <Button onClick={onPlan}>Pianifica</Button>
         <Button onClick={onWear}>Indossato oggi</Button>
       </div>
     </li>
@@ -69,6 +72,7 @@ export function IdeasView({
   onClearAnchor,
   onFeedback,
   onSave,
+  onPlan,
   onWear,
   onEditStyle,
 }: {
@@ -79,6 +83,7 @@ export function IdeasView({
   onClearAnchor: () => void;
   onFeedback: (suggestion: Suggestion, verdict: OutfitFeedback["verdict"] | null) => void;
   onSave: (suggestion: Suggestion) => void;
+  onPlan: (suggestion: Suggestion) => void;
   onWear: (suggestion: Suggestion) => void;
   onEditStyle: () => void;
 }) {
@@ -165,7 +170,7 @@ export function IdeasView({
       ) : (
         <ul className="flex flex-col gap-3">
           {shown.map((s) => (
-            <IdeaCard key={s.signature} suggestion={s} verdict={verdictOf(s)} onFeedback={(v) => onFeedback(s, v)} onSave={() => onSave(s)} onWear={() => onWear(s)} />
+            <IdeaCard key={s.signature} suggestion={s} verdict={verdictOf(s)} onFeedback={(v) => onFeedback(s, v)} onSave={() => onSave(s)} onPlan={() => onPlan(s)} onWear={() => onWear(s)} />
           ))}
         </ul>
       )}
