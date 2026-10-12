@@ -216,7 +216,7 @@ export function applyToMeals(meals: MealPlan[], op: Op, from: LocalDate, to: Loc
 
 export function applyToMealMemory(memory: MealMemory[], op: Op): MealMemory[] {
   if (op.table !== "meal_memory") return memory;
-  return applyToRows(memory, op, (row) => row as MealMemory);
+  return applyToRows(memory, op, (row) => ({ nutrients: null, hidden_at: null, ...row }) as MealMemory);
 }
 
 /**

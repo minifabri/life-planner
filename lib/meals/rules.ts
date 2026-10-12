@@ -1,5 +1,5 @@
 import { addDays, type LocalDate } from "../dates/local";
-import type { MealMemory, MealPlan, MealSlot, PrepMode, Task } from "../supabase/types";
+import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode, Task } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
 
 /**
@@ -148,8 +148,19 @@ export function reminderRestoredOps(task: ReminderTask): Op[] {
   return [{ kind: "update", table: "meal_plans", patch: { reminder_task_id: task.id }, where: byId(task.meal_plan_id) }];
 }
 
-/** Il planner impara: una volta in più per questo piatto in questo momento, con la modalità scelta. */
-export function rememberMealOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, now: string): Op {
+/**
+ * Il planner impara: una volta in più per questo piatto in questo momento, con la modalità scelta.
+ * Un piatto messo a mano torna tra le Idee. `nutrients` si scrive solo se dato (`null` = di nuovo dal nome).
+ */
+export function rememberMealOp(
+  id: string,
+  slot: MealSlot,
+  name: string,
+  mode: PrepMode,
+  known: MealMemory | undefined,
+  now: string,
+  nutrients?: Nutrient[] | null,
+): Op {
   return {
     kind: "insert",
     table: "meal_memory",
@@ -162,8 +173,36 @@ export function rememberMealOp(id: string, slot: MealSlot, name: string, mode: P
       default_prep_mode: mode,
       use_count: (known?.use_count ?? 0) + 1,
       last_used_at: now,
+      hidden_at: null,
+      ...(nutrients === undefined ? {} : { nutrients }),
     },
   };
+}
+
+/** Una riga della memoria per un piatto mai messo in questo momento: non conta come uso, quindi non entra tra i ricorrenti. */
+function unusedMemoryRow(id: string, slot: MealSlot, name: string, mode: PrepMode) {
+  return { id, slot, name_normalized: normalizeMealName(name), display_name: name, default_prep_mode: mode, use_count: 0, last_used_at: null };
+}
+
+/**
+ * Corregge i nutrienti di un piatto (`null` = di nuovo riconosciuti dal nome). La correzione vale per il piatto,
+ * non per il momento: si scrive su tutte le righe della memoria con lo stesso nome. `id` è la riga di questo momento.
+ */
+export function setNutrientsOps(memory: MealMemory[], id: string, slot: MealSlot, name: string, mode: PrepMode, nutrients: Nutrient[] | null): Op[] {
+  const norm = normalizeMealName(name);
+  const ops: Op[] = memory
+    .filter((m) => m.name_normalized === norm)
+    .map((m) => ({ kind: "update", table: "meal_memory", patch: { nutrients }, where: byId(m.id), snapshot: { ...m, nutrients } }));
+  if (!memory.some((m) => m.id === id)) {
+    ops.push({ kind: "insert", table: "meal_memory", merge: true, row: { ...unusedMemoryRow(id, slot, name, mode), nutrients } });
+  }
+  return ops;
+}
+
+/** "Non proporre": toglie un piatto dalle Idee di un momento (`hiddenAt` nullo lo rimette). */
+export function hideIdeaOp(id: string, slot: MealSlot, name: string, mode: PrepMode, known: MealMemory | undefined, hiddenAt: string | null): Op {
+  if (known) return { kind: "update", table: "meal_memory", patch: { hidden_at: hiddenAt }, where: byId(known.id), snapshot: { ...known, hidden_at: hiddenAt } };
+  return { kind: "insert", table: "meal_memory", merge: true, row: { ...unusedMemoryRow(id, slot, name, mode), hidden_at: hiddenAt } };
 }
 
 /** I ricorrenti di un momento, dal più usato; a parità, il più recente. */

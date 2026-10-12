@@ -5,9 +5,10 @@ import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Sheet } from "@/components/ui/sheet";
 import { addIngredient, ingredientsIn } from "@/lib/meals/ingredients";
+import { NUTRIENTS, NUTRIENT_LABEL, nutrientsOf, recognizeNutrients, sameNutrients, type Overrides } from "@/lib/meals/nutrients";
 import { SLOT_LABEL, normalizeMealName } from "@/lib/meals/rules";
 import type { PantryEntry } from "@/lib/shopping/pantry";
-import type { MealMemory, MealPlan, MealSlot, PrepMode } from "@/lib/supabase/types";
+import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
 
 const MODES: { value: PrepMode; label: string }[] = [
   { value: "ready", label: "Pronto" },
@@ -21,8 +22,9 @@ export function MealSheet({
   meal,
   suggestions,
   pantry,
+  overrides,
   onAdd,
-  onRename,
+  onSave,
   onRemove,
   onClose,
 }: {
@@ -32,8 +34,11 @@ export function MealSheet({
   suggestions: MealMemory[];
   /** Gli ingredienti in casa non ancora usati in un pasto: un tocco li mette nel nome. */
   pantry: PantryEntry[];
-  onAdd: (name: string, mode: PrepMode) => void;
-  onRename: (name: string) => void;
+  /** I nutrienti già corretti a mano, per nome del piatto. */
+  overrides: Overrides;
+  /** `nutrients` c'è solo se sono stati corretti: l'elenco scelto, o `null` per tornare a quelli del nome. */
+  onAdd: (name: string, mode: PrepMode, nutrients?: Nutrient[] | null) => void;
+  onSave: (name: string, nutrients?: Nutrient[] | null) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
@@ -47,11 +52,23 @@ export function MealSheet({
   const unused = pantry.filter((entry) => !named.includes(entry));
   const effectiveMode = !meal && !modeTouched && known ? known.default_prep_mode : mode;
 
+  // Nutrienti: finché non si toccano seguono il nome (o la correzione già salvata per quel piatto).
+  const [picked, setPicked] = useState<Nutrient[] | null>(null);
+  const nutrients = picked ?? nutrientsOf(trimmed, overrides);
+  const saved = overrides.get(normalizeMealName(trimmed)) ?? null;
+  // Tornare a ciò che il nome dice già toglie la correzione.
+  const wanted = picked && !sameNutrients(picked, recognizeNutrients(trimmed)) ? picked : null;
+  const corrected = picked !== null && !(wanted === null ? saved === null : saved !== null && sameNutrients(wanted, saved));
+
+  function toggle(nutrient: Nutrient) {
+    setPicked(nutrients.includes(nutrient) ? nutrients.filter((n) => n !== nutrient) : NUTRIENTS.filter((n) => n === nutrient || nutrients.includes(n)));
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!trimmed) return;
-    if (meal) onRename(trimmed);
-    else onAdd(trimmed, effectiveMode);
+    if (meal) onSave(trimmed, corrected ? wanted : undefined);
+    else onAdd(trimmed, effectiveMode, corrected ? wanted : undefined);
   }
 
   return (
@@ -114,6 +131,32 @@ export function MealSheet({
             </ul>
           </section>
         ) : null}
+        {trimmed ? (
+          <section className="-mt-1 flex flex-col gap-1.5">
+            <h3 className="label-mono">Nutrienti</h3>
+            <div role="group" aria-label="Nutrienti del piatto" className="flex flex-wrap gap-1.5">
+              {NUTRIENTS.map((n) => {
+                const on = nutrients.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggle(n)}
+                    className={`flex min-h-11 items-center rounded-xl border px-3 text-sm transition-colors ${
+                      on ? "border-line-2 bg-surface-2 text-text" : "border-line text-text-3 hover:text-text"
+                    }`}
+                  >
+                    {NUTRIENT_LABEL[n]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-text-3">
+              {picked || saved ? "Scelti a mano per questo piatto." : nutrients.length > 0 ? "Riconosciuti dal nome. Correggili se serve." : "Il nome non li dice: indicali tu, se vuoi."}
+            </p>
+          </section>
+        ) : null}
         {!meal ? (
           <Segmented
             label="Modalità"
@@ -133,7 +176,7 @@ export function MealSheet({
           ) : (
             <span />
           )}
-          <Button type="submit" variant="primary" disabled={!trimmed || (!!meal && trimmed === meal.name)}>
+          <Button type="submit" variant="primary" disabled={!trimmed || (!!meal && trimmed === meal.name && !corrected)}>
             {meal ? "Salva" : "Aggiungi"}
           </Button>
         </div>

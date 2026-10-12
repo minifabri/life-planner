@@ -112,6 +112,9 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D49 | **Idee** (suggerimenti): terza voce del selettore in Guardaroba. Regole locali, deterministiche e spiegabili, senza servizi esterni né AI; tre modalità (per oggi, intorno a un capo, scopri); profilo di stile come orientamento, mai divieto; giudizi solo espliciti | [APPROVATO l'11 ottobre 2026; dettagli PROPOSTA] |
 | D50 | **Segni dei giorni**: un giorno si può segnare "in ufficio" o "in viaggio" (anche tutti e due). Il segno e l'allenamento in programma compaiono come piccole icone grigie nei Pasti, nel Guardaroba, in Oggi e in Settimana, per decidere cosa preparare e cosa mettere (vedi 7.16) | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D51 | Guardaroba, passi successivi nell'ordine: pianificazione di un outfit su un giorno o un evento; passaggio dalla Wishlist al guardaroba e compatibilità; statistiche. Meteo reale nelle Idee: da decidere (servizio esterno e posizione) | [PROPOSTA] |
+| D52 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D53 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D54 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 
 ---
 
@@ -500,6 +503,21 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
   - *In casa*: l'intestazione dice quanti sono ancora da usare ("12 ingredienti · 5 da usare"). Aperta, prima quelli da usare per reparto, poi "Già nei pasti", attenuati, con il primo pasto che li usa ("gio · cena").
   - *Sotto il pasto*: riga discreta "In casa" con gli ingredienti riconosciuti. Se il pasto è preparato, di oggi o passato, la riga diventa "Finito?" e un tocco sull'ingrediente lo toglie da In casa, con annulla.
   - *Foglio del pasto*: sotto il nome, "In casa, da usare": un tocco aggiunge l'ingrediente al nome ("Patate" → "Patate e fagiolini").
+
+- **Viste** (D52): selettore **Giorno · Settimana · Idee**. *Settimana*: il riepilogo dei nutrienti e, sotto, i sette giorni con i quattro pasti (su desktop in due colonne); un tocco su un pasto o su "Aggiungi" apre lo stesso foglio del Giorno. Le frecce in alto cambiano settimana in tutte le viste.
+- **Nutrienti** (D53):
+  - *Sotto ogni pasto*: i nutrienti del piatto ("Proteine · Carboidrati · Fibre"), oppure l'invito a indicarli se il nome non li dice.
+  - *Nel giorno*: una riga dice cosa c'è e cosa manca ("Nel giorno: proteine e carboidrati. Mancano: grassi e fibre.").
+  - *Nella settimana*: tabella nutrienti × giorni (un segno più pieno dove più pasti del giorno portano quel nutriente), il totale dei pasti e una frase ("Poche fibre nella settimana.", "Settimana ben distribuita."). Il giudizio arriva solo con almeno quattro pasti riconosciuti.
+  - *Correggere*: nel foglio del pasto, quattro pulsanti. La correzione vale per quel piatto ogni volta che torna, in qualunque momento della giornata; rimettere ciò che il nome dice già la toglie.
+  - È un'indicazione dai nomi, non dalle quantità: il condimento e le porzioni non si vedono. Per questo la soglia dei grassi è più bassa delle altre.
+- **Idee** (D54): per il giorno scelto, fino a tre proposte per ogni momento ancora vuoto; "Altre idee" mostra le successive.
+  - *Da dove vengono*: i piatti già usati in quel momento e una quarantina di piatti semplici inclusi nell'app (segnati "Nuovo"). Ogni terza proposta è un piatto nuovo.
+  - *Cosa conta*: i nutrienti che scarseggiano nella settimana e quelli che mancano nel giorno, gli ingredienti in casa da usare, la varietà rispetto ai giorni vicini, l'abitudine, il tipo di giorno (proteine nel giorno di allenamento; a pranzo in ufficio ciò che si prepara prima).
+  - *Motivazione*: ogni proposta dice in una frase perché è lì.
+  - *Azioni*: **Aggiungi** mette il piatto in quel momento, con la sua modalità abituale; **Non proporre** lo toglie dalle idee di quel momento, con annulla. Metterlo a mano lo fa tornare.
+  - Per i giorni passati non ci sono idee.
+- Non incluso per ora: grammi e calorie, obiettivi personali, preferenze alimentari dichiarate (si usa "Non proporre"), idee per più giorni insieme, ingredienti delle idee verso la Spesa.
 
 ### 7.14 Allenamenti [APPROVATO, D41–D42]
 - **Aggiungere**: da "Aggiungi" scegliendo Allenamento, oppure dal Quick Capture con una frase che comincia con una disciplina ("corsa domani alle 18 45 min"). In un giorno già passato nasce come fatto.
