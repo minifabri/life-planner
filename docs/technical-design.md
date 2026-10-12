@@ -289,6 +289,7 @@ outfit_plans:   id, owner_id, date date, event_id null → events (on delete set
 - `wardrobe_style` ha una riga per utente e si scrive direttamente, con la rete (non passa dalla outbox). Senza riga vale il profilo di partenza dell'app (`DEFAULT_STYLE`). `weights` contiene solo i pesi diversi da quelli predefiniti.
 - `outfit_feedback.signature` è l'elenco degli id ordinati e uniti da "|": una combinazione ha un solo giudizio, a prescindere dall'ordine dei capi. L'unicità è garantita dall'app (aggiorna il giudizio esistente), non da un vincolo.
 - `outfit_plans` non ha eliminazione reversibile: la riga sparisce e "Annulla" la reinserisce con lo stesso id. `label` è il titolo dell'evento al momento della scelta (non segue le modifiche successive al titolo) o un testo libero. I capi mostrati sono quelli di `outfit_id` finché l'outfit esiste, altrimenti `item_ids`.
+- `wardrobe_items.wishlist_item_id` (null, → `wishlist_items` on delete set null) lega il capo all'articolo da cui nasce. `wishlist_items` ha in più `garment` (stessi valori di `wardrobe_items.category`, null se non è abbigliamento), `colors text[]` e `styles text[]`.
 - Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
@@ -856,8 +857,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: pianificazioni in Settimana, in Mese e nella scheda dell'evento; scelta dell'evento senza rete per i giorni non ancora scaricati.
 - Criteri: test di `lib/wardrobe/plans`; dal telefono: pianifica un outfit per domani legandolo a un evento, ritrovalo in "In programma"; pianificane uno per oggi e ritrovalo in Oggi; metti da lavare un suo capo e verifica la segnalazione; "Indossato oggi" dalla pianificazione; Togli e Annulla.
 
-**Incrementi 18–19 — Guardaroba, passi successivi** [PROPOSTA]
-- 18 Wishlist → guardaroba e compatibilità; 19 statistiche.
+**Incremento 18 — Guardaroba e Wishlist** *(12 ottobre 2026)*
+- Migrazione `20261013110000_wardrobe_wishlist.sql`: solo colonne aggiunte (`wishlist_items.garment`, `colors`, `styles`; `wardrobe_items.wishlist_item_id`), nessuna tabella nuova.
+- Logica pura con test in `lib/wardrobe/wishlist.ts`: `guessGarment` (tipo di capo dal nome), `wardrobeRowFromWish` (il capo da creare), `compatibility` (simili, abbinamenti, outfit da completare, e cosa manca per dire di più). I colori neutri sono gli stessi del motore delle Idee (`NEUTRALS`).
+- Interfaccia: campi di abbigliamento e `WardrobeMatch` nella scheda della Wishlist; "Salva e aggiungi al guardaroba" sugli acquistati (`addWishToWardrobe`, dalla outbox).
+- Le righe salvate sul dispositivo da una versione precedente non hanno i campi nuovi: il codice li tratta come vuoti.
+- Non incluso: confronto nelle card dell'elenco, tipo e colori letti dal link, ricerca per colore.
+- Criteri: test di `lib/wardrobe/wishlist`; dal telefono: segna un articolo come capo con tipo e colori e leggi il confronto; spostalo in Acquistati e aggiungilo al guardaroba; ritrovalo tra i capi con l'immagine del negozio; riapri l'articolo e verifica "già nel guardaroba".
+
+**Incremento 19 — Guardaroba, statistiche** [PROPOSTA]
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

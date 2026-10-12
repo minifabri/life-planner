@@ -8,6 +8,8 @@ import { Icon } from "@/components/ui/icon";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useOffline } from "@/lib/data/hooks";
+import { addWishToWardrobe } from "@/lib/data/wardrobe";
+import { useWardrobeItems } from "@/lib/data/wardrobe-hooks";
 import { createWishlistItems, importRows, updateWishlistItem } from "@/lib/data/wishlist";
 import { useFetchPendingMetadata, useWishlistItems } from "@/lib/data/wishlist-hooks";
 import { INTEREST_LABEL, STATUS_LABEL, categoriesOf, missingFromLink, siteName, visibleItems } from "@/lib/wishlist/list";
@@ -33,6 +35,7 @@ export default function WishlistPage() {
   const [importing, setImporting] = useState(false);
 
   const items = query.data ?? [];
+  const wardrobe = useWardrobeItems().data;
   const categories = categoriesOf(items, status);
   const activeCategory = category && categories.includes(category) ? category : null;
   const visible = visibleItems(items, status, activeCategory);
@@ -58,6 +61,17 @@ export default function WishlistPage() {
     );
     if (ok) setEditing(null);
     return ok;
+  }
+
+  /** Salva l'articolo acquistato e ne fa un capo del guardaroba, con i dati che ha già. */
+  async function addToWardrobe(input: ItemSave): Promise<boolean> {
+    const target = editing;
+    if (!target || target === "new") return false;
+    if (!(await attempt(() => updateWishlistItem(target, input)))) return false;
+    if (!(await attempt(() => addWishToWardrobe({ ...target, ...input })))) return false;
+    setEditing(null);
+    toast({ message: "Aggiunto al guardaroba. La foto puoi cambiarla lì." });
+    return true;
   }
 
   async function remove(item: WishlistItem) {
@@ -137,6 +151,8 @@ export default function WishlistPage() {
           onDelete={() => {
             if (editing !== "new") void remove(editing);
           }}
+          inWardrobe={editing !== "new" && !!wardrobe?.some((w) => w.wishlist_item_id === editing.id)}
+          onAddToWardrobe={addToWardrobe}
           onClose={() => setEditing(null)}
         />
       ) : null}
