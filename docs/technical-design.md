@@ -897,7 +897,16 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Non incluso: grammi e calorie, obiettivi, preferenze alimentari, pesi regolabili dall'interfaccia.
 - Criteri: test di `lib/meals`; dal telefono: passa a Settimana e aggiungi un pasto in un altro giorno; controlla il riepilogo dopo quattro o più pasti; correggi i nutrienti di un piatto e ritrovali la volta dopo; apri Idee su un giorno con momenti vuoti, aggiungi una proposta, nascondine una e annulla; ripeti un'aggiunta senza rete.
 
-**Incremento 23 — Guardaroba, riconoscimento dalla foto** *(12 ottobre 2026)*
+**Incremento 23 — Pasti: micronutrienti del giorno** *(12 ottobre 2026)*
+- Nessuna migrazione: i micronutrienti si ricavano dal nome e non si salvano.
+- `lib/meals/food-index.ts`: il riconoscimento per radice, parola esatta e coppie di parole, tolto da `nutrients.ts` e condiviso. Un alimento presente in più voci le somma.
+- `lib/meals/micros.ts` (puro, con test): `SOURCES`, per ogni micronutriente l'elenco delle buone fonti; `recognizeMicros`; `daySummary` (per ogni nutriente e micronutriente, in quanti pasti del giorno compare; i pasti riconosciuti sono quelli di cui si conosce almeno un nutriente o un micronutriente); `rowsNote` per la frase della riga chiusa. Una coppia di parole vale al posto delle singole ("semi di zucca" non porta la vitamina A della zucca).
+- Interfaccia: `DayNutrients` prende il posto della riga "Nel giorno" nella vista Giorno. Chiuso di default, pulsante con `aria-expanded`; le barre sono decorative e ogni riga ha il testo per lo screen reader. `dayNutrients` non serve più ed è stato tolto.
+- Un test verifica che ogni piatto proposto dall'app abbia almeno un micronutriente riconosciuto.
+- Non incluso: correzione a mano, B12 e vitamina D, micronutrienti nel riepilogo della settimana e nel voto delle Idee.
+- Criteri: test di `lib/meals`; dal telefono: in un giorno con almeno due pasti leggi la riga dei micronutrienti, aprila e controlla che le barre seguano i piatti; cambia un piatto e guarda la barra muoversi.
+
+**Incremento 24 — Guardaroba, riconoscimento dalla foto** *(12 ottobre 2026)*
 - Nessuna migrazione: i colori sono testo libero in `colors text[]`. Nessun servizio a pagamento e nessuna chiave: tutto gira nel browser.
 - **Colori** (`lib/wardrobe/colors.ts`, puro, con test; sostituisce la lettura dell'incremento 19):
   - `detectColors` riduce la foto intera a 96 × 96 px; `garmentMask` toglie lo sfondo: il colore che prevale lungo i bordi e tutto ciò che gli somiglia partendo da lì (soglie `STEP` tra pixel vicini e `REACH` dal colore dei bordi, così segue le ombre graduali). Se i bordi non hanno un colore prevalente, o resta meno del 12% dell'immagine, si torna al riquadro centrale.

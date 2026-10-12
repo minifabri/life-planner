@@ -1,7 +1,6 @@
 import type { LocalDate } from "../dates/local";
-import { normalizeName } from "../shopping/entry";
 import type { MealMemory, MealPlan, Nutrient } from "../supabase/types";
-import { stem } from "./ingredients";
+import { foodIndex } from "./food-index";
 import { normalizeMealName } from "./rules";
 
 /**
@@ -24,8 +23,7 @@ const CODE: Record<string, Nutrient> = { P: "protein", C: "carbs", G: "fat", F: 
 
 /**
  * Alimenti per nutrienti portati (P proteine, C carboidrati, G grassi, F fibre), separati da virgola.
- * Singolare e plurale coincidono; "=" davanti vuol dire parola esatta, dove la radice confonderebbe
- * ("pesce" e "pesca"); due parole valgono insieme ("frutta secca", "fiocchi di latte").
+ * Come si scrivono le voci: `foodIndex`.
  */
 const FOODS: [string, string][] = [
   ["C", "=pasta, spaghetti, penne, fusilli, rigatoni, tagliatelle, linguine, orecchiette, gnocchi, riso, risotto, polenta, pane, panino, toast, crostini, bruschetta, crackers, gallette, grissini, fette biscottate, cereali, patata, pancake, crepes, marmellata, miele, cous, couscous, tortilla, ravioli, tortellini, noodles, udon"],
@@ -42,16 +40,7 @@ const FOODS: [string, string][] = [
   ["F", "verdura, verdure, insalata, lattuga, zucchina, melanzana, peperone, pomodoro, pomodorini, spinaci, broccoli, cavolfiore, cavolo, cavoletti, carota, finocchio, fagiolini, zucca, fungo, carciofo, asparagi, bietola, cicoria, rucola, radicchio, sedano, cetriolo, porro, cipolla, rapa, barbabietola, verza, vellutata, zuppa, passato, crudites, frutta, mela, =pera, =pere, arancia, mandarino, kiwi, fragola, mirtilli, lamponi, frutti bosco, =pesca, =pesche, albicocca, prugna, uva, melone, anguria, ananas, fichi, macedonia, integrale, integrali, crusca"],
 ];
 
-const BY_STEM = new Map<string, Nutrient[]>();
-const BY_WORD = new Map<string, Nutrient[]>();
-
-for (const [codes, foods] of FOODS) {
-  const nutrients = [...codes].map((c) => CODE[c]);
-  for (const food of foods.split(", ")) {
-    if (food.startsWith("=")) BY_WORD.set(food.slice(1), nutrients);
-    else BY_STEM.set(food.split(" ").map(stem).join(" "), nutrients);
-  }
-}
+const findNutrients = foodIndex(FOODS.map(([codes, foods]): [Nutrient[], string] => [[...codes].map((c) => CODE[c]), foods]));
 
 function inOrder(found: Set<Nutrient>): Nutrient[] {
   return NUTRIENTS.filter((n) => found.has(n));
@@ -59,17 +48,7 @@ function inOrder(found: Set<Nutrient>): Nutrient[] {
 
 /** I nutrienti che il nome del piatto lascia riconoscere, sempre nello stesso ordine. Vuoto se non dice nulla. */
 export function recognizeNutrients(name: string): Nutrient[] {
-  const raw = normalizeName(name).split(/[^a-z0-9]+/).filter(Boolean);
-  const stems = raw.map(stem);
-  const found = new Set<Nutrient>();
-  for (let i = 0; i < raw.length; i++) {
-    // Due parole insieme, anche con una preposizione in mezzo: "fiocchi di latte", "frutti di bosco".
-    const pair = [1, 2].map((gap) => i + gap).find((j) => j < raw.length && BY_STEM.has(`${stems[i]} ${stems[j]}`));
-    const hit = pair !== undefined ? BY_STEM.get(`${stems[i]} ${stems[pair]}`) : (BY_WORD.get(raw[i]) ?? BY_STEM.get(stems[i]));
-    hit?.forEach((n) => found.add(n));
-    if (pair !== undefined) i = pair;
-  }
-  return inOrder(found);
+  return inOrder(findNutrients(name));
 }
 
 /** Le correzioni fatte a mano, per nome del piatto: valgono in qualunque momento della giornata. */
@@ -145,10 +124,4 @@ export function balanceNote(balance: Balance): string {
   if (low.length === 0) return "Settimana ben distribuita.";
   const text = `${listText(low)} nella settimana.`;
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/** I nutrienti presenti e mancanti nei pasti di un giorno. */
-export function dayNutrients(meals: MealPlan[], overrides?: Overrides): { present: Nutrient[]; missing: Nutrient[] } {
-  const found = new Set(meals.flatMap((m) => nutrientsOf(m.name, overrides)));
-  return { present: inOrder(found), missing: NUTRIENTS.filter((n) => !found.has(n)) };
 }
