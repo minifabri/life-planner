@@ -24,12 +24,17 @@ const CATEGORY_DEFAULTS: Record<WardrobeCategory, Suggestion> = {
 const KEYWORD_RULES: { match: RegExp; patch: Partial<Suggestion> }[] = [
   { match: /cappotto|piumino|parka/i, patch: { seasons: ["autumn", "winter"], warmth: 5, layerable: true } },
   { match: /canotta/i, patch: { seasons: ["summer"], warmth: 1, layerable: true } },
-  { match: /maglione|lana/i, patch: { seasons: ["autumn", "winter"], warmth: 4 } },
+  { match: /maglietta|t-shirt|top corto|polo/i, patch: { seasons: ["spring", "summer"], warmth: 1 } },
+  { match: /pantaloncini|shorts/i, patch: { seasons: ["summer"], warmth: 1 } },
+  { match: /maglione|dolcevita|lana/i, patch: { seasons: ["autumn", "winter"], warmth: 4 } },
+  { match: /felpa|cardigan/i, patch: { seasons: ["spring", "autumn", "winter"], warmth: 3 } },
+  { match: /giacca di pelle|trench|giubbotto|blazer/i, patch: { seasons: ["spring", "autumn"], warmth: 3 } },
+  { match: /sciarpa|guanti|berretto/i, patch: { seasons: ["autumn", "winter"] } },
   { match: /camicia|blusa/i, patch: { occasions: ["ufficio", "quotidiano"] } },
   { match: /costume|bikini/i, patch: { seasons: ["summer"], occasions: ["sport"] } },
   { match: /stival/i, patch: { seasons: ["autumn", "winter"] } },
   { match: /sandal|infradit/i, patch: { seasons: ["summer"] } },
-  { match: /tuta|sportiv/i, patch: { styles: ["sportivo"], occasions: ["sport"] } },
+  { match: /tuta(?! intera)|sportiv/i, patch: { styles: ["sportivo"], occasions: ["sport"] } },
   { match: /pizzo|trasparente/i, patch: { styles: ["elegante", "gothic"], occasions: ["serata"] } },
 ];
 

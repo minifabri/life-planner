@@ -1,4 +1,4 @@
-import { dominantColors } from "./colors";
+import { garmentColors } from "./colors";
 
 const MAIN_MAX_DIM = 1600;
 const THUMB_MAX_DIM = 400;
@@ -39,11 +39,11 @@ export async function compressImage(file: File): Promise<{ main: Blob; thumb: Bl
   }
 }
 
-const SAMPLE_DIM = 48;
+const SAMPLE_DIM = 96;
 
 /**
- * I colori principali di una foto, letti nel browser dalla parte centrale dell'immagine
- * (dove di solito c'è il capo, non lo sfondo). Se la foto non si legge, nessuna proposta.
+ * I colori del capo in una foto, letti nel browser da una copia ridotta dell'immagine intera:
+ * lo sfondo si riconosce dai bordi e non conta. Se la foto non si legge, nessuna proposta.
  */
 export async function detectColors(file: File): Promise<string[]> {
   try {
@@ -54,8 +54,8 @@ export async function detectColors(file: File): Promise<string[]> {
       canvas.height = SAMPLE_DIM;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return [];
-      ctx.drawImage(bitmap, bitmap.width * 0.25, bitmap.height * 0.25, bitmap.width * 0.5, bitmap.height * 0.5, 0, 0, SAMPLE_DIM, SAMPLE_DIM);
-      return dominantColors(ctx.getImageData(0, 0, SAMPLE_DIM, SAMPLE_DIM).data);
+      ctx.drawImage(bitmap, 0, 0, SAMPLE_DIM, SAMPLE_DIM);
+      return garmentColors(ctx.getImageData(0, 0, SAMPLE_DIM, SAMPLE_DIM).data, SAMPLE_DIM, SAMPLE_DIM);
     } finally {
       bitmap.close();
     }
