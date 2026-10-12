@@ -626,6 +626,7 @@ Come è stato realizzato (incremento 13, 11 ottobre 2026):
 | Vercel | Hobby | Uso personale e non commerciale; cron solo giornalieri | Hosting Next.js e route server |
 | GitHub | Free | Actions gratuite per repository privati entro la quota mensile | Backup notturno (~1 minuto al giorno) |
 | Google Cloud | Gratuito | Calendar API entro le quote gratuite | Sync personale |
+| Hugging Face e jsDelivr | Gratuito, senza account | Download pubblici | Modello e motore del riconoscimento dei capi, scaricati una volta per dispositivo (37 MB) |
 | Dominio | Opzionale | Il sottodominio `*.vercel.app` è gratuito | Nessun costo se non serve un dominio proprio |
 
 **Costo mensile previsto: 0 €.**
@@ -876,7 +877,6 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Criteri: test di `lib/wardrobe/stats` e `lib/wardrobe/colors`; dal telefono: fotografa un capo nero e uno chiaro e verifica colori e nome proposti; scrivi un nome a mano, cambia categoria e verifica che resti il tuo; apri Numeri dopo qualche "Indossato oggi".
 
 **Da decidere** [PROPOSTA]
-- Riconoscimento del tipo di capo dalla foto: richiede un modello di visione a pagamento, chiamato da una Edge Function con la chiave in Supabase Vault, e l'invio delle foto a un servizio esterno. Resterebbe facoltativo e separato dal funzionamento di base.
 - Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
 
 **Incrementi 20–22 — Pasti: settimana, nutrienti, idee** *(12 ottobre 2026; realizzati insieme)*
@@ -905,6 +905,25 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - Un test verifica che ogni piatto proposto dall'app abbia almeno un micronutriente riconosciuto.
 - Non incluso: correzione a mano, B12 e vitamina D, micronutrienti nel riepilogo della settimana e nel voto delle Idee.
 - Criteri: test di `lib/meals`; dal telefono: in un giorno con almeno due pasti leggi la riga dei micronutrienti, aprila e controlla che le barre seguano i piatti; cambia un piatto e guarda la barra muoversi.
+
+**Incremento 24 — Guardaroba, riconoscimento dalla foto** *(12 ottobre 2026)*
+- Nessuna migrazione: i colori sono testo libero in `colors text[]`. Nessun servizio a pagamento e nessuna chiave: tutto gira nel browser.
+- **Colori** (`lib/wardrobe/colors.ts`, puro, con test; sostituisce la lettura dell'incremento 19):
+  - `detectColors` riduce la foto intera a 96 × 96 px; `garmentMask` toglie lo sfondo: il colore che prevale lungo i bordi e tutto ciò che gli somiglia partendo da lì (soglie `STEP` tra pixel vicini e `REACH` dal colore dei bordi, così segue le ombre graduali). Se i bordi non hanno un colore prevalente, o resta meno del 12% dell'immagine, si torna al riquadro centrale.
+  - Ogni pixel va alla tavolozza in OKLCH (luminosità, intensità, tinta), non più a fasce di tinta HSL. Tavolozza allargata: marrone, rosa, giallo, arancione, azzurro, bordeaux. Oro e argento restano scelte a mano.
+  - Luci e ombre non sono un secondo colore: i grigi scuri accanto al nero contano come nero e i grigi chiari accanto al bianco come bianco; un colore scuro vince sul nero delle sue pieghe; le coppie di `SHADES` (blu/azzurro, rosso/bordeaux, beige/marrone…) diventano due colori solo dal 40% in su.
+  - `NEUTRALS` in `suggest.ts` comprende il marrone.
+- **Tipo di capo** (modello MobileCLIP-S0 nel dispositivo, via `@huggingface/transformers`):
+  - `lib/wardrobe/vision-labels.ts`: 57 tipi di capo con categoria, genere e numero per l'accordo, e la descrizione in inglese data al modello; più gli stili dell'app e otto materiali.
+  - `scripts/build-wardrobe-vision.mjs` (`pnpm build:vision`) calcola una volta le impronte delle descrizioni con la parte "testo" del modello e le scrive in `vision-embeddings.gen.json` (vettori a 16 bit, circa 100 kB). Un test confronta l'hash delle descrizioni con quello del file: se si cambiano le descrizioni senza rigenerare, `pnpm test` fallisce.
+  - `vision.worker.ts` carica in un worker la sola parte "immagine" (`vision_model_fp16.onnx`, 23 MB, revisione fissata) e il motore WebAssembly di ONNX Runtime senza WebGPU (14 MB, da jsDelivr). Entrambi restano nella cache del browser (`transformers-cache`): dopo il primo uso funziona senza rete. `vision-model.ts` prepara il quadrato centrale a 256 px e si carica solo con `import()`, alla prima foto.
+  - `vision.ts` (puro, con test): le somiglianze diventano quote; la categoria è la somma dei suoi tipi e si propone dal 60%; il tipo dal 50% con dieci punti di vantaggio sul secondo; lo stile dal 60%; il materiale dal 90%, o dal tipo quando lo dice già ("giacca di pelle"). "Jeans" come materiale solo per pantaloni, capispalla e vestiti. Sotto le soglie non si propone nulla.
+  - `suggestName` accorda il colore ai tipi noti; `suggestDefaults` legge anche il tipo (maglietta, dolcevita, felpa, giacca di pelle…).
+  - Nella scheda (`item-sheet.tsx`) il riconoscimento arriva dopo i colori e scrive solo i campi non ancora toccati; una foto cambiata nel frattempo annulla la risposta in arrivo.
+- Misure (12 ottobre 2026, 40 foto pubbliche di capi, Chromium su Mac): categoria giusta 38 su 40 e mai sbagliata (2 senza proposta), tipo giusto 36 e sbagliato 2; circa 250 ms a foto dopo il primo caricamento. La versione a 8 bit del modello (12 MB) dà risultati casuali e non va usata. **[DA VERIFICARE]** tempi e memoria su iPhone.
+- Licenza: i pesi convertiti (`Xenova/mobileclip_s0`) portano la licenza Apple del codice di esempio, che ne consente uso e ridistribuzione; il repository originale Apple li indica per ricerca. Va bene per uso personale; se l'app venisse distribuita, passare a un modello Apache 2.0 (es. `Marqo/marqo-fashionSigLIP`, 54–94 MB).
+- Limiti noti: capi indossati o foto con più oggetti spesso non danno proposta; sfondi molto vari tornano al riquadro centrale; un capo dello stesso colore dello sfondo può perdere il secondo colore; stile e materiale sono le proposte meno affidabili; il riconoscimento vale solo per i capi nuovi.
+- Criteri: test di `lib/wardrobe/colors`, `lib/wardrobe/vision` e `lib/wardrobe/wardrobe`; dal telefono: fotografa un capo nero su fondo chiaro, uno blu scuro e uno marrone e verifica colori, categoria, tipo e nome; cambia la categoria a mano e verifica che resti la tua; attiva la modalità aereo e fotografa un altro capo: il riconoscimento deve funzionare ancora.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

@@ -57,6 +57,14 @@ describe("classificazione assistita", () => {
     expect(trasparente.occasions).toEqual(["serata"]);
   });
 
+  it("legge i tipi di capo riconosciuti dalla foto", () => {
+    expect(suggestDefaults("top", " maglietta")).toMatchObject({ seasons: ["spring", "summer"], warmth: 1 });
+    expect(suggestDefaults("top", " dolcevita")).toMatchObject({ seasons: ["autumn", "winter"], warmth: 4 });
+    expect(suggestDefaults("outerwear", " giacca di pelle")).toMatchObject({ seasons: ["spring", "autumn"], warmth: 3 });
+    expect(suggestDefaults("bottom", " pantaloni della tuta").styles).toEqual(["sportivo"]);
+    expect(suggestDefaults("dress", " tuta intera").styles).toEqual(["elegante"]);
+  });
+
   it("resta sempre correggibile: è un punto di partenza, non un vincolo", () => {
     const suggestion = suggestDefaults("dress", "Vestito qualsiasi");
     expect(suggestion).not.toBeNull();

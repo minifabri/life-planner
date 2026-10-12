@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
@@ -12,6 +12,7 @@ import { detectColors } from "@/lib/wardrobe/image";
 import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUSES, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
 import type { WardrobeCategory, WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
 import type { WardrobeInput } from "@/lib/data/wardrobe";
+import type { Recognition } from "@/lib/wardrobe/vision";
 
 export type ItemSave = WardrobeInput & { photo: File | null };
 
@@ -81,6 +82,11 @@ export function ItemSheet({
   const [nameAuto, setNameAuto] = useState(!item);
   const [colorsAuto, setColorsAuto] = useState(!item);
   const [detected, setDetected] = useState(false);
+  // Anche categoria e tipo di capo vengono dalla foto, finché non li scegli tu.
+  const [categoryAuto, setCategoryAuto] = useState(!item);
+  const [subcategoryAuto, setSubcategoryAuto] = useState(!item);
+  const [looking, setLooking] = useState<"first" | "again" | null>(null);
+  const [seen, setSeen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -88,10 +94,19 @@ export function ItemSheet({
   // Senza foto l'anteprima è una scorciatoia per la fotocamera; con una foto già presente fa scegliere, come il pulsante.
   const hasPhoto = !!(photo || item?.thumb_path || item?.image_url);
 
-  function applySuggestion(nextCategory: WardrobeCategory, nextName: string) {
-    const s = suggestDefaults(nextCategory, nextName);
+  // Il riconoscimento arriva dopo qualche istante: quando applica le proposte deve vedere il modulo com'è in quel momento.
+  const form = { name, category, subcategory, colors, material, autoFilled, nameAuto, colorsAuto, categoryAuto, subcategoryAuto };
+  const live = useRef(form);
+  useEffect(() => {
+    live.current = form;
+  });
+  const lastPhoto = useRef<File | null>(null);
+
+  /** Stagioni, stili, occasioni e pesantezza proposti da categoria, nome e tipo di capo; `seenStyles` se la foto ne suggerisce. */
+  function applySuggestion(nextCategory: WardrobeCategory, text: string, seenStyles: string[] = []) {
+    const s = suggestDefaults(nextCategory, text);
     setSeasons(s.seasons);
-    setStyles(s.styles);
+    setStyles(seenStyles.length > 0 ? seenStyles : s.styles);
     setOccasions(s.occasions);
     setWarmth(s.warmth);
     setLayerable(s.layerable);
@@ -101,16 +116,49 @@ export function ItemSheet({
     if (nameAuto) setName(suggestName(nextCategory, nextSubcategory || null, nextColors));
   }
 
-  async function readColors(file: File) {
-    const found = await detectColors(file);
-    if (found.length === 0) return;
-    setColors(found);
-    setDetected(true);
-    proposeName(category, subcategory, found);
+  function applyRecognition(found: Recognition) {
+    const now = live.current;
+    const nextCategory = now.categoryAuto && found.category ? found.category : now.category;
+    const nextSubcategory = now.subcategoryAuto && found.type?.category === nextCategory ? found.type.name : now.subcategory;
+    // Niente di riconosciuto, oppure categoria e tipo li hai già scelti tu e la foto non aggiunge nulla.
+    if (!found.category || (!now.categoryAuto && nextSubcategory === now.subcategory)) return;
+    setCategory(nextCategory);
+    setSubcategory(nextSubcategory);
+    if (found.material && !now.material.trim()) setMaterial(found.material);
+    if (now.autoFilled) applySuggestion(nextCategory, `${now.nameAuto ? "" : now.name} ${nextSubcategory}`, found.styles);
+    if (now.nameAuto) setName(suggestName(nextCategory, nextSubcategory || null, now.colors));
+    setSeen(nextSubcategory || CATEGORY_LABEL[nextCategory].toLowerCase());
+  }
+
+  /** Dalla foto di un capo nuovo: subito i colori, poi categoria e tipo con il modello nel dispositivo. */
+  async function readPhoto(file: File) {
+    lastPhoto.current = file;
+    if (live.current.colorsAuto) {
+      const found = await detectColors(file);
+      if (lastPhoto.current !== file) return;
+      if (found.length > 0 && live.current.colorsAuto) {
+        setColors(found);
+        setDetected(true);
+        if (live.current.nameAuto) setName(suggestName(live.current.category, live.current.subcategory || null, found));
+      }
+    }
+    if (!live.current.categoryAuto && !live.current.subcategoryAuto) return;
+    try {
+      const vision = await import("@/lib/wardrobe/vision-model");
+      setLooking(vision.visionReady() ? "again" : "first");
+      const found = await vision.recognizeGarment(file);
+      if (lastPhoto.current === file) applyRecognition(found);
+    } catch {
+      // Senza modello (prima volta senza rete, browser che non lo regge) restano i colori e la scelta a mano.
+    } finally {
+      if (lastPhoto.current === file) setLooking(null);
+    }
   }
 
   function pickPhoto(file: File | null) {
-    if (file && colorsAuto) void readColors(file);
+    lastPhoto.current = file;
+    setSeen(null);
+    if (file && !item) void readPhoto(file);
     setPhoto(file);
     setPhotoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -198,7 +246,7 @@ export function ItemSheet({
               setNameAuto(e.target.value.trim() === "");
             }}
             onBlur={() => {
-              if (autoFilled) applySuggestion(category, name);
+              if (autoFilled) applySuggestion(category, `${name} ${subcategory}`);
             }}
             autoComplete="off"
             placeholder="Es. Maglia nera semitrasparente"
@@ -215,9 +263,14 @@ export function ItemSheet({
                 type="button"
                 aria-pressed={category === c}
                 onClick={() => {
+                  // Il tipo letto dalla foto vale per la categoria letta dalla foto: cambiandola a mano decade.
+                  const kept = subcategoryAuto ? "" : subcategory;
                   setCategory(c);
-                  if (autoFilled) applySuggestion(c, name);
-                  proposeName(c, subcategory, colors);
+                  setCategoryAuto(false);
+                  setSubcategory(kept);
+                  setSeen(null);
+                  if (autoFilled) applySuggestion(c, `${name} ${kept}`);
+                  proposeName(c, kept, colors);
                 }}
                 className={chip(category === c)}
               >
@@ -227,9 +280,14 @@ export function ItemSheet({
           </div>
         </div>
 
-        {detected ? (
+        {looking || detected || seen ? (
           <p role="status" className="-mt-1 text-xs text-text-3">
-            Dalla foto: {colors.join(", ")}. Se non torna, correggi i colori in &quot;Altri dettagli&quot;.
+            {detected || seen ? `Dalla foto: ${[seen, ...(detected ? colors : [])].filter(Boolean).join(", ")}. ` : ""}
+            {looking === "first"
+              ? "Preparo il riconoscimento del capo: la prima volta scarica circa 40 MB, poi funziona anche senza rete."
+              : looking === "again"
+                ? "Riconosco il capo…"
+                : "Se non torna, correggi qui o in \"Altri dettagli\"."}
           </p>
         ) : null}
 
@@ -245,8 +303,15 @@ export function ItemSheet({
                 <input
                   id="wardrobe-subcategory"
                   value={subcategory}
-                  onChange={(e) => setSubcategory(e.target.value)}
-                  onBlur={() => proposeName(category, subcategory.trim(), colors)}
+                  onChange={(e) => {
+                    setSubcategory(e.target.value);
+                    setSubcategoryAuto(false);
+                    setSeen(null);
+                  }}
+                  onBlur={() => {
+                    if (autoFilled) applySuggestion(category, `${name} ${subcategory}`);
+                    proposeName(category, subcategory.trim(), colors);
+                  }}
                   autoComplete="off"
                   className={inputClass}
                 />
