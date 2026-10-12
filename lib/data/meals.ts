@@ -11,6 +11,7 @@ import {
   setModeOps,
   setNutrientsOps,
   setPreparedOps,
+  snoozeIdeaOp,
 } from "../meals/rules";
 import { getSupabase } from "../supabase/client";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
@@ -42,7 +43,7 @@ export async function fetchMealMemory(): Promise<MealMemory[]> {
     check(
       await getSupabase()
         .from("meal_memory")
-        .select("id, slot, name_normalized, display_name, default_prep_mode, use_count, last_used_at, nutrients, hidden_at"),
+        .select("id, slot, name_normalized, display_name, default_prep_mode, use_count, last_used_at, nutrients, hidden_at, snoozed_until"),
     ),
   );
 }
@@ -109,6 +110,12 @@ export async function saveMeal(meal: MealPlan, name: string, out: boolean, nutri
 export async function hideMealIdea(slot: MealSlot, name: string, mode: PrepMode, hidden: boolean): Promise<void> {
   const id = await memoryId(slot, name);
   await commit([hideIdeaOp(id, slot, name, mode, knownMemory().find((m) => m.id === id), hidden ? new Date().toISOString() : null)]);
+}
+
+/** "Meno spesso" nelle Idee di un momento: fuori fino a `until` compreso; `null` lo rimette. */
+export async function snoozeMealIdea(slot: MealSlot, name: string, mode: PrepMode, until: LocalDate | null): Promise<void> {
+  const id = await memoryId(slot, name);
+  await commit([snoozeIdeaOp(id, slot, name, mode, knownMemory().find((m) => m.id === id), until)]);
 }
 
 export async function removeMeal(meal: MealPlan): Promise<void> {

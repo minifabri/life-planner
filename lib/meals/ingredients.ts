@@ -18,7 +18,8 @@ export function stem(word: string): string {
   return word.replace(/i?[aeiou]$/, "").replace(/h$/, "");
 }
 
-function words(name: string): string[] {
+/** Le parole che contano in un nome, ridotte alla radice. */
+export function words(name: string): string[] {
   return normalizeName(name)
     .split(/[^a-z0-9]+/)
     .filter((w) => w && !STOP.has(w))

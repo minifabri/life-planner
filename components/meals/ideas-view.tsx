@@ -16,6 +16,7 @@ export function MealIdeasView({
   note,
   past,
   onAdd,
+  onLess,
   onHide,
 }: {
   /** I momenti ancora vuoti del giorno, ognuno con le sue idee dalla più adatta. */
@@ -25,6 +26,8 @@ export function MealIdeasView({
   /** Il giorno è già passato: non c'è niente da proporre. */
   past: boolean;
   onAdd: (idea: Idea) => void;
+  /** "Meno spesso": fuori dalle Idee per qualche settimana. */
+  onLess: (idea: Idea) => void;
   onHide: (idea: Idea) => void;
 }) {
   const [pages, setPages] = useState<Partial<Record<MealSlot, number>>>({});
@@ -60,9 +63,14 @@ export function MealIdeasView({
                       <Button onClick={() => onAdd(idea)}>
                         Aggiungi<span className="sr-only">: {idea.name}</span>
                       </Button>
-                      <Button variant="quiet" className="-mr-4" onClick={() => onHide(idea)}>
-                        Non proporre<span className="sr-only">: {idea.name}</span>
-                      </Button>
+                      <span className="-mr-4 flex flex-wrap">
+                        <Button variant="quiet" onClick={() => onLess(idea)}>
+                          Meno spesso<span className="sr-only">: {idea.name}</span>
+                        </Button>
+                        <Button variant="quiet" onClick={() => onHide(idea)}>
+                          Non proporre<span className="sr-only">: {idea.name}</span>
+                        </Button>
+                      </span>
                     </div>
                   </li>
                 ))}

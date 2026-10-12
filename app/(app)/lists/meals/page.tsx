@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useDayContext } from "@/lib/data/day-marks-hooks";
 import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
-import { addMeal, hideMealIdea, removeMeal, saveMeal, setMealMode, setMealPrepared } from "@/lib/data/meals";
+import { addMeal, hideMealIdea, removeMeal, saveMeal, setMealMode, setMealPrepared, snoozeMealIdea } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
@@ -23,7 +23,7 @@ import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary } from "@/lib/meals/micros";
 import { NUTRIENT_LABEL, balanceNote, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
-import { SLOTS, SLOT_LABEL, mealDot, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
 import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
@@ -109,17 +109,24 @@ export default function MealsPage() {
   const before = useMeals(addDays(from, -7)).data;
   const known = [...new Map([...(before ?? []), ...upcoming, ...meals].map((m) => [m.id, m])).values()];
   const unused = uses.filter((u) => u.meals.length === 0).map((u) => u.entry);
-  const ideaSlots =
-    view === "ideas" && !missing
-      ? SLOTS.filter((slot) => !mealAt(day, slot)).map((slot) => ({
-          slot,
-          ideas: suggestMeals({ memory, meals: known, pantry: unused, overrides }, { day, slot, weekFrom: from, signs: signsOf(day) }),
-        }))
-      : [];
+  const ideasFor = (date: LocalDate, slot: MealSlot) =>
+    suggestMeals({ memory, meals: known, pantry: unused, overrides }, { day: date, slot, weekFrom: from, signs: signsOf(date) });
+  const ideaSlots = view === "ideas" && !missing ? SLOTS.filter((slot) => !mealAt(day, slot)).map((slot) => ({ slot, ideas: ideasFor(day, slot) })) : [];
+  // Le stesse idee nel foglio di un pasto ancora vuoto, da oggi in avanti.
+  const sheetIdeas = editing && !editingMeal && editing.slot !== "extra" && editing.date >= today ? ideasFor(editing.date, editing.slot) : [];
 
   function addIdea(idea: Idea) {
     run(() => addMeal(day, idea.slot, idea.name, idea.mode, today));
     toast({ message: `Aggiunto: ${SLOT_LABEL[idea.slot].toLowerCase()} di ${day === today ? "oggi" : weekdayName(day)}` });
+  }
+
+  function lessIdea(idea: Idea) {
+    run(() => snoozeMealIdea(idea.slot, idea.name, idea.mode, addDays(today, SNOOZE_DAYS)));
+    toast({
+      message: `Per tre settimane non lo propongo per ${SLOT_LABEL[idea.slot].toLowerCase()}`,
+      actionLabel: "Annulla",
+      onAction: () => void run(() => snoozeMealIdea(idea.slot, idea.name, idea.mode, null)),
+    });
   }
 
   function hideIdea(idea: Idea) {
@@ -227,7 +234,7 @@ export default function MealsPage() {
             <WeekView days={days} today={today} mealAt={mealAt} signsOf={signsOf} overrides={overrides} onOpen={(date, slot) => setEditing({ date, slot })} />
         </>
       ) : view === "ideas" ? (
-        <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onHide={hideIdea} />
+        <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onLess={lessIdea} onHide={hideIdea} />
       ) : (
         <>
         <ul className="flex flex-col gap-2">
@@ -314,6 +321,8 @@ export default function MealsPage() {
           dayLabel={editing.date === today ? "oggi" : `${weekdayName(editing.date)} ${shortDate(editing.date)}`}
           meal={editingMeal}
           suggestions={suggestionsFor(memory, editing.slot)}
+          ideas={sheetIdeas}
+          onLess={lessIdea}
           pantry={unused}
           overrides={overrides}
           onClose={() => setEditing(null)}

@@ -252,6 +252,8 @@ export type MealMemory = {
   nutrients: Nutrient[] | null;
   /** "Non proporre": escluso dalle Idee di questo momento. */
   hidden_at: string | null;
+  /** "Meno spesso": escluso dalle Idee di questo momento fino a questo giorno compreso. */
+  snoozed_until: string | null;
 };
 
 export type LogEntry = {

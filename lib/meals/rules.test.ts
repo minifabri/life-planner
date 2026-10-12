@@ -20,6 +20,7 @@ import {
   setModeOps,
   setNutrientsOps,
   setPreparedOps,
+  snoozeIdeaOp,
   suggestionsFor,
 } from "./rules";
 
@@ -242,6 +243,7 @@ describe("ricorrenti", () => {
     last_used_at: null,
     nutrients: null,
     hidden_at: null,
+  snoozed_until: null,
     ...over,
   });
 
@@ -261,7 +263,7 @@ describe("ricorrenti", () => {
 
   it("corregge i nutrienti anche di un piatto che la memoria non conosce ancora: non diventa un ricorrente", () => {
     const after = setNutrientsOps([], "new", "lunch", "Avanzi", "to_prep", ["fiber"]).reduce(applyToMealMemory, [] as MealMemory[]);
-    expect(after[0]).toMatchObject({ id: "new", name_normalized: "avanzi", nutrients: ["fiber"], use_count: 0, hidden_at: null });
+    expect(after[0]).toMatchObject({ id: "new", name_normalized: "avanzi", nutrients: ["fiber"], use_count: 0, hidden_at: null, snoozed_until: null });
     expect(suggestionsFor(after, "lunch")).toEqual([]);
   });
 
@@ -278,6 +280,13 @@ describe("ricorrenti", () => {
     expect(hidden[0]).toMatchObject({ hidden_at: NOW, use_count: 0, default_prep_mode: "to_prep" });
     expect(applyToMealMemory(hidden, hideIdeaOp("id1", "lunch", "Pasta e ceci", "to_prep", hidden[0], null))[0].hidden_at).toBeNull();
     expect(applyToMealMemory(hidden, rememberMealOp("id1", "lunch", "Pasta e ceci", "ready", hidden[0], NOW))[0]).toMatchObject({ hidden_at: null, use_count: 1 });
+  });
+
+  it("\"Meno spesso\" segna il giorno fino a cui non proporre; rimettere il piatto a mano lo toglie", () => {
+    const snoozed = applyToMealMemory([], snoozeIdeaOp("id1", "lunch", "Pasta e ceci", "to_prep", undefined, "2026-10-31"));
+    expect(snoozed[0]).toMatchObject({ use_count: 0, snoozed_until: "2026-10-31", hidden_at: null });
+    expect(applyToMealMemory(snoozed, snoozeIdeaOp("id1", "lunch", "Pasta e ceci", "to_prep", snoozed[0], null))[0].snoozed_until).toBeNull();
+    expect(applyToMealMemory(snoozed, rememberMealOp("id1", "lunch", "Pasta e ceci", "to_prep", snoozed[0], NOW))[0]).toMatchObject({ use_count: 1, snoozed_until: null });
   });
 
   it("suggerisce solo quelli del momento, dal più usato; a parità il più recente", () => {

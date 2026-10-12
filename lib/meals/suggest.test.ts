@@ -28,6 +28,7 @@ const memory = (name: string, over: Partial<MealMemory> = {}): MealMemory => ({
   last_used_at: null,
   nutrients: null,
   hidden_at: null,
+  snoozed_until: null,
   ...over,
 });
 
@@ -55,14 +56,14 @@ describe("suggestMeals", () => {
 
   it("non ripropone un piatto nascosto, nemmeno tra quelli dell'app", () => {
     const hidden = [memory("Farro", { hidden_at: "2026-10-12T08:00:00Z" }), memory("Riso e lenticchie", { use_count: 0, hidden_at: "2026-10-12T08:00:00Z" })];
-    const names = suggestMeals(data({ memory: hidden }), ctx(), 40).map((i) => i.name);
+    const names = suggestMeals(data({ memory: hidden }), ctx(), 400).map((i) => i.name);
     expect(names).not.toContain("Farro");
     expect(names).not.toContain("Riso e lenticchie");
-    expect(suggestMeals(data(), ctx(), 40).map((i) => i.name)).toContain("Riso e lenticchie");
+    expect(suggestMeals(data(), ctx(), 400).map((i) => i.name)).toContain("Riso e lenticchie");
   });
 
   it("non propone un piatto dell'app già tra i ricorrenti, né uno già in programma nel giorno", () => {
-    const ideas = suggestMeals(data({ memory: [memory("Riso e lenticchie"), memory("Farro")], meals: [meal(WED, "dinner", "farro")] }), ctx(), 40);
+    const ideas = suggestMeals(data({ memory: [memory("Riso e lenticchie"), memory("Farro")], meals: [meal(WED, "dinner", "farro")] }), ctx(), 400);
     expect(ideas.filter((i) => i.name === "Riso e lenticchie")).toHaveLength(1);
     expect(ideas.map((i) => i.name)).not.toContain("Farro");
   });
@@ -108,6 +109,36 @@ describe("suggestMeals", () => {
     expect(ideas[0]).toMatchObject({ name: "Verdure", mode: "to_prep" });
     expect(ideas[0].reason).toContain("Si prepara prima, per il giorno in ufficio");
     expect(suggestMeals(data({ memory: own }), ctx({ signs: ["office"], slot: "dinner" }))).not.toContainEqual(expect.objectContaining({ reason: expect.stringContaining("ufficio") }));
+  });
+
+  it("\"Meno spesso\" tiene fuori un piatto fino al suo giorno, poi torna", () => {
+    const snoozed = [memory("Farro", { snoozed_until: WED }), memory("Riso e lenticchie", { use_count: 0, snoozed_until: WED })];
+    const names = (day: string) => suggestMeals(data({ memory: snoozed }), ctx({ day }), 400).map((i) => i.name);
+    expect(names(WED)).not.toContain("Farro");
+    expect(names(WED)).not.toContain("Riso e lenticchie");
+    expect(names("2026-10-15")).toEqual(expect.arrayContaining(["Farro", "Riso e lenticchie"]));
+  });
+
+  it("ogni momento ha proposte sue: a merenda niente piatti da pranzo", () => {
+    const names = (slot: MealSlot) => suggestMeals(data(), ctx({ slot }), 400).map((i) => i.name);
+    expect(names("snack")).not.toContain("Riso e lenticchie");
+    expect(names("snack")).toContain("Frutta e mandorle");
+    expect(names("breakfast").filter((n) => names("dinner").includes(n))).toEqual([]);
+  });
+
+  it("i piatti nuovi girano di settimana in settimana", () => {
+    const first = (weekFrom: string, day: string) => suggestMeals(data(), ctx({ weekFrom, day }), 6).map((i) => i.name);
+    expect(first(MON, WED)).toEqual(first(MON, WED));
+    expect(first("2026-10-19", "2026-10-21")).not.toEqual(first(MON, WED));
+  });
+
+  it("tra i piatti nuovi preferisce quelli con ingredienti già usati, e lo dice", () => {
+    const own = [memory("Tofu e broccoli", { slot: "dinner", use_count: 5 })];
+    const ideas = suggestMeals(data({ memory: own }), ctx(), 400);
+    const rank = (name: string) => ideas.findIndex((i) => i.name === name);
+    expect(ideas.find((i) => i.name === "Grano saraceno, tofu e broccoli")?.reason).toContain("Con ingredienti che usi spesso");
+    expect(ideas.find((i) => i.name === "Pasta e ceci")?.reason).not.toContain("ingredienti che usi");
+    expect(rank("Grano saraceno, tofu e broccoli")).toBeLessThan(ideas.length / 2);
   });
 
   it("è deterministico", () => {

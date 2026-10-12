@@ -75,7 +75,7 @@ describe("daySummary", () => {
 
   it("un pasto corretto a mano conta tra i riconosciuti anche se il nome non dice nulla", () => {
     const overrides = nutrientOverrides([
-      { id: "a", slot: "dinner", name_normalized: "avanzi", display_name: "Avanzi", default_prep_mode: "ready", use_count: 1, last_used_at: null, nutrients: ["protein"], hidden_at: null },
+      { id: "a", slot: "dinner", name_normalized: "avanzi", display_name: "Avanzi", default_prep_mode: "ready", use_count: 1, last_used_at: null, nutrients: ["protein"], hidden_at: null, snoozed_until: null },
     ]);
     const summary = daySummary([meal("Avanzi", "dinner")], overrides);
     expect(summary.recognized).toBe(1);
