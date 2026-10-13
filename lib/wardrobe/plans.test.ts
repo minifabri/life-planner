@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planIssues, planTitle, plansForDay, resolvePlan, upcomingPlans } from "./plans";
+import { planIssues, planTitle, plansForDay, resolvePlan, upcomingPlans, weatherIssue } from "./plans";
 import type { Outfit, OutfitPlan, WardrobeItem } from "../supabase/types";
 
 function item(id: string, patch: Partial<WardrobeItem> = {}): WardrobeItem {
@@ -92,5 +92,29 @@ describe("planTitle", () => {
     expect(planTitle({ plan: plan("p", { label: "Cena fuori" }), outfit })).toBe("Cena fuori");
     expect(planTitle({ plan: plan("p"), outfit })).toBe("Sera");
     expect(planTitle({ plan: plan("p", { label: "  " }), outfit: null })).toBe("Outfit");
+  });
+});
+
+describe("weatherIssue", () => {
+  const forecast = (feels: number) => ({ date: "2026-10-17", min: feels, max: feels, feelsMin: feels, feelsMax: feels, rain: null, code: null });
+  const light = [item("a", { warmth: 1 }), item("b", { category: "bottom", warmth: 2 })];
+  const heavy = [item("a", { warmth: 5 }), item("b", { category: "bottom", warmth: 4 }), item("c", { category: "outerwear", warmth: 5 })];
+
+  it("segnala un outfit leggero per il freddo e uno pesante per il caldo", () => {
+    expect(weatherIssue(light, forecast(4))).toBe("Forse leggero per una giornata fredda");
+    expect(weatherIssue(heavy, forecast(28))).toBe("Forse pesante per una giornata calda");
+  });
+
+  it("tace quando l'outfit è adatto", () => {
+    expect(weatherIssue(light, forecast(28))).toBeNull();
+    expect(weatherIssue(heavy, forecast(4))).toBeNull();
+    expect(weatherIssue([item("a", { warmth: 3 }), item("b", { category: "bottom", warmth: 3 })], forecast(16))).toBeNull();
+  });
+
+  it("tace senza previsione o senza pesantezza dichiarata", () => {
+    expect(weatherIssue(light, null)).toBeNull();
+    expect(weatherIssue([item("a"), item("b", { category: "bottom" })], forecast(4))).toBeNull();
+    // Scarpe e accessori non dicono quanto tiene caldo l'outfit.
+    expect(weatherIssue([item("s", { category: "shoes", warmth: 1 })], forecast(4))).toBeNull();
   });
 });

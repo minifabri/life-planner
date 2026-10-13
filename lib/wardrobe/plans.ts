@@ -1,6 +1,8 @@
 import type { LocalDate } from "../dates/local";
 import type { Outfit, OutfitPlan, WardrobeItem } from "../supabase/types";
+import { bandOf, type DayForecast } from "../weather/forecast";
 import { resolveItems, toWashCount } from "./outfits";
+import { thermalMismatch, type Band } from "./suggest";
 
 /** Le pianificazioni da `today` in avanti, dal giorno più vicino; nello stesso giorno, nell'ordine in cui sono nate. */
 export function upcomingPlans(plans: OutfitPlan[], today: LocalDate): OutfitPlan[] {
@@ -37,6 +39,17 @@ export function planIssues(resolved: Pick<ResolvedPlan, "items" | "missing">): s
   if (toWash > 0) issues.push(toWash === 1 ? "Un capo è da lavare" : `${toWash} capi sono da lavare`);
   if (resolved.missing > 0) issues.push(resolved.missing === 1 ? "Un capo non è più nel guardaroba" : `${resolved.missing} capi non sono più nel guardaroba`);
   return issues;
+}
+
+const BAND_DAY: Record<Band, string> = { cold: "una giornata fredda", mild: "una giornata mite", warm: "una giornata calda" };
+
+/** Se l'outfit stona con la previsione di quel giorno, lo dice; non tocca la scelta. `null` se va bene o non si può dire. */
+export function weatherIssue(items: WardrobeItem[], forecast: DayForecast | null): string | null {
+  if (!forecast) return null;
+  const band = bandOf(forecast);
+  const mismatch = thermalMismatch(items, band);
+  if (!mismatch) return null;
+  return `Forse ${mismatch === "light" ? "leggero" : "pesante"} per ${BAND_DAY[band]}`;
 }
 
 /** Come chiamare una pianificazione: l'occasione, poi il nome dell'outfit, poi un nome generico. */

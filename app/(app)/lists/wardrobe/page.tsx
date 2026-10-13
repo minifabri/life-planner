@@ -20,6 +20,7 @@ import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { relativeDay } from "@/lib/dates/local";
 import { STYLE_KEY, createOutfit, createPlan, deletePlan, recordWear, restorePlan, saveWardrobeStyle, setFeedback, undoWear, updateOutfit, updatePlan, type OutfitInput, type WearChoice } from "@/lib/data/outfits";
 import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDeletedWardrobePhotos, updateWardrobeItem } from "@/lib/data/wardrobe";
+import { useForecast } from "@/lib/data/weather";
 import { useOutfitFeedback, useOutfitPlans, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
@@ -28,6 +29,7 @@ import { resolvePlan, upcomingPlans, type ResolvedPlan } from "@/lib/wardrobe/pl
 import { itemUsage, timesLabel } from "@/lib/wardrobe/stats";
 import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
 import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
+import { cityName, forecastFor } from "@/lib/weather/forecast";
 
 type View = "items" | "outfits" | "ideas" | "stats";
 /** L'outfit aperto nel foglio: uno esistente, oppure uno nuovo che parte da questi capi. */
@@ -91,6 +93,7 @@ export default function WardrobePage() {
     [query.data, outfitsQuery.data, wears, feedbackQuery.data, style],
   );
   const { today } = useToday(useTimezone());
+  const weather = useForecast();
 
   const [view, setView] = useState<View>("items");
   const [outfitEditor, setOutfitEditor] = useState<OutfitEditor | null>(null);
@@ -361,6 +364,7 @@ export default function WardrobePage() {
         <PlanList
           plans={plans}
           today={today}
+          days={weather.days}
           onWear={(p) => setWearing({ outfitId: p.outfit?.id ?? null, items: p.items })}
           onChange={(p) => setPlanning({ plan: p.plan, outfitId: p.plan.outfit_id, itemIds: p.itemIds })}
           onRemove={(p) => void removePlan(p)}
@@ -456,6 +460,8 @@ export default function WardrobePage() {
           <IdeasView
             data={suggestData}
             today={today}
+            city={weather.place ? cityName(weather.place) : null}
+            forecast={forecastFor(weather.days, today)}
             anchor={anchor}
             onClearAnchor={() => setAnchorId(null)}
             onFeedback={(s, v) => void giveFeedback(s, v)}
@@ -512,6 +518,7 @@ export default function WardrobePage() {
           key={planning.plan?.id ?? "new"}
           items={resolveItems(planning.itemIds, items).items}
           today={today}
+          weather={weather}
           initial={planning.plan}
           onSave={savePlan}
           onClose={() => setPlanning(null)}

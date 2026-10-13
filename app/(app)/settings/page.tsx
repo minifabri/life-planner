@@ -12,11 +12,13 @@ import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
+import { searchPlaces, useWeatherPlace } from "@/lib/data/weather";
 import { useLogUnlocked } from "@/lib/data/log-hooks";
 import { DEFAULT_PREFS } from "@/lib/reminders/defaults";
 import type { NotificationPrefs } from "@/lib/supabase/types";
 import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
+import type { PlaceResult } from "@/lib/weather/forecast";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
 import { useImayogaAccount } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
@@ -45,6 +47,7 @@ export default function SettingsPage() {
       <PageHeader eyebrow="Impostazioni" title="Preferenze" />
       <ThemeSection />
       <DaySection />
+      <WeatherSection />
       <NotificationsSection />
       <LockSection />
       <CalendarsSection />
@@ -189,6 +192,97 @@ function DaySection() {
           Salva
         </button>
       </form>
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- Meteo ---------------- */
+function WeatherSection() {
+  const profile = useProfile();
+  const place = useWeatherPlace();
+  const qc = useQueryClient();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PlaceResult[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+
+  async function search(e: React.FormEvent) {
+    e.preventDefault();
+    if (query.trim().length < 2) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const found = await searchPlaces(query);
+      setResults(found);
+      if (found.length === 0) setStatus({ text: "Nessuna città con questo nome.", tone: "warn" });
+    } catch {
+      setResults(null);
+      setStatus({ text: "Ricerca non riuscita: serve la connessione.", tone: "warn" });
+    }
+    setBusy(false);
+  }
+
+  async function choose(next: PlaceResult | null) {
+    setStatus(null);
+    const { error } = await getSupabase()
+      .from("profiles")
+      .update({ weather_city: next?.name ?? null, weather_lat: next?.latitude ?? null, weather_lon: next?.longitude ?? null })
+      .eq("owner_id", profile!.owner_id);
+    if (error) return setStatus({ text: "Non salvato: serve la connessione.", tone: "warn" });
+    await qc.invalidateQueries({ queryKey: ["profile"] });
+    setResults(null);
+    setQuery("");
+    setStatus({ text: next ? "Città salvata." : "Città tolta.", tone: "ok" });
+  }
+
+  return (
+    <Section
+      title="Meteo"
+      note="Serve al Guardaroba: le Idee e gli outfit pianificati tengono conto della previsione per questa città, fino a 16 giorni. Dati di Open-Meteo.com, gratuito: riceve solo la città cercata e le sue coordinate."
+    >
+      <Row label="Città" value={place?.name ?? "Non impostata"} />
+      <form onSubmit={search} className="flex flex-wrap items-end gap-3">
+        <Field label={place ? "Cambia città" : "Cerca la tua città"} htmlFor="weather-city">
+          <input
+            id="weather-city"
+            type="search"
+            autoComplete="off"
+            maxLength={60}
+            placeholder="Es. Milano"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <button
+          type="submit"
+          disabled={!profile || busy || query.trim().length < 2}
+          className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2 disabled:opacity-40"
+        >
+          Cerca
+        </button>
+      </form>
+      {results && results.length > 0 ? (
+        <ul aria-label="Città trovate" className="flex flex-col gap-1.5">
+          {results.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => void choose(r)}
+                className="flex min-h-11 w-full items-center rounded-xl border border-line px-3 text-left text-sm text-text transition-colors hover:bg-surface-2"
+              >
+                {r.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {place ? (
+        <div>
+          <Button onClick={() => void choose(null)}>Togli la città</Button>
+        </div>
+      ) : null}
       <Status text={status?.text ?? null} tone={status?.tone} />
     </Section>
   );

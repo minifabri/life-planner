@@ -850,7 +850,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
   - **Temperatura**: indicata a mano (freddo, mite, caldo) oppure ricavata dalla stagione, dichiarandolo nella proposta.
 - `suggestOutfits` (per oggi), `suggestAround` (Consigliato, Elegante, Alternativo intorno a un capo), `suggestDiscover` (capi meno usati, combinazioni mai indossate né salvate).
 - Interfaccia: `IdeasView` e `StyleSheet`; "Abbina" nella scheda del capo; "Salva" riusa `OutfitSheet`, "Indossato oggi" riusa `WearSheet`.
-- Non incluso: meteo reale (richiede un servizio esterno e la posizione: da decidere), regolazione dei pesi dall'interfaccia, motivazione quando si scarta.
+- Non incluso: meteo reale (arrivato con l'incremento 27), regolazione dei pesi dall'interfaccia, motivazione quando si scarta.
 - Criteri: test di `lib/wardrobe/suggest`; dal telefono, con almeno una decina di capi classificati: apri Idee, cambia occasione e tempo, dai un "Non mi piace" e verifica che la proposta sparisca e torni con Annulla; "Abbina" da un capo e ottieni tre proposte diverse; salva una proposta come outfit; modifica "Il mio stile" e verifica che l'ordine cambi.
 
 **Incremento 17 — Guardaroba, outfit pianificati** *(12 ottobre 2026)*
@@ -877,9 +877,6 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Nome proposto**: `suggestName` accorda il colore al nome generico della categoria; per "Pantaloni/Gonne" senza sottocategoria propone "Pantaloni", perché dalla sola categoria non si distingue una gonna.
 - Limiti noti: uno sfondo colorato al centro della foto falsa i colori; fantasie e più colori vicini vengono ridotti a uno o due; il tipo di capo non viene riconosciuto.
 - Criteri: test di `lib/wardrobe/stats` e `lib/wardrobe/colors`; dal telefono: fotografa un capo nero e uno chiaro e verifica colori e nome proposti; scrivi un nome a mano, cambia categoria e verifica che resti il tuo; apri Numeri dopo qualche "Indossato oggi".
-
-**Da decidere** [PROPOSTA]
-- Meteo reale nelle Idee: servizio esterno e posizione (o città fissa nelle impostazioni).
 
 **Incrementi 20–22 — Pasti: settimana, nutrienti, idee** *(12 ottobre 2026; realizzati insieme)*
 - Migrazione `20261012140000_meal_nutrients.sql`: due colonne su `meal_memory` (`nutrients`, `hidden_at`). Nessuna tabella nuova: correzioni e idee nascoste passano dalla outbox come il resto della memoria dei pasti.
@@ -944,6 +941,15 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - **Voto** (`WEIGHTS`): due fattori in più, peso 1 ciascuno, che contano solo per i piatti nuovi (per gli abituali valgono 0,5). `taste`: quota degli alimenti del piatto che compaiono nei piatti già usati, in qualunque momento. `fresh`: un numero tra 0 e 1 ricavato da settimana, momento e nome: stesso ordine dentro la settimana, diverso la settimana dopo.
 - Non incluso: piatti scaricati da internet (servirebbe un servizio esterno), aggiornamento dell'elenco senza una nuova versione dell'app, "Meno spesso" di durata regolabile.
 - Criteri: test di `lib/meals`; dal telefono: apri una merenda vuota e controlla esempio e idee; tocca "Meno" e guarda arrivare un'altra idea, poi annulla dal toast; "Altre idee" gira; aggiungi un'idea con un tocco; ripeti senza rete.
+
+**Incremento 27 — Guardaroba, meteo** *(12 ottobre 2026)*
+- Migrazione `20261013140000_weather_place.sql`: solo colonne sul profilo (`weather_city`, `weather_lat`, `weather_lon`, tutte o nessuna), nessuna tabella nuova.
+- Servizio: Open-Meteo, gratuito e senza chiave (uso non commerciale, dati CC BY 4.0 citati nelle Impostazioni). Il browser chiama direttamente `geocoding-api.open-meteo.com` (ricerca della città) e `api.open-meteo.com` (previsione giornaliera, 16 giorni, fuso della città): partono solo il testo cercato e le coordinate della città, nessun segreto e nessun dato dell'account.
+- Logica pura con test in `lib/weather/forecast.ts`: indirizzi, lettura tollerante delle risposte, `bandOf` (percepita, `(2 × massima + minima) / 3`: sotto 12° freddo, da 22° caldo), `forecastText`. In `lib/wardrobe/suggest.ts` `thermalMismatch` riusa il calcolo del fattore termico; in `lib/wardrobe/plans.ts` `weatherIssue`.
+- Dati in `lib/data/weather.ts`: `searchPlaces`, `useForecast` (query `weather`, valida un'ora, salvata sul dispositivo: senza rete resta l'ultima previsione scaricata).
+- Interfaccia: sezione "Meteo" nelle Impostazioni (cerca, scegli, togli); `IdeasView` usa la fascia di oggi quando non si sceglie a mano; `PlanSheet` e `PlanList` mostrano la previsione del giorno e l'eventuale segnalazione.
+- Non incluso: idee per un giorno futuro, meteo in Oggi, posizione del telefono, pioggia nel voto.
+- Criteri: test di `lib/weather` e `lib/wardrobe/plans`; dal telefono: Impostazioni → Meteo, cerca e scegli la città; apri Idee e verifica la riga del meteo e che "Non considera il meteo" sparisca; "Pianifica" per un giorno entro due settimane e per uno oltre; ritrova la previsione in "In programma"; ripeti senza rete.
 
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 

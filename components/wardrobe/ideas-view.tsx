@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, Segmented } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/page-header";
@@ -8,6 +9,7 @@ import type { LocalDate } from "@/lib/dates/local";
 import { CATEGORY_LABEL, OCCASION_OPTIONS } from "@/lib/wardrobe/categories";
 import { suggestAround, suggestDiscover, suggestOutfits, type Band, type Suggestion, type SuggestData } from "@/lib/wardrobe/suggest";
 import type { OutfitFeedback, WardrobeItem } from "@/lib/supabase/types";
+import { BAND_LABEL, bandOf, forecastText, type DayForecast } from "@/lib/weather/forecast";
 
 const PAGE = 3;
 
@@ -68,6 +70,8 @@ function IdeaCard({
 export function IdeasView({
   data,
   today,
+  city,
+  forecast,
   anchor,
   onClearAnchor,
   onFeedback,
@@ -78,6 +82,10 @@ export function IdeasView({
 }: {
   data: SuggestData;
   today: LocalDate;
+  /** Città scelta nelle impostazioni, se c'è. */
+  city: string | null;
+  /** Previsione di oggi per quella città: "Che tempo fa" parte da qui invece che dalla stagione. */
+  forecast: DayForecast | null;
   /** Il capo intorno a cui costruire (da "Abbina" nella scheda del capo), se c'è. */
   anchor: WardrobeItem | null;
   onClearAnchor: () => void;
@@ -92,11 +100,14 @@ export function IdeasView({
   const [band, setBand] = useState<BandChoice>("auto");
   const [page, setPage] = useState(0);
 
+  // Senza una scelta a mano vale la previsione di oggi; se manca, la stagione.
+  const ctxBand: Band | null = band !== "auto" ? band : forecast ? bandOf(forecast) : null;
+
   const suggestions = useMemo(() => {
-    const ctx = { today, occasion, band: band === "auto" ? null : band };
+    const ctx = { today, occasion, band: ctxBand };
     if (anchor) return suggestAround(data, ctx, anchor.id);
     return mode === "discover" ? suggestDiscover(data, ctx) : suggestOutfits(data, ctx);
-  }, [data, today, occasion, band, anchor, mode]);
+  }, [data, today, occasion, ctxBand, anchor, mode]);
 
   const pages = Math.max(1, Math.ceil(suggestions.length / PAGE));
   const current = page % pages;
@@ -150,7 +161,7 @@ export function IdeasView({
           label="Che tempo fa"
           value={band}
           options={[
-            { value: "auto", label: "Stagione" },
+            { value: "auto", label: forecast ? "Meteo" : "Stagione" },
             { value: "cold", label: "Freddo" },
             { value: "mild", label: "Mite" },
             { value: "warm", label: "Caldo" },
@@ -160,6 +171,17 @@ export function IdeasView({
             setPage(0);
           }}
         />
+        {city && forecast ? (
+          <p className="text-xs text-text-2">
+            {city}, oggi: {forecastText(forecast)}. Conta come {BAND_LABEL[bandOf(forecast)]}.
+          </p>
+        ) : city ? (
+          <p className="text-xs text-text-3">Previsione per {city} non disponibile ora: uso la stagione.</p>
+        ) : (
+          <Link href="/settings" className="-my-1 flex min-h-11 items-center self-start text-xs text-text-2 underline underline-offset-2 hover:text-text">
+            Imposta la città per usare il meteo
+          </Link>
+        )}
       </div>
 
       {shown.length === 0 ? (

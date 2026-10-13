@@ -115,7 +115,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D52 | **Wishlist e guardaroba**: un articolo della wishlist può essere segnato come capo (tipo, colori, stili) e viene confrontato con il guardaroba; un articolo acquistato diventa un capo senza reinserire i dati, e il capo ricorda l'articolo da cui nasce. Resta una sola wishlist | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D53 | **Numeri** (statistiche del guardaroba): quarta voce del selettore. Poche cifre ricavate dallo storico: più indossati, outfit più indossati, mai indossati, fermi da più di due mesi, mai abbinati. Niente grafici | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D54 | **Capo nuovo, proposte automatiche**: dalla foto l'app propone colori, categoria, tipo di capo e, quando sono evidenti, stile e materiale; il nome viene proposto da tipo e colore. Tutto nel dispositivo, senza servizi a pagamento, e sempre correggibile | [RICHIESTO il 12 ottobre 2026; dettagli PROPOSTA] |
-| D55 | Guardaroba, da decidere: meteo reale nelle Idee (servizio esterno e posizione). Il riconoscimento del tipo di capo dalla foto è passato in D54 con un modello che gira nel dispositivo | [PROPOSTA] |
+| D55 | **Meteo nel Guardaroba**: una città fissa scelta nelle Impostazioni (non la posizione del telefono); la previsione arriva da Open-Meteo, gratuito e senza registrazione, unica eccezione a "nessun servizio esterno" delle Idee (D49). Le Idee partono dal meteo di oggi, e "Pianifica" e "In programma" mostrano la previsione del giorno scelto, fino a 16 giorni. Senza città tutto resta come prima | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D56 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D57 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D58 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
@@ -546,7 +546,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
 - Non incluso per ora: ripetizioni degli allenamenti.
 
-### 7.15 Guardaroba [APPROVATO, D46–D49 e D51–D54; da decidere, D55]
+### 7.15 Guardaroba [APPROVATO, D46–D49 e D51–D55]
 Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto il selettore **Capi · Outfit · Idee · Numeri**; in Capi e Outfit c'è il campo di ricerca.
 
 **Capi**
@@ -577,7 +577,8 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 **Offline**: capi, outfit e utilizzi si leggono e si modificano senza rete; solo il caricamento della foto la richiede.
 
 **Idee** (D49)
-- **Per oggi**: proposte ordinate per pertinenza, tre alla volta; "Altre idee" mostra le successive. Si può indicare l'occasione e che tempo fa (Stagione · Freddo · Mite · Caldo).
+- **Per oggi**: proposte ordinate per pertinenza, tre alla volta; "Altre idee" mostra le successive. Si può indicare l'occasione e che tempo fa (Meteo · Freddo · Mite · Caldo; senza città o senza previsione la prima voce è Stagione).
+- **Meteo** (D55): con una città nelle Impostazioni, le idee partono dalla previsione di oggi, mostrata sotto la scelta ("Milano, oggi: 9–16°, coperto. Conta come mite."). La fascia viene dalla temperatura percepita: freddo sotto 12°, caldo da 22°, contando le ore calde il doppio della minima. Freddo, Mite e Caldo restano per decidere a mano. Senza città compare il collegamento alle Impostazioni.
 - **Intorno a un capo**: dalla scheda di un capo, "Abbina". Tre proposte diverse tra loro: **Consigliato** (la più coerente con il contesto), **Elegante** (privilegia l'estetica), **Alternativo** (un abbinamento meno abituale). Vale anche per un capo da lavare: la scelta si può sempre forzare.
 - **Scopri**: parte dai capi mai indossati o meno usati e propone abbinamenti mai indossati né salvati.
 - **Cosa conta**: armonia dei colori, coerenza di stile, occasione, comfort termico (pesantezza, capospalla, stagione come indicazione), disponibilità dei capi, profilo di stile, giudizi dati, varietà rispetto agli ultimi 14 giorni.
@@ -590,6 +591,7 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - **Cosa si sceglie**: il giorno (da oggi in avanti); facoltativi un evento di quel giorno, scelto dall'elenco, oppure un'occasione scritta a mano ("Cena fuori"). Più outfit nello stesso giorno sono ammessi.
 - **Tre cose distinte**: proposta (Idee), pianificazione (In programma), utilizzo (storico). Pianificare non registra un utilizzo e non crea né modifica eventi.
 - **In programma**: in Guardaroba → Outfit, dal giorno più vicino, con Cambia giorno e Togli (con annulla). Nel giorno stesso compare "Indossato oggi".
+- **Meteo** (D55): scegliendo il giorno, "Pianifica" mostra la previsione per quel giorno; oltre i 16 giorni dice che non è ancora disponibile. In "In programma" ogni outfit riporta la previsione del suo giorno. Se i capi dichiarano la pesantezza e l'outfit stona ("Forse leggero per una giornata fredda"), viene segnalato; la scelta non cambia da sola. La pioggia viene mostrata, non entra nel voto.
 - **Oggi**: nel giorno pianificato compare la sezione "Outfit" con le foto dei capi; un tocco porta al Guardaroba.
 - **Capi non disponibili**: "Un capo è da lavare" o "Un capo non è più nel guardaroba" compaiono sulla pianificazione; la scelta resta com'è finché non la cambi tu.
 - Se l'outfit salvato viene modificato, la pianificazione mostra i capi nuovi; se viene eliminato, restano quelli del momento in cui è stato pianificato.
@@ -607,7 +609,7 @@ Si apre da Liste → Guardaroba (su desktop anche dalla barra laterale). In alto
 - Un tocco su un capo o un outfit lo apre. Nella scheda di ogni capo compare "Indossato N volte · ultima volta…".
 - I numeri contano solo gli utilizzi registrati con "Indossato oggi", e la vista dice da quando.
 
-Non incluso per ora (D55): tipo di capo riconosciuto dalla foto, meteo reale, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, grafici e andamento nel tempo.
+Non incluso per ora: idee per un giorno diverso da oggi, meteo in Oggi e nel calendario, posizione del telefono, capi adatti alla pioggia, motivazione facoltativa quando si scarta, regolazione dei pesi dall'interfaccia, outfit pianificati dentro Settimana e Mese o nella scheda dell'evento, proposta automatica "aggiungi al guardaroba" al momento dell'acquisto, tipo di capo e colori letti dal link, grafici e andamento nel tempo.
 
 ### 7.16 Segni dei giorni [APPROVATO, D50; dettagli PROPOSTA]
 - **Segni**: Ufficio (valigetta) e Viaggio (aereo), messi a mano; Allenamento (muscolo), che arriva da solo dagli allenamenti in programma o fatti (non da quelli saltati).
