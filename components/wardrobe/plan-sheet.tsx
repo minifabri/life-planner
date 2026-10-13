@@ -5,9 +5,11 @@ import { Button, Field, inputClass } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { WardrobePhoto } from "@/components/wardrobe/photo";
 import { useEvents, useTimezone } from "@/lib/data/hooks";
-import type { LocalDate } from "@/lib/dates/local";
+import { relativeDay, type LocalDate } from "@/lib/dates/local";
 import { eventsForDay } from "@/lib/events/day";
 import type { OutfitPlan, WardrobeItem } from "@/lib/supabase/types";
+import { weatherIssue } from "@/lib/wardrobe/plans";
+import { FORECAST_DAYS, cityName, forecastFor, forecastText, type DayForecast, type WeatherPlace } from "@/lib/weather/forecast";
 
 export type PlanChoice = Pick<OutfitPlan, "date" | "event_id" | "label">;
 
@@ -20,12 +22,15 @@ const chip = (active: boolean) =>
 export function PlanSheet({
   items,
   today,
+  weather,
   initial,
   onSave,
   onClose,
 }: {
   items: WardrobeItem[];
   today: LocalDate;
+  /** Città del profilo e previsione, se ci sono. */
+  weather: { place: WeatherPlace | null; days: DayForecast[] | null };
   /** La pianificazione che si sta cambiando, se c'è. */
   initial: PlanChoice | null;
   onSave: (choice: PlanChoice) => Promise<boolean>;
@@ -40,6 +45,9 @@ export function PlanSheet({
 
   const eventsQuery = useEvents(date, tz);
   const occurrences = eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, date, tz) : [];
+
+  const forecast = forecastFor(weather.days, date);
+  const issue = weatherIssue(items, forecast);
 
   function pickEvent(id: string, title: string) {
     if (eventId === id) {
@@ -91,6 +99,16 @@ export function PlanSheet({
             className={inputClass}
           />
         </Field>
+
+        {weather.place && forecast ? (
+          <p aria-live="polite" className="-mt-2 text-xs text-text-2">
+            {cityName(weather.place)}, {relativeDay(date, today)}: {forecastText(forecast)}.{issue ? ` ${issue}.` : ""}
+          </p>
+        ) : weather.place && weather.days && date ? (
+          <p aria-live="polite" className="-mt-2 text-xs text-text-3">
+            Previsione non ancora disponibile: arriva {FORECAST_DAYS} giorni prima.
+          </p>
+        ) : null}
 
         {occurrences.length > 0 ? (
           <div className="flex flex-col gap-1.5">

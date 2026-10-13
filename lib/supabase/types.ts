@@ -11,6 +11,10 @@ export type Profile = {
   timezone: string;
   theme: "dark" | "light";
   evening_review_time: string;
+  /** Città per il meteo del Guardaroba: nome da mostrare e coordinate. Tutte e tre o nessuna. */
+  weather_city: string | null;
+  weather_lat: number | null;
+  weather_lon: number | null;
 } & NotificationPrefs;
 
 /** Preferenze delle notifiche (technical-design.md, 7.2). Gli orari sono "HH:mm:ss". */

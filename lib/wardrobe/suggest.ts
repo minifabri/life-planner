@@ -36,7 +36,7 @@ export type Season = "winter" | "spring" | "summer" | "autumn";
 export type SuggestContext = {
   today: LocalDate;
   occasion: string | null;
-  /** Temperatura indicata a mano; `null` = non nota, si usa la stagione e lo si dichiara. */
+  /** Temperatura indicata a mano o ricavata dalla previsione; `null` = non nota, si usa la stagione e lo si dichiara. */
   band: Band | null;
 };
 
@@ -180,14 +180,35 @@ function occasionScore(items: WardrobeItem[], occasion: string | null): Scored {
 
 const CORE: WardrobeCategory[] = ["top", "bottom", "dress"];
 
-function thermalScore(items: WardrobeItem[], p: Prepared): Scored {
+/** Quanto tiene caldo una combinazione, dai capi principali che lo dichiarano più il capospalla; `null` se nessuno lo dichiara. */
+function warmthOf(items: WardrobeItem[]): number | null {
   const core = items.filter((i) => CORE.includes(i.category) && i.warmth !== null);
+  if (core.length === 0) return null;
+  return core.reduce((sum, i) => sum + (i.warmth ?? 0), 0) / core.length + (items.some((i) => i.category === "outerwear") ? OUTERWEAR_BONUS : 0);
+}
+
+function thermalScore(items: WardrobeItem[], p: Prepared): Scored {
   // Le stagioni sono un'indicazione: un capo "fuori stagione" abbassa il voto, non viene escluso.
   const inSeason = items.filter((i) => i.seasons.length === 0 || i.seasons.includes(p.season)).length / items.length;
-  if (core.length === 0) return { score: 0.5 * 0.75 + inSeason * 0.25, known: false };
-  const warmth = core.reduce((sum, i) => sum + (i.warmth ?? 0), 0) / core.length + (items.some((i) => i.category === "outerwear") ? OUTERWEAR_BONUS : 0);
+  const warmth = warmthOf(items);
+  if (warmth === null) return { score: 0.5 * 0.75 + inSeason * 0.25, known: false };
   const fit = clamp01(1 - Math.abs(warmth - TARGET_WARMTH[p.band]) / 2.5);
   return { score: fit * 0.75 + inSeason * 0.25, known: true };
+}
+
+const MISMATCH = 1.4;
+
+/**
+ * Per un outfit già scelto (pianificato): dice se è leggero o pesante per la fascia prevista.
+ * `null` se va bene o se i capi non dichiarano la pesantezza.
+ */
+export function thermalMismatch(items: WardrobeItem[], band: Band): "light" | "heavy" | null {
+  const warmth = warmthOf(items);
+  if (warmth === null) return null;
+  const delta = warmth - TARGET_WARMTH[band];
+  // Troppo coperti col freddo o troppo scoperti col caldo non è un problema da segnalare.
+  if (delta <= -MISMATCH) return band === "warm" ? null : "light";
+  return delta >= MISMATCH && band !== "cold" ? "heavy" : null;
 }
 
 function itemText(item: WardrobeItem): string {
