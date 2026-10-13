@@ -1,4 +1,4 @@
--- Incremento 27 — Guardaroba: città per il meteo, scelta nelle impostazioni.
+-- Incremento 28 — Guardaroba: città per il meteo, scelta nelle impostazioni.
 -- Solo colonne aggiunte al profilo: nome da mostrare e coordinate per chiedere la previsione.
 alter table public.profiles
   add column weather_city text,

@@ -352,6 +352,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 
 Le categorie sensibili notificano sempre con titolo neutro ("Promemoria personale").
 
+**[Aggiunto il 12 ottobre 2026, su richiesta di Bibi]** Un'attività con una data può essere segnata come **promemoria**: manda una notifica all'orario (al mattino se non ha un orario) anche con attenzione bassa.
+
 ---
 
 ## 6. Architettura dell'informazione

@@ -16,6 +16,7 @@ function task(over: Partial<Task>): Task {
     due_date: null,
     window_start: null,
     attention: "low",
+    remind: false,
     area_id: null,
     status: "open",
     completed_at: null,

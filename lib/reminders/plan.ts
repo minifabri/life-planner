@@ -25,6 +25,7 @@ export type PlanTask = Pick<
   | "due_date"
   | "window_start"
   | "attention"
+  | "remind"
   | "status"
   | "completed_at"
   | "original_date"
@@ -125,7 +126,8 @@ export function planReminders(input: PlanInput, from: Date, to: Date): PlannedRe
       continue;
     }
 
-    if (!enabled(t.attention, s)) continue;
+    // Il promemoria chiesto sull'attività vale anche con attenzione bassa o con il livello spento.
+    if (!t.remind && !enabled(t.attention, s)) continue;
     const day = t.date ?? t.due_date;
     if (!day || day < firstDay || day > lastDay) continue;
     const time = t.date && t.time ? trimTime(t.time) : null;
@@ -136,7 +138,7 @@ export function planReminders(input: PlanInput, from: Date, to: Date): PlannedRe
     const body = (when: string) => (time ? `${when} alle ${time}` : t.date ? `Da fare ${when}` : `Scade ${when}`);
 
     add({ ...base, key: `task:${t.id}:at:${stamp}` }, atLocalTime(day, time ?? morning, tz), bypass, t.updated_at, day, body);
-    if (t.attention === "high") {
+    if (t.attention === "high" && s.notify_high) {
       add({ ...base, key: `task:${t.id}:before:${stamp}` }, atLocalTime(addDays(day, -1), time ?? evening, tz), bypass, t.updated_at, day, body);
     }
   }

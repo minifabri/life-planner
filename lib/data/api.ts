@@ -103,7 +103,8 @@ async function findRecurrence(id: string): Promise<Recurrence | null> {
 export type TaskInput = Pick<
   Task,
   "title" | "notes" | "date" | "time" | "duration_min" | "due_date" | "window_start" | "attention" | "area_id"
->;
+> &
+  Partial<Pick<Task, "remind">>;
 
 export type RepeatInput =
   | { kind: "none" }
@@ -118,6 +119,7 @@ function templateFrom(input: TaskInput, startDate: LocalDate): RecurrenceTemplat
     duration_min: input.duration_min,
     area_id: input.area_id,
     attention: input.attention,
+    remind: input.remind ?? false,
     start_date: startDate,
   };
 }
@@ -202,6 +204,7 @@ function taskFromTemplate(recurrenceId: string, template: RecurrenceTemplate, id
     duration_min: template.duration_min,
     area_id: template.area_id,
     attention: template.attention,
+    remind: template.remind ?? false,
     recurrence_id: recurrenceId,
     source: "recurrence" as const,
   };

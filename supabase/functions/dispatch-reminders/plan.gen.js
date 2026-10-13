@@ -292,7 +292,7 @@ function planReminders(input, from, to) {
       );
       continue;
     }
-    if (!enabled(t.attention, s)) continue;
+    if (!t.remind && !enabled(t.attention, s)) continue;
     const day = t.date ?? t.due_date;
     if (!day || day < firstDay || day > lastDay) continue;
     const time = t.date && t.time ? trimTime(t.time) : null;
@@ -301,7 +301,7 @@ function planReminders(input, from, to) {
     const stamp = `${day}${time ? `T${time}` : ""}`;
     const body = (when) => time ? `${when} alle ${time}` : t.date ? `Da fare ${when}` : `Scade ${when}`;
     add({ ...base, key: `task:${t.id}:at:${stamp}` }, atLocalTime(day, time ?? morning, tz), bypass, t.updated_at, day, body);
-    if (t.attention === "high") {
+    if (t.attention === "high" && s.notify_high) {
       add({ ...base, key: `task:${t.id}:before:${stamp}` }, atLocalTime(addDays(day, -1), time ?? evening, tz), bypass, t.updated_at, day, body);
     }
   }
