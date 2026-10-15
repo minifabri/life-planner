@@ -3,10 +3,14 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
+import { localDateString } from "../dates/today";
 import { uuidv7 } from "../ids";
 import { normalizeName, parseEntry, type Entry } from "../shopping/entry";
 import { learnedDepartment } from "../shopping/list";
+import { itemRenamedOps, itemsRemovedOps, itemsRestoredOps, itemToggledOps, setUrgentOps } from "../shopping/urgent";
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
+import type { Op } from "../sync/ops";
+import { useTimezone } from "./hooks";
 import {
   fetchPantryItems,
   fetchProductMemory,
@@ -58,6 +62,7 @@ export function useInvalidateShopping() {
 export function useShoppingActions() {
   const qc = useQueryClient();
   const toast = useToast();
+  const tz = useTimezone();
 
   async function apply(write: () => Promise<void>): Promise<boolean> {
     try {
@@ -70,7 +75,7 @@ export function useShoppingActions() {
     }
   }
 
-  const patch = (items: ShoppingItem[], change: ShoppingPatch) => apply(() => updateShoppingItems(items, change));
+  const patch = (items: ShoppingItem[], change: ShoppingPatch, also: Op[] = []) => apply(() => updateShoppingItems(items, change, also));
 
   /** Aggiunge ciò che è stato scritto; se l'articolo è già in lista da comprare non lo duplica. */
   function add(input: string | Entry) {
@@ -89,24 +94,40 @@ export function useShoppingActions() {
       checked: false,
       checked_at: null,
       finished_at: null,
+      urgent: false,
+      task_id: null,
       deleted_at: null,
       created_at: new Date().toISOString(),
     };
     return apply(async () => insertShoppingItem({ ...item, list_id: await shoppingListId() }));
   }
 
+  /** Spuntare un articolo urgente completa anche la sua attività (e viceversa). */
   function toggle(item: ShoppingItem) {
-    return patch([item], item.checked ? { checked: false, checked_at: null } : { checked: true, checked_at: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const checked = !item.checked;
+    return patch([item], checked ? { checked, checked_at: now } : { checked, checked_at: null }, itemToggledOps(item, checked, now));
   }
 
   async function remove(items: ShoppingItem[], message: string) {
-    const ok = await patch(items, { deleted_at: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const ok = await patch(items, { deleted_at: now }, itemsRemovedOps(items, now));
     if (!ok) return;
     toast({
       message,
       actionLabel: "Annulla",
-      onAction: () => patch(items, { deleted_at: null }),
+      onAction: () => patch(items, { deleted_at: null }, itemsRestoredOps(items)),
     });
+  }
+
+  /** Salva il foglio di modifica. Urgente crea l'attività "Comprare …" entro due giorni; toglierlo la elimina. */
+  async function edit(item: ShoppingItem, change: Pick<ShoppingItem, "name" | "quantity" | "department" | "urgent">) {
+    const { urgent, ...fields } = change;
+    const now = new Date();
+    const urgentOps = setUrgentOps({ ...item, name: fields.name }, urgent, uuidv7(), localDateString(now, tz), now.toISOString());
+    const ok = await patch([item], fields, [...(fields.name === item.name ? [] : itemRenamedOps(item, fields.name)), ...urgentOps]);
+    if (ok && urgent && !item.urgent && !item.checked) toast({ message: `${fields.name}: da comprare entro dopodomani` });
+    return ok;
   }
 
   /**
@@ -132,6 +153,8 @@ export function useShoppingActions() {
         checked: false,
         checked_at: null,
         finished_at: null,
+        urgent: false,
+        task_id: null,
         deleted_at: null,
         created_at: new Date().toISOString(),
       };
@@ -151,7 +174,7 @@ export function useShoppingActions() {
     add,
     toggle,
     finish,
-    edit: (item: ShoppingItem, change: Pick<ShoppingItem, "name" | "quantity" | "department">) => patch([item], change),
+    edit,
     remove: (item: ShoppingItem) => remove([item], "Articolo eliminato"),
     clearChecked: (checked: ShoppingItem[]) =>
       remove(checked, checked.length === 1 ? "1 articolo tolto dalla lista" : `${checked.length} articoli tolti dalla lista`),

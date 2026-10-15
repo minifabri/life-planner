@@ -18,7 +18,7 @@ export function ItemTile({ item, onToggle, onEdit }: { item: ShoppingItem; onTog
           className="sr-only"
           checked={item.checked}
           onChange={onToggle}
-          aria-label={item.checked ? `Rimetti in lista: ${item.name}` : `Preso: ${item.name}`}
+          aria-label={item.checked ? `Rimetti in lista: ${item.name}` : `Preso: ${item.name}${item.urgent ? ", urgente" : ""}`}
         />
         {item.checked ? (
           <span className="flex size-[26px] items-center justify-center rounded-lg bg-accent-fill text-on-accent">
@@ -33,7 +33,17 @@ export function ItemTile({ item, onToggle, onEdit }: { item: ShoppingItem; onTog
           <span className={`line-clamp-2 break-words text-[13px] leading-[1.25] ${item.checked ? "text-text-3 line-through" : "text-text"}`}>
             {item.name}
           </span>
-          {item.quantity ? <span className="font-mono text-[11px] leading-none text-text-2">{item.quantity}</span> : null}
+          {item.quantity || (item.urgent && !item.checked) ? (
+            <span className="flex items-center gap-1.5 font-mono text-[11px] leading-none text-text-2">
+              {item.urgent && !item.checked ? (
+                <span className="flex items-center gap-1 text-gold">
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-gold" />
+                  urgente
+                </span>
+              ) : null}
+              {item.quantity}
+            </span>
+          ) : null}
         </span>
       </label>
       <button

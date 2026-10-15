@@ -448,6 +448,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Articoli raggruppati per reparto; senza reparto in "Altro".
 - Tocco → spunta (l'articolo scende nella sezione completati); "Svuota completati".
 - Storico: articoli acquistati di recente da riaggiungere con un tocco.
+- **Urgente** (15 ottobre 2026): dalla modifica dell'articolo. Crea in Oggi l'attività "Comprare …" da completare entro due giorni (entro dopodomani), con attenzione alta. Articolo e attività restano allineati: spuntarne uno completa l'altro, eliminare l'articolo elimina l'attività ancora da fare, eliminare l'attività lascia l'articolo in lista non più urgente.
 
 ### 7.6 Wishlist
 - Elenco filtrabile per categoria e stato; card essenziali (immagine se presente, nome, prezzo se presente, interesse).

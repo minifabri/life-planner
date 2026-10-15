@@ -58,10 +58,12 @@ export type Task = {
   completed_at: string | null;
   original_date: string | null;
   recurrence_id: string | null;
-  source: "manual" | "recurrence" | "template" | "meal" | "lesson";
+  source: "manual" | "recurrence" | "template" | "meal" | "lesson" | "shopping";
   meal_plan_id: string | null;
   /** Lezione di imayoga da preparare (`source = 'lesson'`). */
   event_id: string | null;
+  /** Articolo urgente della Spesa da comprare (`source = 'shopping'`). */
+  shopping_item_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -191,6 +193,9 @@ export type ShoppingItem = {
   checked_at: string | null;
   /** Finito: l'articolo comprato non è più in casa (Pasti → In casa). */
   finished_at: string | null;
+  /** Urgente: c'è un'attività "Comprare …" da completare entro due giorni (`task_id`, finché è collegata). */
+  urgent: boolean;
+  task_id: string | null;
   deleted_at: string | null;
   created_at: string;
 };
