@@ -283,3 +283,14 @@ export function timedBlocks(view: DayView): (TimedBlock & { occurrence?: Occurre
       }),
   ];
 }
+
+/**
+ * Fascia proposta per un elemento creato col doppio clic sulla griglia oraria:
+ * `offsetMin` sono i minuti dall'inizio della griglia (`startHour`). Inizio arrotondato alla mezz'ora, durata un'ora.
+ */
+export function slotAt(offsetMin: number, startHour: number): { start: string; end: string } {
+  const startMin = Math.min(23 * 60 + 30, Math.max(0, Math.floor((startHour * 60 + offsetMin) / 30) * 30));
+  const endMin = Math.min(23 * 60 + 59, startMin + 60);
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  return { start: hhmm(startMin), end: hhmm(endMin) };
+}

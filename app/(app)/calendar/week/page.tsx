@@ -113,12 +113,12 @@ export default function WeekPage() {
               // Gli allenamenti sono già tra le voci del giorno: qui solo ufficio e viaggio.
               const signs = daySigns(view.day, cal.marks, [], today);
               return (
-                <li key={view.day} className="border-b border-line last:border-b-0">
+                <li key={view.day} className="flex items-start gap-1 border-b border-line last:border-b-0">
                   <button
                     type="button"
                     onClick={() => cal.openDay(view.day)}
                     aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}${signs.length ? `, ${signsText(signs)}` : ""}: ${freeLabel(view)}${view.quiet.map((o) => `, ${KIND_LABEL[o.event.kind].toLowerCase()}: ${displayTitle(o.event)}`).join("")}`}
-                    className={`flex w-full gap-3.5 rounded-xl py-3.5 pr-1 text-left hover:bg-surface ${isToday ? "bg-accent-soft" : ""}`}
+                    className={`flex min-w-0 flex-1 gap-3.5 rounded-xl py-3.5 pr-1 text-left hover:bg-surface ${isToday ? "bg-accent-soft" : ""}`}
                   >
                     <span className="flex w-[46px] shrink-0 flex-col items-center gap-1 pt-0.5">
                       <span className={`font-mono text-[10.5px] uppercase tracking-[0.1em] ${isToday ? "text-accent" : "text-text-3"}`}>{weekdayName(view.day).slice(0, 3)}</span>
@@ -171,6 +171,15 @@ export default function WeekPage() {
                       {more > 0 ? <span className="pl-[50px] text-xs text-text-3">+ {more} {more === 1 ? "altra" : "altre"}</span> : null}
                     </span>
                   </button>
+                  {/* Su mobile niente doppio tocco: un "+" accanto al giorno crea direttamente lì. */}
+                  <button
+                    type="button"
+                    onClick={() => cal.setEditor({ kind: "new", day: view.day })}
+                    aria-label={`Aggiungi a ${weekdayName(view.day)} ${shortDate(view.day)}`}
+                    className="mt-2 flex size-11 shrink-0 items-center justify-center rounded-full text-text-3 hover:bg-surface-2 hover:text-text"
+                  >
+                    <Icon name="plus" size={18} />
+                  </button>
                 </li>
               );
             })}
@@ -189,6 +198,7 @@ export default function WeekPage() {
             onOpenDay={cal.openDay}
             onEdit={cal.setEditor}
             onEditWorkout={cal.setWorkout}
+            onCreate={(day, draft) => cal.setEditor({ kind: "new", day, draft })}
           />
 
           <button
@@ -198,6 +208,7 @@ export default function WeekPage() {
           >
             <Icon name="plus" size={16} />
             Aggiungi
+            <span className="text-xs text-text-3">· o doppio clic su un giorno</span>
           </button>
         </>
       )}

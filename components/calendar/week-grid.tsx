@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { DaySigns } from "@/components/days/day-signs";
 import { KindIcon } from "@/components/today/quiet-events";
 import { AreaDot } from "@/components/today/task-row";
 import { AttentionMark, Diamond } from "@/components/ui/marks";
 import { WorkoutMark } from "@/components/workouts/workout-row";
-import type { EditorTarget } from "@/components/today/item-editor";
-import { canMoveEvent, hourRange, layoutBlocks, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
+import type { EditorDraft, EditorTarget } from "@/components/today/item-editor";
+import { canMoveEvent, hourRange, layoutBlocks, slotAt, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import type { Occurrence } from "@/lib/events/day";
@@ -20,6 +20,11 @@ const HOUR_PX = 56;
 const MIN_BLOCK_MIN = Math.ceil((46 / HOUR_PX) * 60);
 
 export type Dragged = { task: Task } | { workout: Workout } | { occurrence: Occurrence; fromDay: LocalDate };
+
+/** Il doppio clic crea solo sullo spazio libero: sopra un elemento vale il suo clic. */
+function onEmptySpace(e: MouseEvent) {
+  return !(e.target as Element).closest("button, a, input, label");
+}
 
 const chipClass =
   "flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-[10px] border px-2 py-1.5 text-left text-[13px] leading-snug hover:bg-surface-2";
@@ -38,6 +43,7 @@ export function WeekGrid({
   onOpenDay,
   onEdit,
   onEditWorkout,
+  onCreate,
 }: {
   views: DayView[];
   today: LocalDate;
@@ -52,6 +58,8 @@ export function WeekGrid({
   onOpenDay: (day: LocalDate) => void;
   onEdit: (target: EditorTarget) => void;
   onEditWorkout: (workout: Workout) => void;
+  /** Doppio clic su uno spazio libero del giorno: nuovo elemento, con l'orario se il clic è sulla griglia. */
+  onCreate: (day: LocalDate, draft?: EditorDraft) => void;
 }) {
   const [over, setOver] = useState<LocalDate | null>(null);
   const blocksByDay = views.map((v) => timedBlocks(v));
@@ -106,7 +114,12 @@ export function WeekGrid({
                 </span>
               </button>
 
-              <ul className="flex min-h-[52px] flex-col gap-1 border-b border-line px-1 pb-1.5">
+              <ul
+                onDoubleClick={(e) => {
+                  if (onEmptySpace(e)) onCreate(view.day);
+                }}
+                className="flex min-h-[52px] flex-col gap-1 border-b border-line px-1 pb-1.5"
+              >
                 {view.quiet.map((o) => (
                   <li key={o.key}>
                     <button
@@ -168,7 +181,17 @@ export function WeekGrid({
               </ul>
 
               {/* I giorni già passati restano leggibili ma in secondo piano. */}
-              <div className={`relative ${view.day < today ? "opacity-60" : ""}`} style={{ height: hours.length * HOUR_PX }}>
+              <div
+                onDoubleClick={(e) => {
+                  if (!onEmptySpace(e)) return;
+                  const offset = ((e.clientY - e.currentTarget.getBoundingClientRect().top) / HOUR_PX) * 60;
+                  const { start, end } = slotAt(offset, startHour);
+                  // L'orario vale per qualunque tipo si scelga nel foglio.
+                  onCreate(view.day, { type: "event", startTime: start, endTime: end, time: start });
+                }}
+                className={`relative select-none ${view.day < today ? "opacity-60" : ""}`}
+                style={{ height: hours.length * HOUR_PX }}
+              >
                 {hours.map((h, i) => (
                   <div key={h} aria-hidden className="absolute inset-x-0 border-t border-line" style={{ top: i * HOUR_PX }}>
                     {index === 0 ? (
