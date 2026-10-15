@@ -13,6 +13,7 @@ import {
   monthGrid,
   moveEventPatch,
   periodTasks,
+  slotAt,
   timedBlocks,
   weekDays,
 } from "./view";
@@ -273,5 +274,18 @@ describe("allenamenti nel calendario", () => {
 
   it("quelli con orario diventano blocchi della griglia", () => {
     expect(timedBlocks(view).map((b) => [b.key, b.startMin, b.endMin])).toEqual([["corsa", 1080, 1125]]);
+  });
+});
+
+describe("slotAt", () => {
+  it("arrotonda alla mezz'ora e dura un'ora", () => {
+    expect(slotAt(0, 8)).toEqual({ start: "08:00", end: "09:00" });
+    expect(slotAt(29, 8)).toEqual({ start: "08:00", end: "09:00" });
+    expect(slotAt(95, 8)).toEqual({ start: "09:30", end: "10:30" });
+  });
+
+  it("resta dentro la giornata", () => {
+    expect(slotAt(-600, 8)).toEqual({ start: "00:00", end: "01:00" });
+    expect(slotAt(16 * 60, 8)).toEqual({ start: "23:30", end: "23:59" });
   });
 });
