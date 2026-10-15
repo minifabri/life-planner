@@ -19,6 +19,7 @@ import type { NotificationPrefs } from "@/lib/supabase/types";
 import { DEFAULT_EVENING_TIME } from "@/lib/today/overview";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import type { PlaceResult } from "@/lib/weather/forecast";
+import { useGcalCalendars } from "@/lib/gcal/hooks";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
 import { useImayogaAccount } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
@@ -530,8 +531,32 @@ function LockSection() {
 /* ---------------- Calendari ---------------- */
 function CalendarsSection() {
   const { data: account } = useIcloudAccount();
+  const { data: google } = useGcalCalendars();
+  const googleCount = google?.length ?? 0;
   return (
-    <Section title="Calendari" note="Gli eventi del calendario dell'iPhone compaiono qui da soli e si modificano dall'iPhone.">
+    <Section title="Calendari" note="Gli eventi dell'iPhone e di Google compaiono qui da soli e si modificano là dove sono nati.">
+      <Row
+        label="Google Calendar"
+        value={
+          googleCount ? (
+            google!.some((c) => c.last_error) ? (
+              <span className="text-gold">Da ricollegare</span>
+            ) : (
+              <span className="text-accent">{googleCount === 1 ? "Collegato" : `${googleCount} calendari`}</span>
+            )
+          ) : (
+            <span className="text-text-3">Non collegato</span>
+          )
+        }
+      />
+      <div>
+        <Link
+          href="/settings/google"
+          className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-text transition-colors hover:bg-surface-2"
+        >
+          {googleCount ? "Gestisci" : "Collega Google Calendar"}
+        </Link>
+      </div>
       <Row
         label="Calendario iCloud"
         value={

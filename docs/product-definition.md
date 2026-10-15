@@ -116,6 +116,8 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D53 | **Numeri** (statistiche del guardaroba): quarta voce del selettore. Poche cifre ricavate dallo storico: più indossati, outfit più indossati, mai indossati, fermi da più di due mesi, mai abbinati. Niente grafici | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D54 | **Capo nuovo, proposte automatiche**: dalla foto l'app propone colori, categoria, tipo di capo e, quando sono evidenti, stile e materiale; il nome viene proposto da tipo e colore. Tutto nel dispositivo, senza servizi a pagamento, e sempre correggibile | [RICHIESTO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D55 | **Meteo nel Guardaroba**: una città fissa scelta nelle Impostazioni (non la posizione del telefono); la previsione arriva da Open-Meteo, gratuito e senza registrazione, unica eccezione a "nessun servizio esterno" delle Idee (D49). Le Idee partono dal meteo di oggi, e "Pianifica" e "In programma" mostrano la previsione del giorno scelto, fino a 16 giorni. Senza città tutto resta come prima | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D56 | **Google Calendar dall'indirizzo segreto iCal**: in sola lettura, per uno o più calendari, in attesa della sync OAuth di D9 (che resta per scrivere su Google gli eventi dell'app). Gli eventi si modificano su Google; Google aggiorna l'indirizzo con qualche ora di ritardo | [RICHIESTO il 15 ottobre 2026; dettagli PROPOSTA] |
+| D57 | **Tipi di evento discreti**: *spedizione* (evento il cui titolo inizia con 📦, da qualunque calendario) e *compleanno* (creato nell'app: tutto il giorno, ogni anno in automatico). Non entrano nell'agenda né nel carico della giornata: compaiono in piccolo, in grigio, con un'icona, sotto il titolo del giorno in Oggi, in cima ai giorni della Settimana e nell'anteprima del Mese | [RICHIESTO il 15 ottobre 2026; dettagli PROPOSTA] |
 | D56 | **Pasti, vista settimanale**: in alto il selettore **Giorno · Settimana · Idee**. Settimana mostra i sette giorni con i quattro pasti ciascuno; un tocco apre il foglio del pasto | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D57 | **Nutrienti dei pasti**: proteine, carboidrati, grassi e fibre riconosciuti dal nome del piatto con un dizionario locale. Indicazione qualitativa (quali nutrienti, non quanti grammi), correggibile a mano per ogni piatto; nessun servizio esterno né AI | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D58 | **Idee per i pasti**: regole locali e spiegabili come nel Guardaroba. Propongono i piatti abituali e anche piatti nuovi inclusi nell'app. **I piatti proposti dall'app sono solo vegani, per chiunque la usi**: niente carne, pesce, uova, latticini o miele | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
@@ -486,6 +488,9 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Eventi creati nell'app copiati su GCal; marcati con un identificativo dell'app per evitare duplicati alla rilettura.
 - Sincronizzazione incrementale; conflitti e dettagli tecnici in `technical-design.md`.
 - **Import una tantum da file `.ics`** [APPROVATO il 10 ottobre 2026] da Impostazioni → Dati: eventi e promemoria da Google Calendar, Calendario Apple o Outlook, con anteprima da confermare. Dettagli in `technical-design.md` 9.5.
+
+- **Indirizzo segreto iCal** (D56): oggi la lettura di Google passa da qui, da Impostazioni → Calendari → Google Calendar. Dettagli in `technical-design.md` 9.1b.
+- **Spedizioni e compleanni** (D57): vedi la tabella delle decisioni.
 
 ### 7.12b Calendario iCloud [APPROVATO, D39]
 - Collegamento da Impostazioni con Apple ID e password per app; scelta dei calendari da seguire.

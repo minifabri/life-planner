@@ -5,6 +5,7 @@ import { CalendarError, CalendarHeader } from "@/components/calendar/calendar-he
 import { useCalendar } from "@/components/calendar/use-calendar";
 import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor } from "@/components/today/item-editor";
+import { QuietEvents } from "@/components/today/quiet-events";
 import { TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
 import { Diamond } from "@/components/ui/marks";
@@ -30,6 +31,8 @@ function describe(marks: DayMarks): string {
     marks.tasks ? (marks.tasks === 1 ? "1 attività" : `${marks.tasks} attività`) : null,
     marks.deadlines ? (marks.deadlines === 1 ? "1 scadenza" : `${marks.deadlines} scadenze`) : null,
     marks.workouts ? (marks.workouts === 1 ? "1 allenamento" : `${marks.workouts} allenamenti`) : null,
+    marks.birthdays ? (marks.birthdays === 1 ? "1 compleanno" : `${marks.birthdays} compleanni`) : null,
+    marks.shipments ? (marks.shipments === 1 ? "1 spedizione" : `${marks.shipments} spedizioni`) : null,
     marks.important ? "cose importanti" : null,
   ].filter(Boolean);
   return parts.length ? parts.join(", ") : "niente in programma";
@@ -162,6 +165,7 @@ export default function MonthPage() {
                   <Icon name="chevronRight" size={14} />
                 </button>
               </div>
+              <QuietEvents occurrences={preview.quiet} onOpen={(occurrence) => cal.setEditor({ kind: "event", occurrence })} className="-mt-1.5" />
               {preview.occurrences.length + preview.timed.length + preview.untimed.length + preview.workouts.length === 0 ? (
                 <p className="text-sm text-text-3">Niente in programma.</p>
               ) : (

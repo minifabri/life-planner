@@ -102,7 +102,20 @@ describe("dayMarks", () => {
     ];
     const events = [event({ id: "e", start_at: "2026-10-12T13:00:00.000Z" })];
     const view = buildDay(tasks, events, [], "2026-10-12", TODAY, TZ);
-    expect(dayMarks(view, tasks)).toEqual({ events: 1, lessons: 0, tasks: 2, deadlines: 1, workouts: 0, important: true });
+    expect(dayMarks(view, tasks)).toEqual({ events: 1, lessons: 0, tasks: 2, deadlines: 1, workouts: 0, birthdays: 0, shipments: 0, important: true });
+  });
+
+  it("compleanni e spedizioni stanno a parte e non pesano sulla giornata", () => {
+    const events = [
+      event({ id: "pacco", title: "📦 Amazon", kind: "shipment", all_day: true, start_date: "2026-10-12" }),
+      event({ id: "anna", title: "Anna", kind: "birthday", all_day: true, start_date: "2000-10-12", rrule: "FREQ=YEARLY" }),
+      event({ id: "e", start_at: "2026-10-12T13:00:00.000Z", end_at: "2026-10-12T14:00:00.000Z" }),
+    ];
+    const view = buildDay([], events, [], "2026-10-12", TODAY, TZ);
+    expect(view.occurrences.map((o) => o.event.id)).toEqual(["e"]);
+    expect(view.quiet.map((o) => o.event.id)).toEqual(["anna", "pacco"]);
+    expect(view.load.minutes).toBe(60);
+    expect(dayMarks(view, [])).toMatchObject({ events: 1, birthdays: 1, shipments: 1 });
   });
 
   it("le lezioni di imayoga hanno un segno a parte", () => {

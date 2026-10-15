@@ -154,6 +154,7 @@ tz text not null default 'Europe/Rome',
 rrule text null,                                          -- ricorrenza RFC 5545
 area_id uuid null, attention text check in ('low','medium','high') default 'low',
 source text check in ('app','gcal','icloud','imayoga') default 'app',
+kind text check in ('event','shipment','birthday') default 'event',   -- incremento 29
 gcal_calendar_id text null, gcal_event_id text null, gcal_etag text null,
 icloud_calendar_id uuid null, icloud_href text null, icloud_etag text null,
 deleted_at
@@ -507,6 +508,21 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **Scrittura**: gli eventi creati nell'app vengono inseriti nel calendario predefinito scelto, con `extendedProperties.private.plannerId = events.id`. In lettura, un evento con quella proprietà viene riconosciuto e non duplicato.
 - **Proprietà unica**: gli eventi `source = 'gcal'` non si modificano nell'app (pulsante "Apri in Google Calendar"). Gli eventi nati nell'app si modificano nell'app e l'app aggiorna GCal; se vengono modificati in GCal, alla sync successiva vince GCal e l'app mostra le modifiche.
 - Notifiche push di Google (canali watch): [FUTURO], la sync su apertura basta per un uso personale.
+
+### 9.1b Google Calendar dall'indirizzo segreto iCal [RICHIESTO il 15 ottobre 2026, D56; realizzato nell'incremento 29]
+- **Perché così**: la sync OAuth (9.1) aspetta ancora il progetto Google Cloud. Ogni calendario Google ha un "Indirizzo segreto in formato iCal" (Impostazioni → calendario → Integra calendario) che restituisce l'intero calendario in `.ics`: basta per leggere, senza client OAuth né verifica dell'app. Quando arriverà 9.1, gli stessi eventi verranno collegati (stesso id), non duplicati.
+- **Segreto**: l'indirizzo vale come una password. Si incolla in Impostazioni → Calendari → Google Calendar (`/settings/google`), viene verificato e custodito in Vault (`gcal:<owner_id>:<gcal_calendars.id>`, funzioni `gcal_set_feed`/`gcal_get_feed`/`gcal_delete_feed`, solo service role); il client non lo rilegge mai. Va via con l'eliminazione dell'account (`delete_account_secrets`).
+- **Edge Function `gcal-ics`** (JWT verificato nel codice, come `icloud-caldav`): `connect` (controlla la forma `https://calendar.google.com/calendar/ical/<id>/private-<chiave>/basic.ics`, scarica, salva in `gcal_calendars` con il nome `X-WR-CALNAME` e in Vault), `fetch` (scarica e restituisce il file), `disconnect` (toglie indirizzo, calendario ed eventi). Scarica solo da `calendar.google.com`, senza seguire redirect, al massimo 15 MB.
+- **Logica nel client**: `lib/gcal/feed.ts` (puro, con test: forma dell'indirizzo, eventi del periodo, impronta del contenuto, piano di scrittura) e `lib/gcal/sync.ts`. Il file passa dal parser di 9.5. Si tengono gli eventi da 30 giorni fa in poi; per ognuno un'impronta (cyrb53 di campi ed eccezioni) salvata in `events.gcal_etag`: si riscrivono solo gli eventi cambiati. Un evento sparito dal file si toglie, tranne se è uscito dal periodo perché passato.
+- **Dati**: `events.source = 'gcal'`, `gcal_calendar_id` (id Google del calendario), `gcal_event_id` (UID), id deterministico da `ics:<UID>` come import e iCloud. `gcal_calendars.last_error` segnala un indirizzo reimpostato su Google (404). Area e attenzione non vengono toccate dalla sync.
+- **Sync**: all'apertura e al ritorno in primo piano, al massimo ogni 10 minuti (`useGcalAutoSync`), e con "Aggiorna ora". Google aggiorna l'indirizzo segreto con un ritardo che può arrivare a qualche ora.
+- **[DA VERIFICARE]** con il calendario reale: dimensione del file, ritardo di aggiornamento, eventi ricorrenti modificati.
+
+### 9.1c Tipi di evento: spedizioni e compleanni [RICHIESTO il 15 ottobre 2026, D57; realizzato nell'incremento 29]
+- `events.kind`: `event`, `shipment`, `birthday`. Logica in `lib/events/kind.ts` (puro, con test).
+- **Spedizione**: un evento letto da un file o da un calendario esterno (Google, iCloud, import) il cui titolo inizia con 📦 (`kindFromTitle`, in `toEventInput`). Il pacchetto si toglie dal titolo mostrato e lo sostituisce un'icona.
+- **Compleanno**: si crea nell'app (Aggiungi → Evento → "Compleanno"): tutto il giorno, `rrule = FREQ=YEARLY` (per il 29 febbraio `FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1`, così cade l'ultimo giorno di febbraio). Eliminando: "Solo quest'anno" o "Tutti gli anni".
+- **Discreti**: `splitQuiet` li separa dall'agenda. Non contano nel carico, nella panoramica del mattino né tra le occasioni degli outfit (le spedizioni). In Oggi una riga grigia sotto il titolo del giorno (`QuietEvents`); in Settimana in cima alla colonna (desktop) e sotto la barra del giorno (mobile); nel Mese nell'anteprima del giorno e nella descrizione per lo screen reader, nessun segno nelle celle. Le notifiche seguono l'attenzione, come per gli altri eventi (bassa di default: nessuna notifica).
 
 ### 9.2 imayoga [APPROVATO il 10 ottobre 2026: sola lettura, solo lezioni pubblicate, accesso con token]
 - **Cosa espone** il progetto Supabase `ima-yoga` (id `fmlndlnpooyrvnzhmota`): `classes` (data, ora di inizio, tipo, livello, `published`, `is_individual`, `personal_client_id`), `bookings` (stato `booked` o `waitlist`), `events` (nome, data, ora, luogo, `published`, `archived`). Le lezioni non hanno né durata né luogo.
@@ -965,6 +981,10 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già promemoria, liste e spesa.
 
 ---
+
+**Incremento 29 — Google Calendar (indirizzo segreto), spedizioni e compleanni** *(15 ottobre 2026, su richiesta di Bibi)*
+- Sezioni 9.1b e 9.1c. Migrazione `event_kinds_gcal_ics`, Edge Function `gcal-ics`, `lib/gcal/`, `lib/events/kind.ts`, pagina `/settings/google`, riga discreta in Oggi, Settimana e Mese, opzione "Compleanno" nell'editor.
+- Criteri: test dei moduli puri (indirizzo, periodo, impronta, piano di scrittura, tipo dal titolo, ricorrenza annuale e 29 febbraio, separazione dall'agenda); un evento 📦 creato su Google compare in piccolo nel suo giorno dopo l'aggiornamento di Google; un compleanno creato nell'app compare l'anno dopo; seconda sync senza scritture.
 
 ## 14. Decisioni approvate
 

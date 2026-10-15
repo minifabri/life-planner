@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { LessonSheet } from "@/components/today/lesson-sheet";
+import { KindIcon } from "@/components/today/quiet-events";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/dates/local";
 import { localDateString } from "@/lib/dates/today";
 import type { Occurrence } from "@/lib/events/day";
+import { birthdayRule, displayTitle } from "@/lib/events/kind";
 import { checkPushSupport, currentSubscription, subscribeToPush } from "@/lib/push/subscribe";
 import {
   DAY_FULL,
@@ -91,6 +93,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     intervalDays: "30",
     until: "",
     allDay: false,
+    birthday: false,
     startTime: "09:00",
     endTime: "10:00",
     location: "",
@@ -131,6 +134,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     attention: e.attention,
     date,
     allDay: e.all_day,
+    birthday: e.kind === "birthday",
     startTime: start ? localTimeString(start, e.tz) : base.startTime,
     endTime: e.end_at ? localTimeString(new Date(e.end_at), e.tz) : "",
     location: e.location ?? "",
@@ -215,12 +219,13 @@ export function ItemEditor({
   const event = occurrence?.event ?? null;
   const readOnly = !!event && event.source !== "app";
   // Una serie con una regola che l'interfaccia non sa mostrare si lascia com'è.
-  const lockedRule = event?.rrule && !parseRRule(event.rrule) ? event.rrule : null;
+  const lockedRule = event?.rrule && !parseRRule(event.rrule) && event.kind !== "birthday" ? event.rrule : null;
+  const birthday = f.type === "event" && f.birthday;
 
   const recurrences = useRecurrences().data;
   const recurrence = task?.recurrence_id ? recurrences?.find((r) => r.id === task.recurrence_id) : undefined;
 
-  const canChooseRepeat = f.type === "event" ? !lockedRule : f.when === "day" && !task?.recurrence_id;
+  const canChooseRepeat = f.type === "event" ? !lockedRule && !f.birthday : f.when === "day" && !task?.recurrence_id;
 
   function set<K extends keyof typeof f>(key: K, value: (typeof f)[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -283,6 +288,24 @@ export function ItemEditor({
       return;
     }
 
+    if (birthday) {
+      // Il compleanno dura tutto il giorno e torna ogni anno, senza fine.
+      const input: EventInput = {
+        ...common,
+        location: null,
+        all_day: true,
+        start_date: f.date,
+        end_date: null,
+        start_at: null,
+        end_at: null,
+        tz: event?.tz ?? tz,
+        rrule: birthdayRule(f.date),
+        kind: "birthday",
+      };
+      run(() => (event ? updateEvent(event, input) : createEvent(input)));
+      return;
+    }
+
     const etz = event?.tz ?? tz;
     const startAt = f.allDay ? null : atLocalTime(f.date, f.startTime || "09:00", etz);
     const endAt =
@@ -299,6 +322,7 @@ export function ItemEditor({
       end_at: endAt?.toISOString() ?? null,
       tz: etz,
       rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule(f.until || undefined)),
+      kind: "event",
     };
     run(() => (event ? updateEvent(event, input) : createEvent(input)));
   }
@@ -339,12 +363,16 @@ export function ItemEditor({
   }
 
   const heading = readOnly
-    ? "Evento"
+    ? event?.kind === "shipment"
+      ? "Spedizione"
+      : "Evento"
     : target.kind === "new"
       ? "Aggiungi"
       : f.type === "task"
         ? "Modifica attività"
-        : "Modifica evento";
+        : birthday
+          ? "Modifica compleanno"
+          : "Modifica evento";
 
   if (occurrence && event?.source === "imayoga") {
     return <LessonSheet occurrence={occurrence} today={today} onClose={onClose} />;
@@ -353,7 +381,10 @@ export function ItemEditor({
   if (readOnly && event) {
     return (
       <Sheet title={heading} isOpen onClose={onClose}>
-        <p className="text-[17px] leading-snug">{event.title}</p>
+        <p className="flex items-center gap-2 text-[17px] leading-snug">
+          <KindIcon kind={event.kind} size={16} />
+          {displayTitle(event)}
+        </p>
         {event.location ? <p className="text-sm text-text-2">{event.location}</p> : null}
         {event.notes ? <p className="whitespace-pre-wrap text-sm text-text-2">{event.notes}</p> : null}
         <p className="text-xs text-text-3">
@@ -390,7 +421,7 @@ export function ItemEditor({
             autoFocus={target.kind === "new"}
             value={f.title}
             onChange={(e) => set("title", e.target.value)}
-            placeholder={f.type === "task" ? "Cosa c’è da fare?" : "Cosa succede?"}
+            placeholder={f.type === "task" ? "Cosa c’è da fare?" : birthday ? "Di chi è il compleanno?" : "Cosa succede?"}
             autoComplete="off"
             enterKeyHint="done"
             className={inputClass}
@@ -449,13 +480,22 @@ export function ItemEditor({
         ) : (
           <>
             <label className="flex min-h-11 items-center gap-3 text-[15px]">
-              <input type="checkbox" checked={f.allDay} onChange={(e) => set("allDay", e.target.checked)} className="size-5 accent-(--accent-fill)" />
-              Tutto il giorno
+              <input type="checkbox" checked={f.birthday} onChange={(e) => set("birthday", e.target.checked)} className="size-5 accent-(--accent-fill)" />
+              <span className="flex flex-col">
+                Compleanno
+                <span className="text-xs text-text-3">Tutto il giorno, ogni anno. Si vede in piccolo in cima alla giornata.</span>
+              </span>
             </label>
-            <Field label={event?.rrule ? "Primo giorno" : "Giorno"} htmlFor="item-date">
+            {!birthday ? (
+              <label className="flex min-h-11 items-center gap-3 text-[15px]">
+                <input type="checkbox" checked={f.allDay} onChange={(e) => set("allDay", e.target.checked)} className="size-5 accent-(--accent-fill)" />
+                Tutto il giorno
+              </label>
+            ) : null}
+            <Field label={event?.rrule && !birthday ? "Primo giorno" : "Giorno"} htmlFor="item-date">
               <input id="item-date" type="date" required value={f.date} onChange={(e) => set("date", e.target.value)} className={inputClass} />
             </Field>
-            {!f.allDay ? (
+            {!f.allDay && !birthday ? (
               <div className="flex gap-3">
                 <Field label="Inizio" htmlFor="item-start">
                   <input id="item-start" type="time" required value={f.startTime} onChange={(e) => set("startTime", e.target.value)} className={inputClass} />
@@ -465,9 +505,11 @@ export function ItemEditor({
                 </Field>
               </div>
             ) : null}
-            <Field label="Luogo" htmlFor="item-location">
-              <input id="item-location" value={f.location} onChange={(e) => set("location", e.target.value)} autoComplete="off" className={inputClass} />
-            </Field>
+            {!birthday ? (
+              <Field label="Luogo" htmlFor="item-location">
+                <input id="item-location" value={f.location} onChange={(e) => set("location", e.target.value)} autoComplete="off" className={inputClass} />
+              </Field>
+            ) : null}
           </>
         )}
 
@@ -649,11 +691,11 @@ export function ItemEditor({
             <>
               {event.rrule ? (
                 <Button disabled={busy} onClick={() => run(() => cancelOccurrence(event.id, occurrence.originalStart))}>
-                  Solo questo giorno
+                  {event.kind === "birthday" ? "Solo quest’anno" : "Solo questo giorno"}
                 </Button>
               ) : null}
               <Button disabled={busy} onClick={() => run(() => updateEvent(event, { deleted_at: new Date().toISOString() }))}>
-                {event.rrule ? "Tutta la serie" : "Conferma eliminazione"}
+                {event.kind === "birthday" ? "Tutti gli anni" : event.rrule ? "Tutta la serie" : "Conferma eliminazione"}
               </Button>
               <Button variant="quiet" onClick={() => setConfirmDelete(false)}>
                 Annulla

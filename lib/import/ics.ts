@@ -2,6 +2,7 @@ import { RRule } from "rrule";
 import { addDays, atLocalTime, localTimeString, startOfLocalDay, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
 import type { EventInput, TaskInput } from "../data/api";
+import { kindFromTitle } from "../events/kind";
 import { hasOccurrenceFrom } from "../recurrence/expand";
 
 /** Un elemento letto da un file iCalendar (.ics), pronto per l'anteprima. */
@@ -354,6 +355,7 @@ export function toEventInput(item: ImportItem): EventInput {
     rrule: item.rrule,
     area_id: null,
     attention: "low",
+    kind: kindFromTitle(item.title),
   };
 }
 
