@@ -3,7 +3,7 @@ import { parseEntry } from "../shopping/entry";
 import { getSupabase } from "../supabase/client";
 import type { ProductMemory, ShoppingItem } from "../supabase/types";
 import { commit, withPendingPantry, withPendingShopping } from "../sync/engine";
-import { byId } from "../sync/ops";
+import { byId, type Op } from "../sync/ops";
 import { listId } from "./api";
 
 function check<T>(result: { data: T | null; error: { message: string } | null }): T {
@@ -11,7 +11,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
   return result.data as T;
 }
 
-const ITEM_COLUMNS = "id, list_id, name, quantity, department, checked, checked_at, finished_at, deleted_at, created_at";
+const ITEM_COLUMNS = "id, list_id, name, quantity, department, checked, checked_at, finished_at, urgent, task_id, deleted_at, created_at";
 
 export async function fetchShoppingItems(): Promise<ShoppingItem[]> {
   return withPendingShopping(
@@ -51,17 +51,21 @@ export async function createShoppingItem(text: string): Promise<string> {
 
 export type ShoppingPatch = Partial<Pick<ShoppingItem, "name" | "quantity" | "department" | "checked" | "checked_at" | "finished_at" | "deleted_at">>;
 
-/** Modifica più articoli insieme. Passare gli articoli interi permette di rimetterli subito in lista (annulla). */
-export async function updateShoppingItems(items: (Pick<ShoppingItem, "id"> | ShoppingItem)[], patch: ShoppingPatch): Promise<void> {
-  await commit(
-    items.map((item) => ({
+/**
+ * Modifica più articoli insieme. Passare gli articoli interi permette di rimetterli subito in lista (annulla).
+ * `also` sono le modifiche che vanno insieme, come quelle alle attività degli articoli urgenti.
+ */
+export async function updateShoppingItems(items: (Pick<ShoppingItem, "id"> | ShoppingItem)[], patch: ShoppingPatch, also: Op[] = []): Promise<void> {
+  await commit([
+    ...items.map((item) => ({
       kind: "update" as const,
       table: "shopping_items" as const,
       patch,
       where: byId(item.id),
       snapshot: "name" in item ? { ...item, ...patch } : undefined,
     })),
-  );
+    ...also,
+  ]);
 }
 
 /** Avvisa a ogni modifica della lista fatta altrove (un altro dispositivo aperto). Restituisce come smettere. */

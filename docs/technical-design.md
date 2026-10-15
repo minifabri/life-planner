@@ -245,6 +245,8 @@ checked boolean default false, checked_at timestamptz null, finished_at timestam
 ```
 "In casa" (Pasti, D43) non ha una tabella sua: sono gli articoli con `checked` e senza `finished_at`, anche se già tolti dalla lista (`deleted_at`). Regole in `lib/shopping/pantry.ts`; la cache `pantry-items` segue la outbox come la lista (`applyToPantry`). Migrazione `20261011110000_pantry.sql`. Gli ingredienti in uso (D45) non hanno dati propri: si ricavano dai nomi dei pasti in `lib/meals/ingredients.ts`.
 
+**Articoli urgenti** (migrazione `20261015110000_shopping_urgent.sql`): `shopping_items.urgent` e `task_id`, `tasks.shopping_item_id` con `source = 'shopping'`. Segnare un articolo urgente crea un'attività con `window_start` oggi, `due_date` oggi + 2 e attenzione alta. Le regole stanno in `lib/shopping/urgent.ts` (operazioni per la outbox, come i pasti) e sono ripetute dai trigger `shopping_items_sync_task` e `tasks_sync_shopping`: comprato ↔ completata, articolo eliminato → attività ancora da fare eliminata (annulla la rimette), attività eliminata → articolo non più urgente, rinomina → titolo "Comprare …".
+
 **product_memory** — catalogo appreso, mai gestito a mano
 ```
 id, owner_id, name_normalized text, display_name, department text null,

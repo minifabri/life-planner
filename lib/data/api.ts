@@ -4,6 +4,7 @@ import { deterministicId, uuidv7 } from "../ids";
 import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
 import { reminderRemovedOps, reminderRestoredOps, reminderToggledOps } from "../meals/rules";
+import { shoppingTaskRemovedOps, shoppingTaskRestoredOps, shoppingTaskToggledOps } from "../shopping/urgent";
 import { getSupabase } from "../supabase/client";
 import { commit, withPendingEvents, withPendingRecurrences, withPendingTasks } from "../sync/engine";
 import { byId, type DayEvents, type Op, type Row, type Table } from "../sync/ops";
@@ -239,7 +240,8 @@ function nextInstanceId(task: Pick<Task, "id" | "recurrence_id">) {
 
 /** Completa un'attività; se appartiene a una ricorrenza "N giorni dopo" crea anche la prossima. */
 export async function completeTask(task: Task, completedAt: Date, tz: string): Promise<void> {
-  const ops = [taskUpdate(task, completePatch(completedAt)), ...reminderToggledOps(task, true, completedAt.toISOString())];
+  const at = completedAt.toISOString();
+  const ops = [taskUpdate(task, completePatch(completedAt)), ...reminderToggledOps(task, true, at), ...shoppingTaskToggledOps(task, true, at)];
   const recurrence = task.recurrence_id ? await findRecurrence(task.recurrence_id) : null;
   const date = recurrence ? nextAfterCompletion(recurrence, localDateString(completedAt, tz)) : null;
   if (recurrence && date) {
@@ -248,19 +250,23 @@ export async function completeTask(task: Task, completedAt: Date, tz: string): P
   await commit(ops);
 }
 
-/** Elimina un'attività (reversibile). Se era la preparazione di un pasto, il pasto resta da preparare senza promemoria. */
+/**
+ * Elimina un'attività (reversibile). Se era la preparazione di un pasto, il pasto resta da preparare senza promemoria;
+ * se era un articolo urgente, l'articolo resta nella Spesa non più urgente.
+ */
 export async function removeTask(task: Task): Promise<void> {
-  await commit([taskUpdate(task, { deleted_at: new Date().toISOString() }), ...reminderRemovedOps(task)]);
+  await commit([taskUpdate(task, { deleted_at: new Date().toISOString() }), ...reminderRemovedOps(task), ...shoppingTaskRemovedOps(task)]);
 }
 
 /** Annulla un'eliminazione appena fatta. */
 export async function restoreTask(task: Task): Promise<void> {
-  await commit([taskUpdate(task, { deleted_at: null }), ...reminderRestoredOps(task)]);
+  await commit([taskUpdate(task, { deleted_at: null }), ...reminderRestoredOps(task), ...shoppingTaskRestoredOps(task)]);
 }
 
 /** Rimette da fare un'attività; l'attività successiva della ricorrenza si toglie, se è ancora intatta. */
 export async function reopenTask(task: Task): Promise<void> {
-  const ops = [taskUpdate(task, reopenPatch()), ...reminderToggledOps(task, false, new Date().toISOString())];
+  const now = new Date().toISOString();
+  const ops = [taskUpdate(task, reopenPatch()), ...reminderToggledOps(task, false, now), ...shoppingTaskToggledOps(task, false, now)];
   if (task.recurrence_id) {
     ops.push({
       kind: "delete",

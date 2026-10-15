@@ -105,6 +105,7 @@ function completeTask(at: string) {
     source: "manual",
     meal_plan_id: null,
     event_id: null,
+    shopping_item_id: null,
     deleted_at: null,
     created_at: at,
     updated_at: at,
@@ -193,7 +194,7 @@ export function applyToShopping(items: ShoppingItem[], op: Op, at: string): Shop
     items,
     op,
     (row) =>
-      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
+      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, urgent: false, task_id: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
   ).filter((i) => !i.deleted_at);
 }
 
@@ -204,7 +205,7 @@ export function applyToPantry(items: ShoppingItem[], op: Op, at: string): Shoppi
     items,
     op,
     (row) =>
-      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
+      ({ quantity: null, department: null, checked: false, checked_at: null, finished_at: null, urgent: false, task_id: null, deleted_at: null, created_at: at, ...row }) as ShoppingItem,
     inPantry,
   ).filter(inPantry);
 }

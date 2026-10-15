@@ -26,6 +26,8 @@ function item(name: string, over: Partial<ShoppingItem> = {}): ShoppingItem {
     checked: false,
     checked_at: null,
     finished_at: null,
+    urgent: false,
+    task_id: null,
     deleted_at: null,
     created_at: `2026-10-10T08:00:${String(seq % 60).padStart(2, "0")}Z`,
     ...over,

@@ -5,9 +5,10 @@ import { Button, Field, inputClass } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { departmentStyle } from "@/components/shopping/product-icon";
 import { DEPARTMENTS, NO_DEPARTMENT, departmentOf } from "@/lib/shopping/list";
+import { urgentTaskTitle } from "@/lib/shopping/urgent";
 import type { ShoppingItem } from "@/lib/supabase/types";
 
-type Change = Pick<ShoppingItem, "name" | "quantity" | "department">;
+type Change = Pick<ShoppingItem, "name" | "quantity" | "department" | "urgent">;
 
 export function ItemEditor({
   item,
@@ -24,6 +25,7 @@ export function ItemEditor({
   const [quantity, setQuantity] = useState(item.quantity ?? "");
   // Senza un reparto scelto si parte da quello riconosciuto dal nome.
   const [department, setDepartment] = useState(() => departmentOf(item.name, item.department));
+  const [urgent, setUrgent] = useState(item.urgent);
 
   // Un reparto arrivato da fuori (non tra quelli proposti) resta selezionabile.
   const known = (DEPARTMENTS as readonly string[]).includes(item.department ?? "");
@@ -36,7 +38,7 @@ export function ItemEditor({
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          onSave({ name: name.trim(), quantity: quantity.trim() || null, department });
+          onSave({ name: name.trim(), quantity: quantity.trim() || null, department, urgent });
           onClose();
         }}
       >
@@ -91,6 +93,27 @@ export function ItemEditor({
             })}
           </div>
           <p className="text-xs text-text-3">La prossima volta questo articolo andrà da solo nel suo reparto.</p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            aria-pressed={urgent}
+            onClick={() => setUrgent(!urgent)}
+            className={`flex min-h-11 items-center gap-2.5 self-start rounded-xl border px-3 text-sm ${
+              urgent ? "border-gold text-gold" : "border-line-2 text-text-2"
+            }`}
+          >
+            <span aria-hidden="true" className={`size-1.5 rounded-full ${urgent ? "bg-gold" : "bg-text-3"}`} />
+            Urgente
+          </button>
+          <p className="text-xs text-text-3">
+            {item.checked
+              ? "È già nel carrello."
+              : urgent
+                ? `In Oggi trovi “${urgentTaskTitle(name || item.name)}”, da fare entro dopodomani.`
+                : "Diventa un'attività da fare entro due giorni."}
+          </p>
         </div>
 
         <div className="flex items-center justify-between gap-2">
