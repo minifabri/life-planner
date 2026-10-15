@@ -122,7 +122,11 @@ export function CaptureSheet({
   }
 
   const { kind } = draft;
-  const kindLabel = isBirthday(draft) ? "Compleanno" : KIND_LABEL[kind];
+  const birthday = isBirthday(draft);
+  const kindLabel = birthday ? "Compleanno" : KIND_LABEL[kind];
+  // Un compleanno senza giorno finirebbe su oggi: il giorno va scelto.
+  const missingDay = birthday && !draft.date;
+  const when = missingDay ? "scegli il giorno" : whenLabel(draft, today);
   const dated = kind === "task" || kind === "event" || kind === "workout" || kind === "log";
   const planned = kind === "task" || kind === "event";
   const timed = planned || kind === "workout";
@@ -145,7 +149,7 @@ export function CaptureSheet({
   }
 
   function submit() {
-    if (!draft.title.trim()) {
+    if (!draft.title.trim() || missingDay) {
       setError(true);
       input.current?.focus();
       return;
@@ -214,6 +218,10 @@ export function CaptureSheet({
                 <p id="capture-reading" className="text-[15px] leading-snug text-text-2">
                   {draft.title ? (
                     draft.title
+                  ) : birthday ? (
+                    <span className={error ? "text-gold" : "text-text-3"} role={error ? "alert" : undefined}>
+                      Di chi è il compleanno? Scrivi il nome.
+                    </span>
                   ) : (
                     <span className={error ? "text-gold" : "text-text-3"} role={error ? "alert" : undefined}>
                       Manca il titolo: scrivi cosa aggiungere.
@@ -237,14 +245,14 @@ export function CaptureSheet({
                       caption="Quando"
                       onPress={() => toggle("when")}
                       expanded={panel === "when"}
-                      tone={draft.date || draft.windowEnd || kind !== "task" ? "set" : "empty"}
-                      label={`Quando: ${whenLabel(draft, today)}`}
+                      tone={missingDay ? "unsure" : draft.date || draft.windowEnd || kind !== "task" ? "set" : "empty"}
+                      label={`Quando: ${when}`}
                     >
-                      {whenLabel(draft, today)}
+                      {when}
                     </Chip>
                   ) : null}
 
-                  {dated ? (
+                  {dated && !birthday ? (
                     <Chip
                       caption="Ora"
                       onPress={() => toggle("time")}
@@ -256,7 +264,7 @@ export function CaptureSheet({
                     </Chip>
                   ) : null}
 
-                  {timed ? (
+                  {timed && !birthday ? (
                     <Chip
                       caption="Durata"
                       onPress={() => toggle("duration")}
@@ -299,7 +307,7 @@ export function CaptureSheet({
 
                   <span className="flex min-h-11 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] text-text-2">
                     <span className={captionClass}>In</span>
-                    {destinationLabel(draft, today)}
+                    {missingDay ? "Agenda" : destinationLabel(draft, today)}
                   </span>
                 </div>
 
@@ -395,6 +403,11 @@ export function CaptureSheet({
                   </div>
                 ) : null}
 
+                {birthday ? (
+                  <p className={`text-xs ${error && missingDay ? "text-gold" : "text-text-3"}`} role={error && missingDay ? "alert" : undefined}>
+                    {missingDay ? "Scrivi anche il giorno, per esempio “compleanno Marta 12 ottobre”." : "Tutto il giorno, ogni anno."}
+                  </p>
+                ) : null}
                 {kind === "task" && !draft.date && !draft.windowEnd && !draft.time && !draft.repeat ? (
                   <p className="text-xs text-text-3">Senza data non compare in Oggi: la ritroverai nella ricerca.</p>
                 ) : null}

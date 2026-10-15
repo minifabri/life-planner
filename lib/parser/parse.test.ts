@@ -91,7 +91,12 @@ const SUITE: [string, Expected][] = [
   ["compleanno Marta sabato alle 20", { kind: "event", title: "Compleanno Marta", date: "2026-10-17", time: "20:00" }],
   ["comprare regalo per il compleanno sabato", { kind: "task", title: "Comprare regalo per il compleanno", date: "2026-10-17" }],
   ["regalo per il compleanno sabato", { kind: "task", title: "Regalo per il compleanno", date: "2026-10-17", confidence: "low" }],
-  ["compleanno Marta", { kind: "task", title: "Compleanno Marta" }],
+  // Mentre si scrive: "compleanno" basta per il tipo, nome e giorno arrivano dopo.
+  ["compleanno", { kind: "event", title: "", birthday: true }],
+  ["Compleanno di", { kind: "event", title: "", birthday: true }],
+  ["compleanno Marta", { kind: "event", title: "Marta", birthday: true }],
+  ["torta compleanno", { kind: "task", title: "Torta compleanno" }],
+  ["compleanni da segnare", { kind: "task", title: "Compleanni da segnare" }],
   ["cena di Natale il 24 dicembre alle 20", { kind: "event", title: "Cena di Natale", date: "2026-12-24", time: "20:00" }],
   ["saggio di danza il 1° giugno alle 18", { kind: "event", title: "Saggio di danza", date: "2027-06-01", time: "18:00" }],
   ["commercialista il 20 alle 11", { kind: "event", title: "Commercialista", date: "2026-10-20", time: "11:00" }],

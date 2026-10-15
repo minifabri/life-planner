@@ -128,9 +128,12 @@ const DURATION = words(
 
 const DANGLING = new RegExp(`(?<![${LETTER}])(?:il|lo|la|per|a|di|e|alle|entro|da)\\s*(?=\\u0000)`, "u");
 
-/** "Compleanno (di) Marta" o "Marta compleanno": resta il nome. "Regalo per il compleanno" no. */
+/**
+ * "Compleanno (di) Marta" o "Marta compleanno": resta il nome. "Regalo per il compleanno" no.
+ * Basta "compleanno" all'inizio, anche mentre si scrive: nome e giorno arrivano dopo.
+ */
 const BIRTHDAY = new RegExp(
-  "^compleanno\\s+(?:(?:di|del|della|dello|dei|degli|delle)\\s+|(?:dell|d)['’]\\s*)?(?<who>.+)$|^(?<who2>.+?)(?<!(?:^|\\s)(?:il|lo|la|per|di|del|della|dello|al|alla|un|mio|mia|tuo|tua|suo|sua|buon))\\s+compleanno$",
+  "^compleanno(?:\\s+(?:(?:di|del|della|dello|dei|degli|delle)(?:\\s+|$)|(?:dell|d)['’]\\s*)?(?<who>.*))?$|^(?<who2>.+?)(?<!(?:^|\\s)(?:il|lo|la|per|di|del|della|dello|al|alla|un|mio|mia|tuo|tua|suo|sua|buon))\\s+compleanno$",
   "iu",
 );
 
@@ -480,8 +483,9 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     activities.some((a) => a.trim() && new RegExp(`^${escapeRegExp(stripAccents(a.trim().toLowerCase()))}(?![${LETTER}])`, "u").test(plainRest));
   // Un compleanno ha un giorno e nient'altro: con un orario è una festa, un evento come gli altri.
   const birthdayOf = BIRTHDAY.exec(rest);
+  // A fine frase ("Torta compleanno") vale solo con una data.
   const looksLikeBirthday =
-    !!birthdayOf && !!date && minutes === null && !repeat && !windowEnd && !reminded && !prefixKind && !url;
+    !!birthdayOf && (birthdayOf.groups!.who2 === undefined || !!date) && minutes === null && !repeat && !windowEnd && !reminded && !prefixKind && !url;
   const looksLikeLog = !!category && !verb && !reminded && !windowEnd && !repeat && !relativeDate && (!date || date.date <= today);
 
   let kind: CaptureKind;
@@ -506,7 +510,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
   }
 
   const birthday = looksLikeBirthday && kind === "event";
-  let title = birthday ? (birthdayOf!.groups!.who ?? birthdayOf!.groups!.who2!).trim() : rest;
+  let title = birthday ? capitalize((birthdayOf!.groups!.who ?? birthdayOf!.groups!.who2 ?? "").trim()) : rest;
   if (kind === "shopping" || kind === "wishlist") title = title.replace(BUY, "");
   if (kind !== "shopping") title = capitalize(title);
   if (!title && url) {
