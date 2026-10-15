@@ -109,11 +109,42 @@ export function useShoppingActions() {
     });
   }
 
-  /** Finito: l'ingrediente esce da "In casa" (tutti gli acquisti di quel prodotto), con annulla. */
+  /**
+   * Finito: l'ingrediente esce da "In casa" (tutti gli acquisti di quel prodotto) e torna nella Spesa,
+   * se non c'è già da comprare. Annulla fa entrambe le cose al contrario.
+   */
   async function finish(name: string, items: ShoppingItem[]) {
     const ok = await patch(items, { finished_at: new Date().toISOString() });
     if (!ok) return;
-    toast({ message: `${name}: finito`, actionLabel: "Annulla", onAction: () => patch(items, { finished_at: null }) });
+    const key = normalizeName(name);
+    // Nei Pasti la lista può non essere ancora in memoria: la legge prima, per non aggiungere un doppione.
+    const current = await qc.ensureQueryData({ queryKey: ITEMS_KEY, queryFn: fetchShoppingItems }).catch(() => undefined);
+    const listed = current?.some((i) => !i.checked && normalizeName(i.name) === key);
+    let added: ShoppingItem | null = null;
+    if (!listed) {
+      const latest = items.reduce((a, b) => ((b.checked_at ?? b.created_at) > (a.checked_at ?? a.created_at) ? b : a));
+      const item: ShoppingItem = {
+        id: uuidv7(),
+        list_id: latest.list_id,
+        name: name.trim(),
+        quantity: latest.quantity,
+        department: latest.department,
+        checked: false,
+        checked_at: null,
+        finished_at: null,
+        deleted_at: null,
+        created_at: new Date().toISOString(),
+      };
+      if (await apply(() => insertShoppingItem(item))) added = item;
+    }
+    toast({
+      message: added ? `${name}: finito, aggiunto alla Spesa` : `${name}: finito`,
+      actionLabel: "Annulla",
+      onAction: () => {
+        void patch(items, { finished_at: null });
+        if (added) void patch([added], { deleted_at: new Date().toISOString() });
+      },
+    });
   }
 
   return {
