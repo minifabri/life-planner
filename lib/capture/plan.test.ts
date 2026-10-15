@@ -69,6 +69,37 @@ describe("planCapture", () => {
     expect(plan).toMatchObject({ kind: "event", input: { all_day: true, start_date: TODAY, start_at: null, end_at: null } });
   });
 
+  it("compleanno: tutto il giorno, ogni anno, con il nome come titolo", () => {
+    expect(planCapture(draft("compleanno Marta 12 ottobre"), TODAY, TZ)).toEqual({
+      kind: "event",
+      input: {
+        title: "Marta",
+        notes: null,
+        location: null,
+        all_day: true,
+        start_date: "2026-10-12",
+        end_date: null,
+        start_at: null,
+        end_at: null,
+        tz: TZ,
+        rrule: "FREQ=YEARLY",
+        area_id: null,
+        attention: "low",
+        kind: "birthday",
+      },
+    });
+    expect(planCapture(draft("compleanno mamma 29/2/2028"), TODAY, TZ)).toMatchObject({
+      input: { kind: "birthday", rrule: "FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1" },
+    });
+    expect(describeDraft(draft("compleanno Marta 12 ottobre"), TODAY)).toBe("Compleanno aggiunto · lunedì · ogni anno");
+  });
+
+  it("un orario scelto dal chip trasforma il compleanno in un evento normale", () => {
+    const plan = planCapture(draft("compleanno Marta 12 ottobre", { time: "20:00" }), TODAY, TZ);
+    expect(plan).toMatchObject({ kind: "event", input: { title: "Compleanno Marta", all_day: false, rrule: null } });
+    expect(plan.kind === "event" && plan.input.kind).toBeFalsy();
+  });
+
   it("evento ricorrente: la settimana senza giorni usa quello della prima volta", () => {
     expect(planCapture(draft("yoga ogni lunedì alle 19"), TODAY, TZ)).toMatchObject({ input: { rrule: "FREQ=WEEKLY;BYDAY=MO" } });
     expect(planCapture(draft("riunione ogni settimana martedì alle 10"), TODAY, TZ)).toMatchObject({

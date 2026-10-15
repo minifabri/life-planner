@@ -1,6 +1,7 @@
 import type { EventInput, RepeatInput, TaskInput } from "../data/api";
 import { addDays, atLocalTime, dueLabel, formatDuration, isoWeekday, relativeDay, type LocalDate } from "../dates/local";
 import type { CaptureKind, ParsedCapture } from "../parser/parse";
+import { birthdayRule } from "../events/kind";
 import { describeRule, toRRule, type SimpleRule } from "../recurrence/rule";
 import type { WorkoutInput } from "../workouts/convert";
 
@@ -32,6 +33,17 @@ export const KIND_LABEL: Record<CaptureKind, string> = {
   log: "Log",
 };
 
+/** Il compleanno letto dal parser vale finché resta un evento senza orario né ripetizione scelti dai chip. */
+export function isBirthday(draft: Pick<CaptureDraft, "kind" | "birthday" | "time" | "repeat">): boolean {
+  return draft.kind === "event" && draft.birthday && !draft.time && !draft.repeat;
+}
+
+/** Se un chip ha tolto il compleanno (orario, ripetizione, altro tipo) il titolo torna a dire di cosa si tratta. */
+export function draftTitle(draft: Pick<CaptureDraft, "kind" | "birthday" | "time" | "repeat" | "title">): string {
+  const title = draft.title.trim();
+  return draft.birthday && !isBirthday(draft) ? `Compleanno ${title}` : title;
+}
+
 /** Una ripetizione settimanale senza giorni vale per il giorno della prima volta. */
 function ruleFrom(repeat: SimpleRule, start: LocalDate): string {
   return toRRule(repeat.freq === "weekly" && !repeat.byDay?.length ? { ...repeat, byDay: [isoWeekday(start)] } : repeat);
@@ -39,7 +51,7 @@ function ruleFrom(repeat: SimpleRule, start: LocalDate): string {
 
 /** Traduce la bozza nelle righe da scrivere. Funzione pura: le regole di coerenza tra i campi stanno qui. */
 export function planCapture(draft: CaptureDraft, today: LocalDate, tz: string): CapturePlan {
-  const title = draft.title.trim();
+  const title = draftTitle(draft);
 
   if (draft.kind === "shopping") return { kind: "shopping", name: title };
   if (draft.kind === "wishlist") return { kind: "wishlist", name: title, url: draft.url };
@@ -80,6 +92,27 @@ export function planCapture(draft: CaptureDraft, today: LocalDate, tz: string): 
 
   if (draft.kind === "event") {
     const date = draft.date ?? today;
+    if (isBirthday(draft)) {
+      // Come nel modulo completo: tutto il giorno, ogni anno, senza fine.
+      return {
+        kind: "event",
+        input: {
+          title,
+          notes: null,
+          location: null,
+          all_day: true,
+          start_date: date,
+          end_date: null,
+          start_at: null,
+          end_at: null,
+          tz,
+          rrule: birthdayRule(date),
+          area_id: null,
+          attention: draft.attention,
+          kind: "birthday",
+        },
+      };
+    }
     const start = draft.time ? atLocalTime(date, draft.time, tz) : null;
     const end = start && draft.durationMin ? new Date(start.getTime() + draft.durationMin * 60_000) : null;
     return {
@@ -152,6 +185,7 @@ export function describeDraft(draft: CaptureDraft, today: LocalDate): string {
     draft.durationMin ? formatDuration(draft.durationMin) : null,
     draft.repeat && draft.kind !== "workout" ? describeRule(draft.repeat).toLowerCase() : null,
   ].filter(Boolean);
+  if (isBirthday(draft)) return `Compleanno aggiunto · ${whenLabel(draft, today)} · ogni anno`;
   const head = draft.kind === "event" ? "Evento aggiunto" : draft.kind === "workout" ? "Allenamento aggiunto" : "Attività aggiunta";
   return details.length ? `${head} · ${details.join(" · ")}` : head;
 }

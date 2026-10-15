@@ -38,6 +38,8 @@ export type ParsedCapture = {
   categoryId: string | null;
   sensitive: boolean;
   url: string | null;
+  /** "Compleanno Marta 12 ottobre": evento di tutto il giorno che torna ogni anno; il titolo è il nome. */
+  birthday: boolean;
   /** "low" quando il tipo è una scelta di default tra più letture possibili. */
   confidence: "high" | "low";
   spans: Partial<Record<SpanField, Span>>;
@@ -125,6 +127,12 @@ const DURATION = words(
 );
 
 const DANGLING = new RegExp(`(?<![${LETTER}])(?:il|lo|la|per|a|di|e|alle|entro|da)\\s*(?=\\u0000)`, "u");
+
+/** "Compleanno (di) Marta" o "Marta compleanno": resta il nome. "Regalo per il compleanno" no. */
+const BIRTHDAY = new RegExp(
+  "^compleanno\\s+(?:(?:di|del|della|dello|dei|degli|delle)\\s+|(?:dell|d)['’]\\s*)?(?<who>.+)$|^(?<who2>.+?)(?<!(?:^|\\s)(?:il|lo|la|per|di|del|della|dello|al|alla|un|mio|mia|tuo|tua|suo|sua|buon))\\s+compleanno$",
+  "iu",
+);
 
 const BUY = /^(?:comprare|comprami|compra|acquistare)\s+(?:(?:il|lo|la|i|gli|le|un|uno|una|del|dello|della|dei|degli|delle)\s+|(?:dell|l|un)['’]\s*)?/i;
 
@@ -470,6 +478,10 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
   const looksLikeWorkout =
     !reminded && !windowEnd && !repeat && !buys &&
     activities.some((a) => a.trim() && new RegExp(`^${escapeRegExp(stripAccents(a.trim().toLowerCase()))}(?![${LETTER}])`, "u").test(plainRest));
+  // Un compleanno ha un giorno e nient'altro: con un orario è una festa, un evento come gli altri.
+  const birthdayOf = BIRTHDAY.exec(rest);
+  const looksLikeBirthday =
+    !!birthdayOf && !!date && minutes === null && !repeat && !windowEnd && !reminded && !prefixKind && !url;
   const looksLikeLog = !!category && !verb && !reminded && !windowEnd && !repeat && !relativeDate && (!date || date.date <= today);
 
   let kind: CaptureKind;
@@ -477,6 +489,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
   if (options.kind) kind = options.kind;
   else if (prefixKind) kind = prefixKind;
   else if (url) kind = "wishlist";
+  else if (looksLikeBirthday) kind = "event";
   else if (buys && !hasWhen) {
     // "Comprare mascara": spesa di default, il chip lo sposta in Wishlist.
     kind = "shopping";
@@ -492,7 +505,8 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     if (date && !verb && !windowEnd) confidence = "low";
   }
 
-  let title = rest;
+  const birthday = looksLikeBirthday && kind === "event";
+  let title = birthday ? (birthdayOf!.groups!.who ?? birthdayOf!.groups!.who2!).trim() : rest;
   if (kind === "shopping" || kind === "wishlist") title = title.replace(BUY, "");
   if (kind !== "shopping") title = capitalize(title);
   if (!title && url) {
@@ -531,6 +545,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     categoryId: category?.id ?? null,
     sensitive: category?.is_sensitive ?? false,
     url,
+    birthday,
     confidence,
     spans: ctx.spans,
   };

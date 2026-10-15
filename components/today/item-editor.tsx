@@ -61,6 +61,7 @@ export type EditorDraft = Partial<{
   repeat: Repeat;
   weekDays: number[];
   allDay: boolean;
+  birthday: boolean;
   startTime: string;
   endTime: string;
 }>;

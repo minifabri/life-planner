@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { CaptureSheet } from "@/components/capture/capture-sheet";
 import { ItemEditor, type EditorDraft } from "@/components/today/item-editor";
 import { useToast } from "@/components/ui/toast";
-import { describeDraft, planCapture, type CaptureDraft, type CapturePlan } from "@/lib/capture/plan";
+import { describeDraft, draftTitle, isBirthday, planCapture, type CaptureDraft, type CapturePlan } from "@/lib/capture/plan";
 import { createEvent, createTask, createWishlistItem, softDelete } from "@/lib/data/api";
 import { createEntry } from "@/lib/data/log";
 import { createShoppingItem } from "@/lib/data/shopping";
@@ -61,7 +61,7 @@ function editorDraft(draft: CaptureDraft, today: LocalDate): EditorDraft {
   const date = draft.date ?? today;
   const repeat: EditorDraft["repeat"] = draft.repeat?.interval === 1 ? draft.repeat.freq : "none";
   const common = {
-    title: draft.title,
+    title: draftTitle(draft),
     attention: draft.attention,
     date,
     repeat,
@@ -74,6 +74,7 @@ function editorDraft(draft: CaptureDraft, today: LocalDate): EditorDraft {
       const end = (h * 60 + m + draft.durationMin) % 1440;
       endTime = `${String(Math.floor(end / 60)).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
     }
+    if (isBirthday(draft)) return { ...common, type: "event", birthday: true, repeat: "none" };
     return { ...common, type: "event", allDay: !draft.time, startTime: draft.time ?? "09:00", endTime };
   }
   const hasDay = !!draft.date || !!draft.time || repeat !== "none";
