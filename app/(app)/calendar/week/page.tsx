@@ -8,12 +8,14 @@ import { TaskChip, WeekGrid, type Dragged } from "@/components/calendar/week-gri
 import { AreaDot } from "@/components/today/task-row";
 import { DaySigns } from "@/components/days/day-signs";
 import { ItemEditor } from "@/components/today/item-editor";
+import { KindIcon } from "@/components/today/quiet-events";
 import { Icon } from "@/components/ui/icon";
 import { Diamond } from "@/components/ui/marks";
 import { useToast } from "@/components/ui/toast";
 import { canMoveEvent, dayHighlights, freeLabel, moveEventPatch, periodTasks, weekDays } from "@/lib/calendar/view";
 import { addDays, dueLabel, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
+import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
 import { WorkoutMark } from "@/components/workouts/workout-row";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { useTimezone, useToday } from "@/lib/data/hooks";
@@ -115,7 +117,7 @@ export default function WeekPage() {
                   <button
                     type="button"
                     onClick={() => cal.openDay(view.day)}
-                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}${signs.length ? `, ${signsText(signs)}` : ""}: ${freeLabel(view)}`}
+                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}${isToday ? ", oggi" : ""}${signs.length ? `, ${signsText(signs)}` : ""}: ${freeLabel(view)}${view.quiet.map((o) => `, ${KIND_LABEL[o.event.kind].toLowerCase()}: ${displayTitle(o.event)}`).join("")}`}
                     className={`flex w-full gap-3.5 rounded-xl py-3.5 pr-1 text-left hover:bg-surface ${isToday ? "bg-accent-soft" : ""}`}
                   >
                     <span className="flex w-[46px] shrink-0 flex-col items-center gap-1 pt-0.5">
@@ -132,6 +134,17 @@ export default function WeekPage() {
                         </span>
                         <span className="whitespace-nowrap font-mono text-[11px] text-text-3">{freeLabel(view)}</span>
                       </span>
+                      {view.quiet.length ? (
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-3">
+                          {view.quiet.map((o) => (
+                            <span key={o.key} className="flex min-w-0 items-center gap-1.5">
+                              <KindIcon kind={o.event.kind} size={12} />
+                              <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span>
+                              <span className="min-w-0 truncate">{displayTitle(o.event)}</span>
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                       {items.map((item) => {
                         const gold = (item.deadline || item.important) && !item.done;
                         return (

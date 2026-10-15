@@ -44,7 +44,10 @@ export function PlanSheet({
   const [error, setError] = useState<string | null>(null);
 
   const eventsQuery = useEvents(date, tz);
-  const occurrences = eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, date, tz) : [];
+  // Una spedizione non è un'occasione per vestirsi; un compleanno sì.
+  const occurrences = (eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, date, tz) : []).filter(
+    (o) => o.event.kind !== "shipment",
+  );
 
   const forecast = forecastFor(weather.days, date);
   const issue = weatherIssue(items, forecast);

@@ -100,6 +100,9 @@ export type Workout = {
   updated_at: string;
 };
 
+/** Spedizioni (dal pacchetto nel titolo) e compleanni si mostrano in modo discreto. */
+export type EventKind = "event" | "shipment" | "birthday";
+
 export type EventRow = {
   id: string;
   title: string;
@@ -115,6 +118,10 @@ export type EventRow = {
   area_id: string | null;
   attention: Attention;
   source: "app" | "gcal" | "icloud" | "imayoga";
+  kind: EventKind;
+  gcal_calendar_id: string | null;
+  gcal_event_id: string | null;
+  gcal_etag: string | null;
   icloud_calendar_id: string | null;
   icloud_href: string | null;
   icloud_etag: string | null;
@@ -215,6 +222,15 @@ export type HealthLink = {
   owner_id: string;
   created_at: string;
   last_received_at: string | null;
+};
+
+/** Un calendario Google letto dal suo indirizzo segreto iCal (l'indirizzo resta sul server). */
+export type GcalCalendar = {
+  id: string;
+  gcal_calendar_id: string;
+  summary: string | null;
+  last_synced_at: string | null;
+  last_error: string | null;
 };
 
 export type IcloudCalendar = {

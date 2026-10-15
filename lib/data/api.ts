@@ -277,7 +277,7 @@ export async function reopenTask(task: Task): Promise<void> {
 export type EventInput = Pick<
   EventRow,
   "title" | "notes" | "location" | "start_at" | "end_at" | "all_day" | "start_date" | "end_date" | "tz" | "rrule" | "area_id" | "attention"
->;
+> & { kind?: EventRow["kind"] };
 
 export async function createEvent(input: EventInput): Promise<string> {
   const id = uuidv7();

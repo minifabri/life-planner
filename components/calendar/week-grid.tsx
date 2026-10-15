@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DaySigns } from "@/components/days/day-signs";
+import { KindIcon } from "@/components/today/quiet-events";
 import { AreaDot } from "@/components/today/task-row";
 import { AttentionMark, Diamond } from "@/components/ui/marks";
 import { WorkoutMark } from "@/components/workouts/workout-row";
@@ -10,6 +11,7 @@ import { canMoveEvent, hourRange, layoutBlocks, timeToMinutes, timedBlocks, type
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import type { Occurrence } from "@/lib/events/day";
+import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
 import type { Area, DayMark, Task, Workout } from "@/lib/supabase/types";
 import { LOAD_LABEL } from "@/lib/tasks/load";
 
@@ -105,6 +107,19 @@ export function WeekGrid({
               </button>
 
               <ul className="flex min-h-[52px] flex-col gap-1 border-b border-line px-1 pb-1.5">
+                {view.quiet.map((o) => (
+                  <li key={o.key}>
+                    <button
+                      type="button"
+                      onClick={() => onEdit({ kind: "event", occurrence: o })}
+                      className="flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 text-left text-xs leading-snug text-text-3 hover:bg-surface-2 hover:text-text-2"
+                    >
+                      <KindIcon kind={o.event.kind} size={12} />
+                      <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span>
+                      <span className="min-w-0 break-words">{displayTitle(o.event)}</span>
+                    </button>
+                  </li>
+                ))}
                 {allDay.map((o) => (
                   <li key={o.key}>
                     <button

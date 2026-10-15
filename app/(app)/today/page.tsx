@@ -8,6 +8,7 @@ import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
 import { ItemEditor, type EditorTarget } from "@/components/today/item-editor";
 import { QuickAdd } from "@/components/today/quick-add";
+import { QuietEvents } from "@/components/today/quiet-events";
 import { RescheduleDialog } from "@/components/today/reschedule-dialog";
 import { RowAction, TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
@@ -41,6 +42,7 @@ import {
 import { todayHeading } from "@/lib/dates/today";
 import { onDayRequested, takeRequestedDay } from "@/lib/nav/day-handoff";
 import { eventsForDay, type Occurrence } from "@/lib/events/day";
+import { splitQuiet } from "@/lib/events/kind";
 import { groupTasks, overdueSince, windowSummary } from "@/lib/tasks/classify";
 import { timeToMinutes } from "@/lib/calendar/view";
 import { LOAD_LABEL, PART_LABEL, dayLoad, loadSplit } from "@/lib/tasks/load";
@@ -127,7 +129,10 @@ export default function TodayPage() {
 
   const areaById = new Map((areas ?? []).map((a) => [a.id, a]));
   const sections = groupTasks(tasksQuery.data ?? [], day, today, tz);
-  const occurrences = eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, day, tz) : [];
+  // Compleanni e spedizioni restano fuori dall'agenda e dal carico: si vedono in piccolo sotto il titolo.
+  const { regular: occurrences, quiet } = splitQuiet(
+    eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, day, tz) : [],
+  );
 
   const agenda: AgendaItem[] = [
     ...occurrences.map((o) => ({ key: o.key, time: o.startTime, occurrence: o })),
@@ -220,6 +225,7 @@ export default function TodayPage() {
           </div>
         </div>
         <DayMarksLine key={day} day={day} today={today} marks={dayMarks} className="-my-2.5" />
+        <QuietEvents occurrences={quiet} onOpen={(occurrence) => setEditor({ kind: "event", occurrence })} className="-my-2.5" />
         <div className="flex flex-col gap-2">
           <div className="flex min-h-6 items-baseline justify-between gap-3">
             <span className="text-[13px] text-text-2">{loadText}</span>

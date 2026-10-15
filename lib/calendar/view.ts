@@ -1,6 +1,7 @@
 import { addDays, atLocalTime, diffDays, localTimeString, weekStart, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
 import { eventsForDay, type Occurrence } from "../events/day";
+import { splitQuiet } from "../events/kind";
 import type { EventException, EventRow, Task, Workout } from "../supabase/types";
 import { classifyTask } from "../tasks/classify";
 import { dayLoad, type LoadLevel } from "../tasks/load";
@@ -26,7 +27,10 @@ export function monthGrid(month: LocalDate): LocalDate[] {
 
 export type DayView = {
   day: LocalDate;
+  /** Eventi dell'agenda; compleanni e spedizioni stanno in `quiet`. */
   occurrences: Occurrence[];
+  /** Compleanni e spedizioni: si mostrano in piccolo e non pesano sulla giornata. */
+  quiet: Occurrence[];
   /** Attività con orario, in ordine. */
   timed: Task[];
   /** Attività del giorno senza orario (comprese quelle nel periodo arrivate all'ultimo giorno utile). */
@@ -46,7 +50,7 @@ export function buildDay(
   tz: string = DEFAULT_TZ,
   workouts: Workout[] = [],
 ): DayView {
-  const occurrences = eventsForDay(events, exceptions, day, tz);
+  const { regular: occurrences, quiet } = splitQuiet(eventsForDay(events, exceptions, day, tz));
   const timed: Task[] = [];
   const untimed: Task[] = [];
   for (const t of tasks) {
@@ -62,7 +66,7 @@ export function buildDay(
     ...[...timed, ...untimed].filter((t) => t.status === "open").map((t) => t.duration_min),
     ...ofDay.filter((w) => shownStatus(w, today) === "planned").map((w) => w.duration_min),
   ]);
-  return { day, occurrences, timed, untimed, workouts: ofDay, load };
+  return { day, occurrences, quiet, timed, untimed, workouts: ofDay, load };
 }
 
 export type Highlight = {
@@ -140,7 +144,16 @@ export function freeLabel(view: DayView): string {
 }
 
 /** Segni minimi di un giorno nella griglia del mese. Le lezioni (imayoga) hanno un segno a parte e non contano tra gli eventi. */
-export type DayMarks = { events: number; lessons: number; tasks: number; deadlines: number; workouts: number; important: boolean };
+export type DayMarks = {
+  events: number;
+  lessons: number;
+  tasks: number;
+  deadlines: number;
+  workouts: number;
+  birthdays: number;
+  shipments: number;
+  important: boolean;
+};
 
 export function dayMarks(view: DayView, tasks: Task[]): DayMarks {
   const open = [...view.timed, ...view.untimed].filter((t) => t.status === "open");
@@ -152,6 +165,8 @@ export function dayMarks(view: DayView, tasks: Task[]): DayMarks {
     tasks: open.filter((t) => t.due_date !== view.day || t.date !== null).length,
     deadlines,
     workouts: view.workouts.length,
+    birthdays: view.quiet.filter((o) => o.event.kind === "birthday").length,
+    shipments: view.quiet.filter((o) => o.event.kind === "shipment").length,
     important: open.some((t) => t.attention === "high") || view.occurrences.some((o) => o.event.attention === "high"),
   };
 }

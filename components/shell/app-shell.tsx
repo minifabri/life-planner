@@ -7,6 +7,7 @@ import { useCapture } from "@/components/capture/capture-provider";
 import { SyncStatus } from "@/components/data/sync-status";
 import { useSearch } from "@/components/search/search-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { useGcalAutoSync } from "@/lib/gcal/hooks";
 import { useIcloudAutoSync } from "@/lib/icloud/hooks";
 import { useImayogaAutoSync } from "@/lib/imayoga/hooks";
 
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const capture = useCapture();
   const search = useSearch();
   useIcloudAutoSync();
+  useGcalAutoSync();
   useImayogaAutoSync();
 
   return (
