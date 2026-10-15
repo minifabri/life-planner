@@ -65,7 +65,7 @@ describe("planCapture", () => {
   });
 
   it("evento senza orario: tutto il giorno, oggi se manca la data", () => {
-    const plan = planCapture(draft("compleanno Marta", { kind: "event" }), TODAY, TZ);
+    const plan = planCapture(draft("cena da Marta", { kind: "event" }), TODAY, TZ);
     expect(plan).toMatchObject({ kind: "event", input: { all_day: true, start_date: TODAY, start_at: null, end_at: null } });
   });
 
