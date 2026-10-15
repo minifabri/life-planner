@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { Button, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
-import { KIND_LABEL, destinationLabel, quickDays, whenLabel, type CaptureDraft } from "@/lib/capture/plan";
+import { KIND_LABEL, destinationLabel, isBirthday, quickDays, whenLabel, type CaptureDraft } from "@/lib/capture/plan";
 import { formatDuration, type LocalDate } from "@/lib/dates/local";
 import { parseCapture, type CaptureKind } from "@/lib/parser/parse";
 import { describeRule } from "@/lib/recurrence/rule";
@@ -122,6 +122,7 @@ export function CaptureSheet({
   }
 
   const { kind } = draft;
+  const kindLabel = isBirthday(draft) ? "Compleanno" : KIND_LABEL[kind];
   const dated = kind === "task" || kind === "event" || kind === "workout" || kind === "log";
   const planned = kind === "task" || kind === "event";
   const timed = planned || kind === "workout";
@@ -226,9 +227,9 @@ export function CaptureSheet({
                     onPress={() => toggle("kind")}
                     expanded={panel === "kind"}
                     tone={confidence === "low" && !overrides.kind ? "unsure" : "set"}
-                    label={`Tipo: ${KIND_LABEL[kind]}${confidence === "low" && !overrides.kind ? ", da confermare" : ""}`}
+                    label={`Tipo: ${kindLabel}${confidence === "low" && !overrides.kind ? ", da confermare" : ""}`}
                   >
-                    {KIND_LABEL[kind]}
+                    {kindLabel}
                   </Chip>
 
                   {dated ? (
