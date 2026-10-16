@@ -142,6 +142,21 @@ describe("suggestMeals", () => {
     expect(rank("Grano saraceno, tofu e broccoli")).toBeLessThan(ideas.length / 2);
   });
 
+  it("preferisce frutta e verdura di stagione, e lo dice", () => {
+    const own = [memory("Pasta e zucchine"), memory("Pasta e zucca")];
+    const october = suggestMeals(data({ memory: own }), ctx());
+    expect(october[0].name).toBe("Pasta e zucca");
+    expect(october[0].reason).toContain("Di stagione: zucca");
+    expect(october[1].reason).not.toContain("stagione");
+    const july = suggestMeals(data({ memory: own }), ctx({ day: "2026-07-15", weekFrom: "2026-07-13" }));
+    expect(july[0].name).toBe("Pasta e zucchine");
+  });
+
+  it("la stagione non nasconde nulla: un piatto fuori stagione resta tra le idee", () => {
+    const names = suggestMeals(data(), ctx(), 400).map((i) => i.name);
+    expect(names).toContain("Risotto con asparagi e piselli");
+  });
+
   it("è deterministico", () => {
     const d = data({ memory: [memory("Farro"), memory("Riso")] });
     expect(suggestMeals(d, ctx())).toEqual(suggestMeals(d, ctx()));

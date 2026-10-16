@@ -7,10 +7,11 @@ import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon
 import { Button } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
-import { useNow } from "@/lib/data/hooks";
+import { useTimezone, useToday } from "@/lib/data/hooks";
 import { useProductMemory, useShoppingActions, useShoppingItems } from "@/lib/data/shopping-hooks";
 import { parseEntry } from "@/lib/shopping/entry";
 import { departmentOf, frequentProducts, groupItems, recentProducts, suggestProducts, usageLabel } from "@/lib/shopping/list";
+import { MONTH_NAME, monthOf, seasonalPicks } from "@/lib/shopping/seasonal";
 import type { ProductMemory } from "@/lib/supabase/types";
 
 const GRID = "grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2";
@@ -19,7 +20,7 @@ export default function ShoppingPage() {
   const itemsQuery = useShoppingItems();
   const memory = useProductMemory().data ?? [];
   const actions = useShoppingActions();
-  const now = useNow();
+  const { today, now } = useToday(useTimezone());
 
   const [text, setText] = useState("");
   // Suggerimento evidenziato con le frecce; -1 = nessuno, Invio aggiunge ciò che è scritto.
@@ -37,6 +38,9 @@ export default function ShoppingPage() {
   const typing = text.trim() !== "";
   const frequent = typing ? [] : frequentProducts(memory, items, now);
   const recent = typing ? [] : recentProducts(memory, items).filter((p) => !frequent.includes(p));
+  // Di stagione: un suggerimento in più, in fondo e sottovoce. Niente di ciò che è già in lista o già proposto sopra.
+  const shown = new Set([...frequent, ...recent].map((p) => p.display_name));
+  const seasonal = typing ? [] : seasonalPicks(today, memory, items, now).filter((p) => !shown.has(p.name)).slice(0, 10);
   const typedDepartment = entry.name ? departmentOf(entry.name, null) : null;
 
   function write(value: string) {
@@ -44,7 +48,7 @@ export default function ShoppingPage() {
     setActive(-1);
   }
 
-  function add(product?: ProductMemory) {
+  function add(product?: ProductMemory | { display_name: string }) {
     const next = product ? { name: product.display_name, quantity: entry.quantity } : entry;
     if (!next.name) return;
     write("");
@@ -217,6 +221,27 @@ export default function ShoppingPage() {
                 >
                   <Icon name="plus" size={14} />
                   {p.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {seasonal.length > 0 ? (
+        <section aria-label="Di stagione" className="flex flex-col gap-1.5">
+          <h2 className="label-mono">Di stagione a {MONTH_NAME[monthOf(today) - 1]}</h2>
+          <ul className="no-scrollbar -mx-5 flex gap-1.5 overflow-x-auto px-5 md:-mx-10 md:flex-wrap md:px-10">
+            {seasonal.map((p) => (
+              <li key={p.produce.name} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => add({ display_name: p.name })}
+                  aria-label={`Aggiungi ${p.name}`}
+                  className="flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-xl border border-line pl-2.5 pr-3 text-[13px] text-text-3 hover:bg-surface-2 hover:text-text"
+                >
+                  <Icon name="plus" size={12} />
+                  {p.name}
                 </button>
               </li>
             ))}

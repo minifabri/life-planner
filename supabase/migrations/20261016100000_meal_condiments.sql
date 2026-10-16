@@ -1,4 +1,4 @@
--- Pasti: condimenti facoltativi (D65).
+-- Pasti: condimenti facoltativi (D66).
 
 -- Condimenti del pasto ("olio, limone"): testo libero, fuori dal nome del piatto. Contano nei nutrienti,
 -- nei micronutrienti e negli ingredienti in casa usati, ma il titolo del pasto resta il piatto.
