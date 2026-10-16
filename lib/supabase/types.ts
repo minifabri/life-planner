@@ -66,6 +66,8 @@ export type Task = {
   event_id: string | null;
   /** Articolo urgente della Spesa da comprare (`source = 'shopping'`). */
   shopping_item_id: string | null;
+  /** Riservata: il contenuto si vede solo a Log sbloccato e non resta sul dispositivo (lib/private/items.ts). */
+  is_private: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -131,6 +133,8 @@ export type EventRow = {
   icloud_etag: string | null;
   /** Posti e prenotati di una lezione di imayoga. */
   lesson: LessonDetails | null;
+  /** Riservato: il contenuto si vede solo a Log sbloccato e non resta sul dispositivo. Solo per `source = 'app'`. */
+  is_private: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

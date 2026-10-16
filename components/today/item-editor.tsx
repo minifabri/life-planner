@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { LockSheet } from "@/components/log/lock-sheet";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { LessonSheet } from "@/components/today/lesson-sheet";
@@ -19,7 +21,9 @@ import {
   type RepeatInput,
   type TaskInput,
 } from "@/lib/data/api";
-import { useAreas, useInvalidateDay, useRecurrences } from "@/lib/data/hooks";
+import { useAreas, useInvalidateDay, useOffline, useRecurrences } from "@/lib/data/hooks";
+import { useKeepUnlockedWhileActive, useLogUnlocked } from "@/lib/data/log-hooks";
+import { PRIVATE_ITEMS_KEY, fetchPrivateEvent, fetchPrivateTask } from "@/lib/data/private";
 import { convertEventToWorkout, convertTaskToWorkout } from "@/lib/data/workouts";
 import {
   addDays,
@@ -44,7 +48,8 @@ import {
   parseRRule,
   toRRule,
 } from "@/lib/recurrence/rule";
-import type { Attention, Task } from "@/lib/supabase/types";
+import { isUnlocked } from "@/lib/lock/session";
+import type { Attention, EventRow, Task } from "@/lib/supabase/types";
 import { canConvertEvent, canConvertTask } from "@/lib/workouts/convert";
 
 /** Valori iniziali di un nuovo elemento, ad esempio quelli letti dal Quick Capture. */
@@ -98,6 +103,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     startTime: "09:00",
     endTime: "10:00",
     location: "",
+    isPrivate: false,
   };
 
   if (target.kind === "new") {
@@ -119,6 +125,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
       duration: t.duration_min ? String(t.duration_min) : "",
       due: t.due_date ?? base.due,
       weekDays: [isoWeekday(t.date ?? today)],
+      isPrivate: t.is_private,
     };
   }
 
@@ -142,6 +149,7 @@ function initialState(target: EditorTarget, today: LocalDate) {
     repeat: (rule ? rule.freq : "none") as Repeat,
     weekDays: rule?.byDay ?? [isoWeekday(date)],
     until: rule?.until ?? "",
+    isPrivate: e.is_private,
   };
 }
 
@@ -194,19 +202,58 @@ function RemindField({ checked, onChange, hint }: { checked: boolean; onChange: 
   );
 }
 
-export function ItemEditor({
-  target,
-  today,
-  tz,
-  onClose,
-  onDeleteTask,
-}: {
+type EditorProps = {
   target: EditorTarget;
   today: LocalDate;
   tz: string;
   onClose: () => void;
   onDeleteTask: (task: Task) => void;
-}) {
+};
+
+/** Modulo di un'attività o di un evento. Un elemento riservato si apre solo a Log sbloccato (D68). */
+export function ItemEditor(props: EditorProps) {
+  const { target } = props;
+  const reserved = target.kind === "task" ? target.task.is_private : target.kind === "event" && target.occurrence.event.is_private;
+  return reserved ? <PrivateItemEditor {...props} /> : <ItemForm {...props} />;
+}
+
+/**
+ * Di un elemento riservato la vista ha solo il segnaposto (o una copia in memoria): prima si sblocca il Log,
+ * poi si legge dal server la riga intera, che non resta sul dispositivo.
+ */
+function PrivateItemEditor(props: EditorProps) {
+  const { target, onClose } = props;
+  const unlocked = useLogUnlocked();
+  useKeepUnlockedWhileActive();
+  const isTask = target.kind === "task";
+  const id = target.kind === "task" ? target.task.id : target.kind === "event" ? target.occurrence.event.id : "";
+  const query = useQuery({
+    queryKey: [PRIVATE_ITEMS_KEY, "one", id, "full"],
+    queryFn: (): Promise<Task | EventRow | null> => (isTask ? fetchPrivateTask(id) : fetchPrivateEvent(id)),
+    enabled: unlocked,
+    gcTime: 0,
+    retry: false,
+  });
+
+  // Chiuso senza sbloccare: si torna alla vista. Sbloccato: il foglio del PIN si chiude e resta il modulo.
+  if (!unlocked) return <LockSheet onClose={() => (isUnlocked() ? undefined : onClose())} />;
+
+  const row = query.data;
+  if (!row) {
+    return (
+      <Sheet title={isTask ? "Attività riservata" : "Evento riservato"} isOpen onClose={onClose}>
+        <p className="text-sm text-text-2" aria-live="polite">
+          {query.isPending ? "Apro…" : query.isError ? "Per aprire un elemento riservato serve la connessione." : "Non c’è più: forse è stato eliminato."}
+        </p>
+      </Sheet>
+    );
+  }
+  const full: EditorTarget =
+    target.kind === "event" ? { kind: "event", occurrence: { ...target.occurrence, event: row as EventRow } } : { kind: "task", task: row as Task };
+  return <ItemForm key={row.updated_at} {...props} target={full} />;
+}
+
+function ItemForm({ target, today, tz, onClose, onDeleteTask }: EditorProps) {
   const [f, setF] = useState(() => initialState(target, today));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +261,7 @@ export function ItemEditor({
   const areas = useAreas().data ?? [];
   const invalidate = useInvalidateDay();
   const toast = useToast();
+  const offline = useOffline();
 
   const task = target.kind === "task" ? target.task : null;
   const occurrence = target.kind === "event" ? target.occurrence : null;
@@ -226,7 +274,9 @@ export function ItemEditor({
   const recurrences = useRecurrences().data;
   const recurrence = task?.recurrence_id ? recurrences?.find((r) => r.id === task.recurrence_id) : undefined;
 
-  const canChooseRepeat = f.type === "event" ? !lockedRule && !f.birthday : f.when === "day" && !task?.recurrence_id;
+  // Una riservata non si ripete (il modello della ripetizione resterebbe sul dispositivo) e non nasce da un pasto, dalla Spesa o da una lezione.
+  const canBePrivate = f.type === "event" || !task || (!task.recurrence_id && (task.source === "manual" || task.source === "template"));
+  const canChooseRepeat = f.type === "event" ? !lockedRule && !f.birthday : f.when === "day" && !task?.recurrence_id && !f.isPrivate;
 
   function set<K extends keyof typeof f>(key: K, value: (typeof f)[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -241,7 +291,7 @@ export function ItemEditor({
   }
 
   function taskRepeat(): RepeatInput {
-    if (f.when !== "day" || f.repeat === "none") return { kind: "none" };
+    if (f.when !== "day" || f.repeat === "none" || f.isPrivate) return { kind: "none" };
     const until = f.until || null;
     if (f.repeat === "after") return { kind: "after_completion", intervalDays: Math.max(1, Number(f.intervalDays) || 1), until };
     return { kind: "fixed", rrule: fixedRule(), until };
@@ -270,7 +320,12 @@ export function ItemEditor({
       setError("La fine della ripetizione non può venire prima del primo giorno.");
       return;
     }
-    const common = { title, notes: f.notes.trim() || null, area_id: f.areaId || null, attention: f.attention };
+    const isPrivate = canBePrivate && f.isPrivate;
+    if ((isPrivate || task?.is_private || event?.is_private) && offline) {
+      setError("Per salvare un elemento riservato serve la connessione.");
+      return;
+    }
+    const common = { title, notes: f.notes.trim() || null, area_id: f.areaId || null, attention: f.attention, is_private: isPrivate };
 
     if (f.type === "task") {
       const input: TaskInput = {
@@ -354,7 +409,7 @@ export function ItemEditor({
     );
   }
 
-  const canConvert = task ? canConvertTask(task) : !!event && canConvertEvent(event);
+  const canConvert = (task ? canConvertTask(task) : !!event && canConvertEvent(event)) && !f.isPrivate;
   function convert() {
     run(async () => {
       if (task) await convertTaskToWorkout(task, today);
@@ -513,6 +568,23 @@ export function ItemEditor({
             ) : null}
           </>
         )}
+
+        {canBePrivate ? (
+          <label className="flex min-h-11 items-center gap-3 text-[15px]">
+            <input type="checkbox" checked={f.isPrivate} onChange={(e) => set("isPrivate", e.target.checked)} className="size-5 accent-(--accent-fill)" />
+            <span className="flex flex-col">
+              <span className="flex items-center gap-1.5">
+                <Icon name="lock" size={14} className="text-text-3" />
+                Riservat{f.type === "task" ? "a" : "o"}
+              </span>
+              <span className="text-xs text-text-3">
+                {f.isPrivate
+                  ? `Si legge solo a Log sbloccato: altrove compare «${f.type === "task" ? "Attività riservata" : "Evento riservato"}», anche nelle notifiche. Per salvarl${f.type === "task" ? "a" : "o"} serve la connessione${f.type === "task" ? " e non si ripete" : ""}.`
+                  : "Titolo e dettagli visibili solo a Log sbloccato."}
+              </span>
+            </span>
+          </label>
+        ) : null}
 
         <details className="group flex flex-col" open={target.kind !== "new"}>
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-text-2 [&::-webkit-details-marker]:hidden">
@@ -691,7 +763,7 @@ export function ItemEditor({
           ) : event && occurrence ? (
             <>
               {event.rrule ? (
-                <Button disabled={busy} onClick={() => run(() => cancelOccurrence(event.id, occurrence.originalStart))}>
+                <Button disabled={busy} onClick={() => run(() => cancelOccurrence(event, occurrence.originalStart))}>
                   {event.kind === "birthday" ? "Solo quest’anno" : "Solo questo giorno"}
                 </Button>
               ) : null}

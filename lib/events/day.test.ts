@@ -26,6 +26,7 @@ function event(over: Partial<EventRow> = {}): EventRow {
     icloud_href: null,
     icloud_etag: null,
     lesson: null,
+    is_private: false,
     deleted_at: null,
     created_at: "2026-10-01T08:00:00Z",
     updated_at: "2026-10-01T08:00:00Z",

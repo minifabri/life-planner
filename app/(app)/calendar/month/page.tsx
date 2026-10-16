@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarError, CalendarHeader } from "@/components/calendar/calendar-header";
+import { LockSheet } from "@/components/log/lock-sheet";
 import { useCalendar } from "@/components/calendar/use-calendar";
 import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor } from "@/components/today/item-editor";
@@ -13,9 +14,12 @@ import { WorkoutMark, WorkoutRow } from "@/components/workouts/workout-row";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { dayMarks, monthGrid, monthStart, type DayMarks } from "@/lib/calendar/view";
 import { useTimezone, useToday } from "@/lib/data/hooks";
-import { useOpenEntries, usePrivateStubs } from "@/lib/data/log-hooks";
+import { useCyclePrediction } from "@/lib/data/cycle-hooks";
+import { useLogUnlocked, useOpenEntries, usePrivateStubs } from "@/lib/data/log-hooks";
+import { lockLog } from "@/lib/lock/session";
 import { logDays } from "@/lib/log/timeline";
-import { addMonths, dueLabel, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
+import type { CyclePrediction } from "@/lib/cycle/predict";
+import { addMonths, dueLabel, relativeDay, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
 
 const WEEKDAYS = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
 
@@ -38,6 +42,20 @@ function describe(marks: DayMarks): string {
   return parts.length ? parts.join(", ") : "niente in programma";
 }
 
+/** Riga sotto la legenda: da cosa nasce la stima e quando arriva il prossimo ciclo. */
+function cycleNote(cycle: CyclePrediction, today: LocalDate): string {
+  const basis = cycle.basedOn
+    ? `Ciclo medio di ${cycle.cycleDays} giorni (${cycle.basedOn === 1 ? "dall’ultimo ciclo" : `dagli ultimi ${cycle.basedOn} cicli`}).`
+    : `Con un solo ciclo registrato la stima usa ${cycle.cycleDays} giorni.`;
+  const next =
+    cycle.lateDays > 14
+      ? "L’ultimo ciclo registrato è lontano: se ne manca uno, aggiungilo nel Log."
+      : cycle.lateDays > 0
+        ? `In ritardo di ${cycle.lateDays === 1 ? "1 giorno" : `${cycle.lateDays} giorni`}.`
+        : `Prossimo ciclo previsto: ${relativeDay(cycle.nextStart, today)}.`;
+  return `${basis} ${next}`;
+}
+
 export default function MonthPage() {
   const tz = useTimezone();
   const { today } = useToday(tz);
@@ -49,6 +67,10 @@ export default function MonthPage() {
   const { views, areaById, actions } = cal;
   // Segno discreto del Log (D24): dice solo che in quel giorno c'è una registrazione, riservata o no.
   const logged = logDays(useOpenEntries().data ?? [], usePrivateStubs().data ?? []);
+  // Ciclo previsto e giorni fertili (D68): solo a Log sbloccato.
+  const unlocked = useLogUnlocked();
+  const [locking, setLocking] = useState(false);
+  const cycle = useCyclePrediction(today, days[0], days[days.length - 1]);
 
   // L'anteprima segue il giorno toccato; se non è in questo mese, oggi (quando si vede) o il primo.
   const fallback = days.includes(today) && monthStart(today) === month ? today : month;
@@ -99,19 +121,25 @@ export default function MonthPage() {
                 const inMonth = view.day.slice(0, 7) === month.slice(0, 7);
                 const active = view.day === selected;
                 const hasLog = logged.has(view.day);
+                const period = cycle?.period.has(view.day) ?? false;
+                const fertile = cycle?.fertile.has(view.day) ?? false;
                 return (
                   <button
                     key={view.day}
                     type="button"
                     aria-pressed={active}
-                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}: ${describe(marks)}${hasLog ? ", registrazioni nel Log" : ""}`}
+                    aria-label={`${weekdayName(view.day)} ${shortDate(view.day)}: ${describe(marks)}${hasLog ? ", registrazioni nel Log" : ""}${period ? ", ciclo previsto" : ""}${fertile ? ", giorno fertile" : ""}`}
                     onClick={() => setPicked(view.day)}
                     onDoubleClick={() => cal.openDay(view.day)}
                     className={`flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-xl border text-sm transition-colors md:min-h-[72px] ${
                       active ? "border-line-2 bg-surface-2" : "border-transparent hover:bg-surface-2"
                     } ${inMonth ? "" : "opacity-45"}`}
                   >
-                    <span className={`flex size-[26px] items-center justify-center rounded-full ${view.day === today ? "bg-accent-fill font-semibold text-on-accent" : "text-text"}`}>
+                    <span
+                      className={`flex size-[26px] items-center justify-center rounded-full ${view.day === today ? "bg-accent-fill font-semibold text-on-accent" : fertile ? "bg-fertile-soft text-text" : "text-text"} ${
+                        period ? "outline-[1.5px] outline-offset-1 outline-cycle outline-dashed" : ""
+                      }`}
+                    >
                       {Number(view.day.slice(8))}
                     </span>
                     {/* Segni minimi, mai testo nelle celle. */}
@@ -146,7 +174,30 @@ export default function MonthPage() {
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="h-px w-1.5 bg-text-2" /> Log
               </span>
+              {cycle ? (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden className="size-3 rounded-full outline-[1.5px] outline-cycle outline-dashed" /> Ciclo previsto
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden className="size-3 rounded-full bg-fertile-soft" /> Giorni fertili
+                  </span>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => (unlocked ? lockLog() : setLocking(true))}
+                className="-my-3 -ml-1.5 flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 text-text-3 hover:bg-surface-2 hover:text-text"
+              >
+                <Icon name="lock" size={12} />
+                {unlocked ? "Nascondi riservati" : "Mostra riservati"}
+              </button>
             </p>
+            {cycle ? (
+              <p className="text-[11.5px] leading-relaxed text-text-3">
+                {cycleNote(cycle, today)} Solo una stima del calendario: non è un metodo contraccettivo.
+              </p>
+            ) : null}
           </div>
 
           {preview ? (
@@ -218,6 +269,7 @@ export default function MonthPage() {
           onDeleteTask={actions.remove}
         />
       ) : null}
+      {locking ? <LockSheet onClose={() => setLocking(false)} /> : null}
       {cal.workout ? (
         <WorkoutSheet key={cal.workout.id} target={{ kind: "edit", workout: cal.workout }} today={today} onClose={() => cal.setWorkout(null)} />
       ) : null}

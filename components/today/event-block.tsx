@@ -1,6 +1,7 @@
 "use client";
 
 import { areaTintStyle } from "@/components/today/task-row";
+import { Icon } from "@/components/ui/icon";
 import { AttentionMark } from "@/components/ui/marks";
 import type { Occurrence } from "@/lib/events/day";
 import type { Area } from "@/lib/supabase/types";
@@ -19,6 +20,12 @@ export function EventBlock({ occurrence, area, past = false, onOpen }: { occurre
       >
         <span className="flex items-center gap-2 text-[15px] font-medium leading-snug">
           <span className="min-w-0 flex-1 break-words">{event.title}</span>
+          {event.is_private ? (
+            <span className="shrink-0 text-text-3">
+              <Icon name="lock" size={13} />
+              <span className="sr-only">Riservato</span>
+            </span>
+          ) : null}
           <AttentionMark level={event.attention} />
         </span>
         <span className="text-xs text-text-3">{[when, area?.name, event.location].filter(Boolean).join(" · ")}</span>

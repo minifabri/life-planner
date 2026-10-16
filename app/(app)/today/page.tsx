@@ -25,6 +25,7 @@ import {
   useTimezone,
   useToday,
 } from "@/lib/data/hooks";
+import { useKeepUnlockedWhileActive } from "@/lib/data/log-hooks";
 import { useWeekDayMarks } from "@/lib/data/day-marks-hooks";
 import { useWeekWorkouts, useWorkoutActions } from "@/lib/data/workouts-hooks";
 import {
@@ -63,6 +64,8 @@ export default function TodayPage() {
   const day = selected ?? today;
   const isToday = day === today;
 
+  // Con il Log sbloccato si leggono attività ed eventi riservati: usarli rimanda il blocco, come nel Log.
+  useKeepUnlockedWhileActive();
   const tasksQuery = useTasks(day, tz);
   const eventsQuery = useEvents(day, tz);
   const areas = useAreas().data;

@@ -7,11 +7,11 @@ const PAGE = 1000;
 type Row = Record<string, unknown>;
 
 /** Tutte le righe di una tabella, a pagine (il server ne restituisce al più mille per volta). */
-async function fetchAll(table: string, key: string, onlyOpenLog: boolean): Promise<Row[]> {
+async function fetchAll(table: string, key: string, onlyOpen: string | null): Promise<Row[]> {
   const rows: Row[] = [];
   for (let from = 0; ; from += PAGE) {
     let query = getSupabase().from(table).select("*");
-    if (onlyOpenLog) query = query.eq("is_sensitive", false);
+    if (onlyOpen) query = query.eq(onlyOpen, false);
     const { data, error } = await query.order(key).range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as Row[]));
@@ -19,15 +19,18 @@ async function fetchAll(table: string, key: string, onlyOpenLog: boolean): Promi
   }
 }
 
+/** Colonna che segna le righe riservate: a Log bloccato restano sul server. */
+const RESERVED_COLUMN: Record<string, string> = { log_entries: "is_sensitive", tasks: "is_private", events: "is_private" };
+
 export type ExportFile = { name: string; blob: Blob; rows: number };
 
 /**
  * Prepara l'archivio con tutti i dati (technical-design.md, 10). Tutto avviene nel browser: i dati
- * vanno da Supabase al dispositivo e da nessun'altra parte. A Log bloccato le registrazioni riservate restano sul server.
+ * vanno da Supabase al dispositivo e da nessun'altra parte. A Log bloccato le registrazioni, le attività e gli eventi riservati restano sul server.
  */
 export async function createExport(logUnlocked: boolean): Promise<ExportFile> {
   const data = {} as ExportData;
-  for (const t of EXPORT_TABLES) data[t.name] = await fetchAll(t.name, t.key, t.name === "log_entries" && !logUnlocked);
+  for (const t of EXPORT_TABLES) data[t.name] = await fetchAll(t.name, t.key, logUnlocked ? null : (RESERVED_COLUMN[t.name] ?? null));
   const exportedAt = new Date();
   const zip = createZip(buildExport(data, { exportedAt, includesSensitive: logUnlocked }), exportedAt);
   return {

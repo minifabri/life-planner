@@ -7,6 +7,7 @@ import { buildDay, type DayView } from "@/lib/calendar/view";
 import { updateEvent } from "@/lib/data/api";
 import { useDayMarks } from "@/lib/data/day-marks-hooks";
 import { useAreas, useOffline, useRangeEvents, useRangeTasks, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
+import { useKeepUnlockedWhileActive } from "@/lib/data/log-hooks";
 import { useWorkoutActions, useWorkouts } from "@/lib/data/workouts-hooks";
 import type { LocalDate } from "@/lib/dates/local";
 import { openDayNext } from "@/lib/nav/day-handoff";
@@ -21,6 +22,8 @@ export function useCalendar(days: LocalDate[]) {
   const from = days[0];
   const to = days[days.length - 1];
 
+  // Con il Log sbloccato si leggono attività ed eventi riservati: usarli rimanda il blocco, come nel Log.
+  useKeepUnlockedWhileActive();
   const tasksQuery = useRangeTasks(from, to, tz);
   const eventsQuery = useRangeEvents(from, to, tz);
   // Gli allenamenti non bloccano la vista: se mancano, il calendario si mostra comunque.

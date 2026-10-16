@@ -16,9 +16,10 @@ export function FromTasksSheet({ today, tz, onPick, onClose }: { today: LocalDat
   const valid = !!from && !!to && from <= to;
   const query = useRangeTasks(valid ? from : today, valid ? to : today, tz);
   // Le attività nate da un pasto appartengono al planner dei pasti: non hanno senso in un template.
+  // Le riservate restano fuori: il template è salvato sul dispositivo, con i titoli.
   const tasks: Task[] = valid
     ? (query.data ?? [])
-        .filter((t) => t.date && t.date >= from && t.date <= to && t.status !== "dismissed" && t.source !== "meal")
+        .filter((t) => t.date && t.date >= from && t.date <= to && t.status !== "dismissed" && t.source !== "meal" && !t.is_private)
         .sort((a, b) => a.date!.localeCompare(b.date!) || (a.time ?? "99").localeCompare(b.time ?? "99"))
     : [];
   const chosen = tasks.filter((t) => !excluded.has(t.id));

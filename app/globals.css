@@ -26,6 +26,9 @@
   --area-practice: #79c7b5;
   --area-train: #e9a873;
   --workout: #e9a873;
+  /* Previsioni del ciclo, solo a Log sbloccato (D68): anello tratteggiato per il ciclo previsto, fondo per i giorni fertili. */
+  --cycle: #e7a2c6;
+  --fertile-soft: rgba(121, 199, 181, 0.22);
   --area-home: #a3a9b8;
   --area-care: #e7a2c6;
   --dept-produce: #8fcb8a;
@@ -60,6 +63,8 @@
   --area-practice: #2e8c76;
   --area-train: #b86a2a;
   --workout: #b86a2a;
+  --cycle: #b8508a;
+  --fertile-soft: rgba(46, 140, 118, 0.16);
   --area-home: #6f7687;
   --area-care: #b8508a;
   --dept-produce: #3c8a3f;
@@ -88,6 +93,8 @@
   --color-accent-soft: var(--accent-soft);
   --color-gold: var(--gold);
   --color-workout: var(--workout);
+  --color-cycle: var(--cycle);
+  --color-fertile-soft: var(--fertile-soft);
   --color-scrim: var(--scrim);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

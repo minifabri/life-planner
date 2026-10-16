@@ -44,9 +44,10 @@ export function PlanSheet({
   const [error, setError] = useState<string | null>(null);
 
   const eventsQuery = useEvents(date, tz);
-  // Una spedizione non è un'occasione per vestirsi; un compleanno sì.
+  // Una spedizione non è un'occasione per vestirsi; un compleanno sì. Un evento riservato non si collega a un outfit,
+  // che è salvato sul dispositivo.
   const occurrences = (eventsQuery.data ? eventsForDay(eventsQuery.data.events, eventsQuery.data.exceptions, date, tz) : []).filter(
-    (o) => o.event.kind !== "shipment",
+    (o) => o.event.kind !== "shipment" && !o.event.is_private,
   );
 
   const forecast = forecastFor(weather.days, date);

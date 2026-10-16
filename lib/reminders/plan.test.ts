@@ -67,6 +67,7 @@ function event(patch: Partial<EventRow>): EventRow {
     icloud_href: null,
     icloud_etag: null,
     lesson: null,
+    is_private: false,
     deleted_at: null,
     created_at: "2026-10-01T08:00:00Z",
     updated_at: "2026-10-01T08:00:00Z",
@@ -215,6 +216,25 @@ describe("preparazione dei pasti", () => {
   it("non avvisa se è già spuntata o se l'avviso è spento", () => {
     expect(planDay({ tasks: [{ ...meal, status: "done" }] }, "2026-10-12")).toEqual([]);
     expect(planDay({ tasks: [meal], settings: { ...settings, notify_meal_prep: false } }, "2026-10-12")).toEqual([]);
+  });
+});
+
+describe("riservati", () => {
+  it("un'attività riservata notifica senza titolo né note", () => {
+    const out = planDay({ tasks: [task({ time: "10:00:00", is_private: true, notes: "studio" })] }, "2026-10-12");
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ title: "Attività riservata", body: "Oggi alle 10:00" });
+  });
+
+  it("un evento riservato notifica senza titolo né luogo", () => {
+    const out = planDay({ events: [event({ location: "Via Roma 3", is_private: true })] }, "2026-10-12");
+    expect(out.map((r) => [r.title, r.body])).toEqual([["Evento riservato", "Oggi alle 15:00"]]);
+  });
+
+  it("la panoramica del mattino non nomina una scadenza riservata", () => {
+    const tasks = [task({ date: null, due_date: "2026-10-12", attention: "low", title: "Ginecologa", is_private: true })];
+    const out = planDay({ settings: { ...settings, notify_morning: true }, tasks }, "2026-10-12");
+    expect(out.some((r) => r.body.includes("Ginecologa"))).toBe(false);
   });
 });
 
