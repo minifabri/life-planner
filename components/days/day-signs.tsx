@@ -154,14 +154,14 @@ export function DayMarksLine({
  * I prossimi sette giorni, da oggi, con i loro segni: per le sezioni che non hanno un calendario (Guardaroba).
  * Un tocco su un giorno apre il foglio per segnarlo.
  */
-export function UpcomingDays({ today }: { today: LocalDate }) {
+export function UpcomingDays({ today, tour }: { today: LocalDate; tour?: string }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const { marks, workouts } = useDayContext(today, days[6]);
   const [picked, setPicked] = useState<LocalDate | null>(null);
 
   return (
     <>
-      <nav aria-label="I prossimi giorni" className="grid grid-cols-7 gap-1">
+      <nav aria-label="I prossimi giorni" data-tour={tour} className="grid grid-cols-7 gap-1">
         {days.map((d) => {
           const signs = daySigns(d, marks, workouts, today);
           return (

@@ -316,16 +316,16 @@ export default function WardrobePage() {
       />
 
       {/* Com'è fatta la settimana (ufficio, viaggio, allenamento): aiuta a scegliere cosa mettere. */}
-      <UpcomingDays today={today} />
+      <UpcomingDays today={today} tour="wardrobe-week" />
 
       <Segmented
         label="Vista"
         value={view}
         options={[
-          { value: "items", label: "Capi" },
-          { value: "outfits", label: "Outfit" },
-          { value: "ideas", label: "Idee" },
-          { value: "stats", label: "Numeri" },
+          { value: "items", label: "Capi", tour: "wardrobe-pieces" },
+          { value: "outfits", label: "Outfit", tour: "wardrobe-pieces" },
+          { value: "ideas", label: "Idee", tour: "wardrobe-ideas" },
+          { value: "stats", label: "Numeri", tour: "wardrobe-stats" },
         ]}
         onChange={(v) => {
           setView(v);

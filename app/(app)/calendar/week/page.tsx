@@ -106,7 +106,7 @@ export default function WeekPage() {
           ) : null}
 
           {/* Mobile: elenco dei sette giorni; il tocco apre il giorno. */}
-          <ul className="flex flex-col md:hidden">
+          <ul className="flex flex-col md:hidden" data-tour="calendar-days">
             {views.map((view) => {
               const { items, more } = dayHighlights(view);
               const isToday = view.day === today;

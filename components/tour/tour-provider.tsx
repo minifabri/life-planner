@@ -5,10 +5,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/form";
 import { useProfile } from "@/lib/data/hooks";
 import { flushPendingTours, markTourSeen, pendingTours } from "@/lib/data/tour";
-import { TOURS, hasSeen, padRect, placeCard, unionRect, visibleSteps, type CardPlacement, type Rect, type TourId, type TourStep } from "@/lib/tour/tour";
+import { TOURS, autoTour, padRect, placeCard, unionRect, visibleSteps, type CardPlacement, type Rect, type TourId, type TourStep } from "@/lib/tour/tour";
 
 /** Pagina su cui gira ogni tour: gli elementi da evidenziare stanno lì. */
-const TOUR_PAGE: Record<TourId, string> = { intro: "/today" };
+export const TOUR_PAGE: Record<TourId, string> = {
+  intro: "/today",
+  calendar: "/calendar/week",
+  shopping: "/lists/shopping",
+  meals: "/lists/meals",
+  wishlist: "/lists/wishlist",
+  wardrobe: "/lists/wardrobe",
+  log: "/log",
+};
 
 const TourContext = createContext<(id: TourId) => void>(() => {});
 
@@ -32,13 +40,21 @@ function targetRect(target: string | undefined): Rect | null {
   );
 }
 
-/** Aspetta che la pagina mostri il primo elemento del tour (al massimo due secondi). */
+/**
+ * Aspetta che la pagina mostri gli elementi del tour: tutti, oppure il primo più un attimo per i dati
+ * che arrivano dopo (es. la lista della spesa); al massimo due secondi. Quelli che mancano ancora si saltano.
+ */
 function waitForTargets(steps: TourStep[]): Promise<void> {
-  const first = steps.find((s) => s.target)?.target;
+  const targets = [...new Set(steps.flatMap((s) => (s.target ? [s.target] : [])))];
   return new Promise((resolve) => {
     const started = performance.now();
+    let firstSeen: number | null = null;
     const check = () => {
-      if (!first || targetElements(first).length > 0 || performance.now() - started > 2000) resolve();
+      const now = performance.now();
+      const shown = targets.filter((t) => targetElements(t).length > 0);
+      if (firstSeen === null && targets.length > 0 && shown[0] === targets[0]) firstSeen = now;
+      const settled = firstSeen !== null && now - firstSeen > 800;
+      if (shown.length === targets.length || settled || now - started > 2000) resolve();
       else requestAnimationFrame(check);
     };
     check();
@@ -51,15 +67,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [requested, setRequested] = useState<TourId | null>(null);
   const [active, setActive] = useState<{ id: TourId; steps: TourStep[] } | null>(null);
-  // Visto offline e non ancora salvato sul profilo: conta come visto.
-  const [pendingIntro] = useState(() => pendingTours().includes("intro"));
+  // Visti offline e non ancora salvati sul profilo: contano come visti.
+  const [pending] = useState(pendingTours);
 
   useEffect(() => {
     if (profile) void flushPendingTours();
   }, [profile]);
 
-  // Tour iniziale: finché non è stato visto o saltato, parte arrivando su Oggi.
-  const wanted = requested ?? (profile && !pendingIntro && !hasSeen(profile.tours_seen, "intro") ? "intro" : null);
+  // Tour iniziale arrivando su Oggi; dopo, il tour di ogni sezione la prima volta che la si apre.
+  const wanted = requested ?? (profile ? autoTour([...(profile.tours_seen ?? []), ...pending], pathname, TOUR_PAGE) : null);
 
   const start = useCallback(
     (id: TourId) => {
@@ -75,7 +91,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void waitForTargets(TOURS[wanted]).then(() => {
       if (cancelled) return;
       setRequested(null);
-      setActive({ id: wanted, steps: visibleSteps(TOURS[wanted], (t) => targetElements(t).length > 0) });
+      const steps = visibleSteps(TOURS[wanted], (t) => targetElements(t).length > 0);
+      // Sezione ancora vuota (es. nessun articolo): niente da mostrare, il tour aspetta la prossima volta.
+      if (steps.length === 0) return;
+      setActive({ id: wanted, steps });
     });
     return () => {
       cancelled = true;
@@ -215,7 +234,7 @@ function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: () => v
               Indietro
             </Button>
           ) : null}
-          <NextButton label={index === 0 ? "Inizia" : last ? "Ho capito" : "Avanti"} onClick={() => (last ? onFinish() : setIndex((i) => i + 1))} />
+          <NextButton label={last ? "Ho capito" : index === 0 && !step.target ? "Inizia" : "Avanti"} onClick={() => (last ? onFinish() : setIndex((i) => i + 1))} />
         </div>
       </div>
     </div>

@@ -63,6 +63,7 @@ export default function ShoppingPage() {
             add(suggestions[active]);
           }}
           style={departmentStyle(typedDepartment)}
+          data-tour="shopping-add"
           className="flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-line bg-surface pl-3.5 pr-1 focus-within:border-line-2"
         >
           <span className={`flex shrink-0 ${typedDepartment ? "text-(--dept)" : "text-text-3"}`}>
@@ -131,7 +132,7 @@ export default function ShoppingPage() {
       </div>
 
       {frequent.length > 0 ? (
-        <section aria-label="Compri spesso" className="flex flex-col gap-2">
+        <section aria-label="Compri spesso" data-tour="shopping-frequent" className="flex flex-col gap-2">
           <h2 className="label-mono">Compri spesso</h2>
           <ul className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-10 md:px-10">
             {frequent.map((p) => (
@@ -168,8 +169,14 @@ export default function ShoppingPage() {
         <EmptyState title="La lista è vuota." hint="Scrivi cosa ti serve: anche “2 latte” o “500 g farina”. Il reparto lo trovo io." />
       ) : null}
 
-      {groups.map((group) => (
-        <section key={group.department} aria-label={group.department} className="flex flex-col gap-2" style={departmentStyle(group.department)}>
+      {groups.map((group, i) => (
+        <section
+          key={group.department}
+          aria-label={group.department}
+          data-tour={i === 0 ? "shopping-list" : undefined}
+          className="flex flex-col gap-2"
+          style={departmentStyle(group.department)}
+        >
           <h2 className="label-mono flex items-center gap-2">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-(--dept)" />
             {group.department}

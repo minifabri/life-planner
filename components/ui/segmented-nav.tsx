@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function SegmentedNav({ label, items }: { label: string; items: { href: string; label: string }[] }) {
+export function SegmentedNav({ label, items, tour }: { label: string; items: { href: string; label: string }[]; tour?: string }) {
   const pathname = usePathname();
   return (
-    <nav aria-label={label} className="flex gap-0.5 rounded-xl border border-line bg-surface p-[3px]">
+    <nav aria-label={label} data-tour={tour} className="flex gap-0.5 rounded-xl border border-line bg-surface p-[3px]">
       {items.map((it) => {
         const active = pathname === it.href;
         return (

@@ -30,10 +30,10 @@ import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/type
 
 type View = "day" | "week" | "ideas";
 
-const VIEWS: { value: View; label: string }[] = [
+const VIEWS: { value: View; label: string; tour?: string }[] = [
   { value: "day", label: "Giorno" },
-  { value: "week", label: "Settimana" },
-  { value: "ideas", label: "Idee" },
+  { value: "week", label: "Settimana", tour: "meals-week" },
+  { value: "ideas", label: "Idee", tour: "meals-ideas" },
 ];
 
 const MODES: { value: PrepMode; label: string }[] = [
@@ -155,7 +155,7 @@ export default function MealsPage() {
         }
       />
 
-      <Segmented label="Vista" value={view} options={VIEWS} onChange={setView} />
+      <Segmented label="Vista" value={view} options={VIEWS} onChange={setView} tour="meals-views" />
 
       {view === "week" ? (
         <div className="flex min-h-6 items-center justify-between gap-3">

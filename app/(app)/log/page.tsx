@@ -124,6 +124,7 @@ export default function LogPage() {
           <button
             type="button"
             onClick={() => setLocking(true)}
+            data-tour="log-lock"
             aria-label={unlocked ? "Log sbloccato: gestisci il blocco" : "Sblocca il Log"}
             className={`-mr-2.5 flex min-h-11 items-center gap-2 rounded-xl px-2.5 text-[13px] hover:bg-surface-2 ${unlocked ? "text-accent" : "text-text-2"}`}
           >
@@ -133,7 +134,7 @@ export default function LogPage() {
         }
       />
 
-      <Segmented label="Vista del Log" value={view} options={VIEWS} onChange={setView} />
+      <Segmented label="Vista del Log" value={view} options={VIEWS} onChange={setView} tour="log-views" />
 
       {failed ? (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-[14px] border border-line-2 px-4 py-3 text-sm">
@@ -203,7 +204,7 @@ export default function LogPage() {
 
           {/* "Ultima volta" in testa alla cronologia, finché non si cerca o filtra. */}
           {!isFiltering(filter) && lastSeen.length > 0 ? (
-            <section className="flex flex-col gap-2">
+            <section data-tour="log-last" className="flex flex-col gap-2">
               <h2 className="label-mono">Ultima volta</h2>
               <ul className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 {lastSeen.map(({ category, last, hidden }) => (

@@ -21,20 +21,25 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  tour,
 }: {
   label: string;
   value: T;
-  options: { value: T; label: string }[];
+  /** `tour`: valore di `data-tour` del pulsante, per il tour di sezione (D65). */
+  options: { value: T; label: string; tour?: string }[];
   onChange: (value: T) => void;
+  /** Valore di `data-tour` del gruppo. */
+  tour?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex gap-0.5 rounded-xl border border-line bg-bg p-[3px]">
+    <div role="group" aria-label={label} data-tour={tour} className="flex gap-0.5 rounded-xl border border-line bg-bg p-[3px]">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
+          data-tour={o.tour}
           className={`min-h-[38px] flex-1 rounded-[9px] px-2 text-[13px] transition-colors ${
             value === o.value ? "bg-surface-2 text-text" : "text-text-2 hover:text-text"
           }`}
@@ -53,6 +58,7 @@ export function Button({
   type = "button",
   disabled,
   className = "",
+  tour,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -60,6 +66,8 @@ export function Button({
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  /** Valore di `data-tour`, per il tour di sezione (D65). */
+  tour?: string;
 }) {
   const styles = {
     primary: "bg-accent-fill font-medium text-on-accent",
@@ -71,6 +79,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      data-tour={tour}
       className={`min-h-11 rounded-xl px-4 text-sm transition-colors disabled:opacity-40 ${styles} ${className}`}
     >
       {children}

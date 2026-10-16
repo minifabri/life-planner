@@ -89,7 +89,7 @@ export function WeekGrid({
   const anyUntimed = views.some((v) => v.occurrences.some((o) => o.allDay) || v.untimed.length > 0 || v.workouts.some((w) => !w.time));
 
   return (
-    <div className="hidden md:flex">
+    <div className="hidden md:flex" data-tour="calendar-grid">
       <div aria-hidden className="w-11 shrink-0">
         {/* Spazio dell'intestazione e delle attività: l'altezza la decide la colonna più alta. */}
       </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTRO_TOUR, hasSeen, padRect, placeCard, unionRect, visibleSteps, withSeen } from "./tour";
+import { CALENDAR_TOUR, INTRO_TOUR, TOURS, TOUR_LABEL, autoTour, hasSeen, padRect, placeCard, unionRect, visibleSteps, withSeen, type TourId } from "./tour";
 
 describe("tour visti", () => {
   it("riconosce un tour già visto, anche senza profilo", () => {
@@ -85,5 +85,65 @@ describe("posizione del fumetto", () => {
     const p = placeCard({ target: corner, viewport: desktop, card });
     expect(p.left + p.width).toBeLessThanOrEqual(desktop.width - 16);
     expect(p.top).toBe(68);
+  });
+});
+
+describe("tour di sezione", () => {
+  const sections = (Object.keys(TOURS) as TourId[]).filter((id) => id !== "intro");
+
+  it("ogni sezione ha da 2 a 4 passi, ognuno su un elemento, e un nome per le Impostazioni", () => {
+    for (const id of sections) {
+      expect(TOUR_LABEL[id]).toBeTruthy();
+      // Due versioni dello stesso passo (desktop e iPhone) contano una volta sola: contiamo i titoli.
+      const titles = new Set(TOURS[id].map((s) => s.title));
+      expect(titles.size, id).toBeGreaterThanOrEqual(2);
+      expect(titles.size, id).toBeLessThanOrEqual(4);
+      expect(TOURS[id].every((s) => s.target)).toBe(true);
+    }
+  });
+
+  it("il calendario mostra il trascinamento su desktop e il tocco su iPhone", () => {
+    const desktop = visibleSteps(CALENDAR_TOUR, (t) => t !== "calendar-days");
+    const phone = visibleSteps(CALENDAR_TOUR, (t) => t !== "calendar-grid" && t !== "calendar-legend");
+    expect(desktop.map((s) => s.title)).toEqual(["Giorno, settimana, mese", "Sposta trascinando", "Cosa vogliono dire i segni"]);
+    expect(phone.map((s) => s.title)).toEqual(["Giorno, settimana, mese", "Apri un giorno", "Cosa vogliono dire i segni"]);
+  });
+
+  it("testi neutri e, se parlano di cibo, solo vegani", () => {
+    const text = Object.values(TOURS)
+      .flat()
+      .map((s) => `${s.title} ${s.body}`)
+      .join(" ");
+    expect(text).not.toMatch(/\bbenvenut[aei]\b/i);
+    expect(text).not.toMatch(/\bsei (pront|stanc|brav)[ao]\b/i);
+    // "latte" solo vegetale ("latte d'avena"), mai da solo.
+    expect(text).not.toMatch(/\blatte\b(?! d'avena| di soia| di riso)/i);
+    expect(text).not.toMatch(/\b(carne|pollo|pesce|tonno|salmone|uov[ao]|formaggio|burro|yogurt|miele|prosciutto)\b/i);
+  });
+});
+
+describe("partenza automatica", () => {
+  const pages: Record<TourId, string> = {
+    intro: "/today",
+    calendar: "/calendar/week",
+    shopping: "/lists/shopping",
+    meals: "/lists/meals",
+    wishlist: "/lists/wishlist",
+    wardrobe: "/lists/wardrobe",
+    log: "/log",
+  };
+
+  it("finché il tour iniziale non è visto, parte solo quello e solo su Oggi", () => {
+    expect(autoTour([], "/today", pages)).toBe("intro");
+    expect(autoTour(null, "/log", pages)).toBeNull();
+    expect(autoTour(["log"], "/today", pages)).toBe("intro");
+  });
+
+  it("poi parte il tour della sezione aperta, una volta sola", () => {
+    expect(autoTour(["intro"], "/log", pages)).toBe("log");
+    expect(autoTour(["intro", "log"], "/log", pages)).toBeNull();
+    expect(autoTour(["intro"], "/today", pages)).toBeNull();
+    expect(autoTour(["intro"], "/calendar/month", pages)).toBeNull();
+    expect(autoTour(["intro"], "/settings", pages)).toBeNull();
   });
 });

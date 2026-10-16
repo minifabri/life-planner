@@ -3,8 +3,8 @@
  * Logica pura; il componente in `components/tour/` misura gli elementi e disegna.
  */
 
-/** Tour disponibili. "intro" è quello iniziale; i tour di sezione si aggiungono qui. */
-export type TourId = "intro";
+/** Tour disponibili: "intro" è quello iniziale, gli altri sono i brevi tour di sezione. */
+export type TourId = "intro" | "calendar" | "shopping" | "meals" | "wishlist" | "wardrobe" | "log";
 
 export type TourStep = {
   /** Valore di `data-tour` degli elementi da evidenziare; senza, il fumetto sta al centro. */
@@ -74,7 +74,175 @@ export const INTRO_TOUR: TourStep[] = [
   },
 ];
 
-export const TOURS: Record<TourId, TourStep[]> = { intro: INTRO_TOUR };
+/*
+ * Tour di sezione: 2–4 passi, la prima volta che si apre la sezione.
+ * Alcuni passi esistono in due versioni (desktop e iPhone) con elementi diversi:
+ * si vede solo quella il cui elemento è sullo schermo.
+ */
+
+export const CALENDAR_TOUR: TourStep[] = [
+  {
+    target: "calendar-views",
+    title: "Giorno, settimana, mese",
+    body: "Passa da una vista all'altra. Il giorno è la schermata Oggi.",
+  },
+  {
+    target: "calendar-grid",
+    title: "Sposta trascinando",
+    body: "Trascina un'attività, un allenamento o un evento su un altro giorno per spostarlo. Con un doppio clic su un giorno ne crei uno nuovo lì.",
+  },
+  {
+    target: "calendar-days",
+    title: "Apri un giorno",
+    body: "Tocca un giorno per vederlo per intero. Con il + accanto aggiungi qualcosa direttamente in quel giorno.",
+  },
+  {
+    target: "calendar-legend",
+    title: "Cosa vogliono dire i segni",
+    body: "Gli eventi hanno il colore della loro area, le attività con orario il bordo tratteggiato e gli allenamenti l'arancio. Il rombo oro segna scadenze e cose importanti.",
+  },
+  {
+    target: "calendar-days",
+    title: "Cosa vogliono dire i segni",
+    body: "Il punto colorato è l'area di un evento, l'arancio è un allenamento, il rombo oro una scadenza o una cosa importante. La barra mostra quanto è piena la giornata.",
+  },
+];
+
+export const SHOPPING_TOUR: TourStep[] = [
+  {
+    target: "shopping-add",
+    title: "Scrivi come parli",
+    body: "«2 latte d'avena», «500 g farina»: quantità e reparto li riconosce da solo. Mentre scrivi ti suggerisce le cose già comprate.",
+  },
+  {
+    target: "shopping-frequent",
+    title: "Compri spesso",
+    body: "Le cose che prendi più spesso: un tocco e tornano in lista.",
+  },
+  {
+    target: "shopping-list",
+    title: "Spunta in negozio",
+    body: "Tocca il quadratino per mettere un articolo nel carrello. Con i tre puntini lo modifichi.",
+  },
+];
+
+export const MEALS_TOUR: TourStep[] = [
+  {
+    target: "meals-views",
+    title: "Giorno, Settimana, Idee",
+    body: "Nel giorno scrivi cosa mangi a colazione, pranzo e cena; tocca un momento per riempirlo.",
+  },
+  {
+    target: "meals-week",
+    title: "L'equilibrio della settimana",
+    body: "La settimana mostra tutti i pasti e come si distribuiscono proteine, carboidrati, grassi e fibre.",
+  },
+  {
+    target: "meals-ideas",
+    title: "Idee per i momenti vuoti",
+    body: "Proposte per i pasti ancora da decidere, a partire dai piatti abituali e da ciò che c'è in casa, come ceci, tofu o verdure di stagione.",
+  },
+  {
+    target: "meals-pantry",
+    title: "In casa",
+    body: "Gli ingredienti comprati con la Spesa e non ancora finiti, con i pasti in programma che li usano. «Finito» li toglie dall'elenco.",
+  },
+];
+
+export const WISHLIST_TOUR: TourStep[] = [
+  {
+    target: "wishlist-add",
+    title: "Aggiungi un desiderio",
+    body: "Incolla un link o scrivi il nome; prezzo, marca e categoria sono facoltativi.",
+  },
+  {
+    target: "wishlist-import",
+    title: "Importa da ChatGPT",
+    body: "Aggiungi alla tua richiesta a ChatGPT la frase che ti diamo, poi incolla qui la risposta: controlli gli articoli riconosciuti prima di salvarli.",
+  },
+  {
+    target: "wishlist-filters",
+    title: "Stato e categorie",
+    body: "Separa ciò che desideri da ciò che hai comprato o scartato, e filtra per categoria.",
+  },
+];
+
+export const WARDROBE_TOUR: TourStep[] = [
+  {
+    target: "wardrobe-week",
+    title: "La settimana",
+    body: "Ufficio, viaggio e allenamenti dei prossimi giorni, per scegliere cosa mettere. Tocca un giorno per segnarlo.",
+  },
+  {
+    target: "wardrobe-pieces",
+    title: "Capi e outfit",
+    body: "Aggiungi i capi con una foto, poi componi gli outfit da indossare o da pianificare.",
+  },
+  {
+    target: "wardrobe-ideas",
+    title: "Idee col meteo",
+    body: "Outfit proposti in base alle previsioni della tua città. Senza città impostata si segue la stagione.",
+  },
+  {
+    target: "wardrobe-stats",
+    title: "Numeri",
+    body: "Cosa metti di più e cosa resta nell'armadio da tempo.",
+  },
+];
+
+export const LOG_TOUR: TourStep[] = [
+  {
+    target: "log-views",
+    title: "Cronologia e categorie",
+    body: "Nella cronologia trovi tutto ciò che hai segnato; nelle categorie le organizzi, con un colore e le parole che le riconoscono.",
+  },
+  {
+    target: "log-last",
+    title: "Ultima volta",
+    body: "Per ogni categoria vedi quanto tempo è passato dall'ultima volta. Un tocco apre le registrazioni.",
+  },
+  {
+    target: "log-lock",
+    title: "Il blocco del Log",
+    body: "Le categorie sensibili restano nascoste finché non sblocchi con il PIN, o con Face ID su questo dispositivo. Il blocco protegge ciò che si vede sullo schermo, non cifra i dati.",
+  },
+];
+
+export const TOURS: Record<TourId, TourStep[]> = {
+  intro: INTRO_TOUR,
+  calendar: CALENDAR_TOUR,
+  shopping: SHOPPING_TOUR,
+  meals: MEALS_TOUR,
+  wishlist: WISHLIST_TOUR,
+  wardrobe: WARDROBE_TOUR,
+  log: LOG_TOUR,
+};
+
+/** Nome del tour in Impostazioni › Guida, nell'ordine in cui compaiono. */
+export const TOUR_LABEL: Record<TourId, string> = {
+  intro: "Tour iniziale",
+  calendar: "Calendario",
+  shopping: "Spesa",
+  meals: "Pasti",
+  wishlist: "Wishlist",
+  wardrobe: "Guardaroba",
+  log: "Log",
+};
+
+/**
+ * Il tour da far partire da solo su `pathname`, se c'è. Prima di tutto quello iniziale, che gira
+ * solo sulla sua pagina; finché non è stato visto o saltato i tour di sezione aspettano,
+ * così i due non si sovrappongono mai. Poi il tour della sezione aperta, se non è ancora stato visto.
+ */
+export function autoTour(
+  seen: readonly string[] | null | undefined,
+  pathname: string,
+  pages: Record<TourId, string>,
+): TourId | null {
+  if (!hasSeen(seen, "intro")) return pathname === pages.intro ? "intro" : null;
+  const id = (Object.keys(pages) as TourId[]).find((t) => pages[t] === pathname);
+  return id && !hasSeen(seen, id) ? id : null;
+}
 
 export function hasSeen(seen: readonly string[] | null | undefined, id: TourId): boolean {
   return !!seen?.includes(id);

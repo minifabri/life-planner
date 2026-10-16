@@ -11,6 +11,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { useStartTour } from "@/components/tour/tour-provider";
+import { TOUR_LABEL, type TourId } from "@/lib/tour/tour";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
 import { searchPlaces, useWeatherPlace } from "@/lib/data/weather";
@@ -110,12 +111,29 @@ function Status({ text, tone = "neutral" }: { text: string | null; tone?: "neutr
 }
 
 /* ---------------- Guida ---------------- */
+const SECTION_TOURS = (Object.keys(TOUR_LABEL) as TourId[]).filter((id) => id !== "intro");
+
 function GuideSection() {
   const startTour = useStartTour();
   return (
-    <Section title="Guida" note="Il tour mostra su Oggi, passo per passo, le cose principali del planner.">
+    <Section
+      title="Guida"
+      note="Il tour iniziale mostra su Oggi, passo per passo, le cose principali del planner. Ogni sezione ha anche un breve tour suo, che parte la prima volta che la apri."
+    >
       <div className="self-start">
-        <Button onClick={() => startTour("intro")}>Rivedi il tour</Button>
+        <Button onClick={() => startTour("intro")}>Rivedi il tour iniziale</Button>
+      </div>
+      <div role="group" aria-labelledby="guide-sections" className="flex flex-col gap-2">
+        <p id="guide-sections" className="text-xs text-text-2">
+          Rivedi il tour di una sezione
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {SECTION_TOURS.map((id) => (
+            <Button key={id} onClick={() => startTour(id)}>
+              {TOUR_LABEL[id]}
+            </Button>
+          ))}
+        </div>
       </div>
     </Section>
   );
