@@ -13,6 +13,7 @@ const meal = (date: string, slot: MealSlot, name: string): MealPlan => ({
   name,
   prep_mode: "ready",
   eaten_out: false,
+  condiments: "",
   prepared: false,
   prepared_at: null,
   reminder_task_id: null,

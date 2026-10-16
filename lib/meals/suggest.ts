@@ -4,7 +4,7 @@ import { isInSeason, produceIn } from "../shopping/seasonal";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { DISHES } from "./dishes";
 import { ingredientsIn, words } from "./ingredients";
-import { NUTRIENTS, NUTRIENT_LABEL, listText, nutrientsOf, weekBalance, type Overrides } from "./nutrients";
+import { NUTRIENTS, NUTRIENT_LABEL, listText, mealNutrients, nutrientsOf, weekBalance, type Overrides } from "./nutrients";
 import { normalizeMealName } from "./rules";
 
 /**
@@ -81,7 +81,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
 
   const low = weekBalance(others, days, overrides).rows.filter((r) => r.low).map((r) => r.nutrient);
   const sameDay = others.filter((m) => m.date === ctx.day);
-  const dayHas = new Set(sameDay.flatMap((m) => nutrientsOf(m.name, overrides)));
+  const dayHas = new Set(sameDay.flatMap((m) => mealNutrients(m, overrides)));
   // Senza altri pasti nel giorno non c'è niente da completare.
   const dayMissing = sameDay.length === 0 ? [] : NUTRIENTS.filter((n) => !dayHas.has(n));
   const planned = new Set(sameDay.map((m) => normalizeMealName(m.name)));

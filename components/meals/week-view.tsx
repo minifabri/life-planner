@@ -2,7 +2,7 @@ import { DaySigns } from "@/components/days/day-signs";
 import { Icon } from "@/components/ui/icon";
 import { shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { signsText, type DaySign } from "@/lib/days/marks";
-import { NUTRIENT_LABEL, nutrientsOf, type Overrides } from "@/lib/meals/nutrients";
+import { NUTRIENT_LABEL, mealNutrients, type Overrides } from "@/lib/meals/nutrients";
 import { SLOTS, SLOT_LABEL, mealDot, mealTitle, type MealDot } from "@/lib/meals/rules";
 import type { MealPlan, MealSlot } from "@/lib/supabase/types";
 
@@ -47,9 +47,15 @@ export function WeekView({
             <ul>
               {ROWS.map((slot) => {
                 const meal = mealAt(d, slot);
-                const nutrients = meal ? nutrientsOf(meal.name, overrides) : [];
-                // Dove e cosa porta: "Fuori", poi i nutrienti riconosciuti.
-                const detail = [meal?.eaten_out && meal.name ? "Fuori" : null, ...nutrients.map((n) => NUTRIENT_LABEL[n])].filter(Boolean).join(" · ");
+                const nutrients = meal ? mealNutrients(meal, overrides) : [];
+                // Dove e cosa porta: "Fuori", i condimenti, poi i nutrienti riconosciuti.
+                const detail = [
+                  meal?.eaten_out && meal.name ? "Fuori" : null,
+                  meal?.condiments ? `Con ${meal.condiments}` : null,
+                  ...nutrients.map((n) => NUTRIENT_LABEL[n]),
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
                 const state = mealDot(meal);
                 return (
                   <li key={slot} className="border-t border-line">

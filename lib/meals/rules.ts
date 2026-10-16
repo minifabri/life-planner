@@ -72,8 +72,16 @@ function removeReminderOps(meal: Pick<MealPlan, "reminder_task_id">, now: string
 }
 
 /** Nuovo pasto. `taskId` è l'id da dare all'eventuale attività di preparazione. */
-export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: boolean }, taskId: string, today: LocalDate): Op[] {
-  const row = { id: meal.id, date: meal.date, slot: meal.slot, name: meal.name, prep_mode: meal.prep_mode, ...(meal.eaten_out ? { eaten_out: true } : {}) };
+export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: boolean; condiments?: string }, taskId: string, today: LocalDate): Op[] {
+  const row = {
+    id: meal.id,
+    date: meal.date,
+    slot: meal.slot,
+    name: meal.name,
+    prep_mode: meal.prep_mode,
+    ...(meal.eaten_out ? { eaten_out: true } : {}),
+    ...(meal.condiments ? { condiments: meal.condiments } : {}),
+  };
   return [{ kind: "insert", table: "meal_plans", row }, ...(meal.prep_mode === "to_prep" ? reminderOps(meal, taskId, today) : [])];
 }
 
@@ -120,11 +128,21 @@ export function mealTitle(meal: Pick<MealPlan, "name" | "eaten_out">): string {
   return meal.name || (meal.eaten_out ? "Mangiato fuori" : "");
 }
 
+/** Ciò che si è mangiato, per riconoscere alimenti e nutrienti: il piatto e i suoi condimenti. */
+export function mealFoods(meal: Pick<MealPlan, "name"> & { condiments?: string }): string {
+  return meal.condiments ? `${meal.name}, ${meal.condiments}` : meal.name;
+}
+
 /** Cambio del piatto: il nome sta anche nelle note dell'attività collegata. */
 export function renameMealOps(meal: MealPlan, name: string): Op[] {
   const ops: Op[] = [{ kind: "update", table: "meal_plans", patch: { name }, where: byId(meal.id) }];
   if (meal.reminder_task_id) ops.push({ kind: "update", table: "tasks", patch: { notes: name }, where: byId(meal.reminder_task_id) });
   return ops;
+}
+
+/** Condimenti del pasto: non stanno nel nome, quindi l'attività collegata non cambia. */
+export function setCondimentsOps(meal: Pick<MealPlan, "id" | "condiments">, condiments: string): Op[] {
+  return condiments === meal.condiments ? [] : [{ kind: "update", table: "meal_plans", patch: { condiments }, where: byId(meal.id) }];
 }
 
 /** Eliminare il pasto elimina anche la sua attività. */

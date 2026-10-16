@@ -7,6 +7,7 @@ import {
   rememberMealOp,
   removeMealOps,
   renameMealOps,
+  setCondimentsOps,
   setEatenOutOps,
   setModeOps,
   setNutrientsOps,
@@ -30,7 +31,7 @@ export async function fetchMeals(from: LocalDate): Promise<MealPlan[]> {
     check(
       await getSupabase()
         .from("meal_plans")
-        .select("id, date, slot, name, prep_mode, eaten_out, prepared, prepared_at, reminder_task_id")
+        .select("id, date, slot, name, prep_mode, eaten_out, condiments, prepared, prepared_at, reminder_task_id")
         .gte("date", from)
         .lte("date", addDays(from, 6)),
     ),
@@ -77,9 +78,18 @@ async function nutrientsOps(slot: MealSlot, name: string, mode: PrepMode, nutrie
   return setNutrientsOps(knownMemory(), await memoryId(slot, name), slot, name, mode, nutrients);
 }
 
-/** Un pasto mangiato fuori (`out`) non entra tra i ricorrenti e può non avere un nome. */
-export async function addMeal(date: LocalDate, slot: MealSlot, name: string, mode: PrepMode, today: LocalDate, nutrients?: Nutrient[] | null, out = false): Promise<void> {
-  const meal = { id: uuidv7(), date, slot, name, prep_mode: out ? ("ready" as const) : mode, eaten_out: out };
+/** Un pasto mangiato fuori (`out`) non entra tra i ricorrenti e può non avere un nome. I condimenti restano del pasto, non del piatto. */
+export async function addMeal(
+  date: LocalDate,
+  slot: MealSlot,
+  name: string,
+  mode: PrepMode,
+  today: LocalDate,
+  nutrients?: Nutrient[] | null,
+  out = false,
+  condiments = "",
+): Promise<void> {
+  const meal = { id: uuidv7(), date, slot, name, prep_mode: out ? ("ready" as const) : mode, eaten_out: out, condiments };
   const memory = out ? (name && nutrients !== undefined ? await nutrientsOps(slot, name, "ready", nutrients) : []) : await rememberOps(slot, name, mode, new Date().toISOString(), nutrients);
   await commit([...addMealOps(meal, uuidv7(), today), ...memory]);
 }
@@ -93,12 +103,12 @@ export async function setMealPrepared(meal: MealPlan, prepared: boolean): Promis
 }
 
 /**
- * Salva il foglio di un pasto: piatto, "mangiato fuori" e nutrienti corretti (`undefined` = non toccati).
+ * Salva il foglio di un pasto: piatto, "mangiato fuori", condimenti e nutrienti corretti (`undefined` = non toccati).
  * Un piatto nuovo, o uno che non è più fuori, entra tra i ricorrenti; uno mangiato fuori no.
  */
-export async function saveMeal(meal: MealPlan, name: string, out: boolean, nutrients?: Nutrient[] | null): Promise<void> {
+export async function saveMeal(meal: MealPlan, name: string, out: boolean, condiments: string, nutrients?: Nutrient[] | null): Promise<void> {
   const now = new Date().toISOString();
-  const outOps = setEatenOutOps(meal, out, now);
+  const outOps = [...setEatenOutOps(meal, out, now), ...setCondimentsOps(meal, condiments)];
   // Passando a fuori l'attività è già eliminata: il nuovo nome non ha note da aggiornare.
   const ops: Op[] = [...outOps, ...(name === meal.name ? [] : renameMealOps(out ? { ...meal, reminder_task_id: null } : meal, name))];
   if (!out && (name !== meal.name || meal.eaten_out)) ops.push(...(await rememberOps(meal.slot, name, meal.prep_mode, now, nutrients)));

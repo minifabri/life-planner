@@ -22,8 +22,8 @@ import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary } from "@/lib/meals/micros";
-import { NUTRIENT_LABEL, balanceNote, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
-import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { NUTRIENT_LABEL, balanceNote, hasFoods, mealNutrients, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
+import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealFoods, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
 import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
@@ -51,6 +51,11 @@ const DOT_TEXT: Record<MealDot, string> = { empty: "non pianificato", ok: "a pos
 
 function nutrientsLine(nutrients: Nutrient[]) {
   return nutrients.length > 0 ? nutrients.map((n) => NUTRIENT_LABEL[n]).join(" · ") : "Nutrienti non riconosciuti: tocca per indicarli";
+}
+
+/** La riga sotto il piatto: i condimenti, se ci sono, poi i nutrienti. */
+function detailLine(meal: MealPlan, nutrients: Nutrient[]) {
+  return meal.condiments ? `Con ${meal.condiments} · ${nutrientsLine(nutrients)}` : nutrientsLine(nutrients);
 }
 
 function capitalize(text: string) {
@@ -253,8 +258,8 @@ export default function MealsPage() {
                   <MealRow
                     meal={meal}
                     today={today}
-                    nutrients={nutrientsOf(meal.name, overrides)}
-                    ingredients={ingredientsIn(meal.name, pantry)}
+                    nutrients={mealNutrients(meal, overrides)}
+                    ingredients={ingredientsIn(mealFoods(meal), pantry)}
                     onFinish={finish}
                     onOpen={() => setEditing({ date: day, slot })}
                     onMode={(mode) => run(() => setMealMode(meal, mode, today))}
@@ -326,14 +331,14 @@ export default function MealsPage() {
           pantry={unused}
           overrides={overrides}
           onClose={() => setEditing(null)}
-          onAdd={(name, mode, nutrients, out) => {
+          onAdd={(name, mode, nutrients, out, condiments) => {
             const { date, slot } = editing;
             setEditing(null);
-            run(() => addMeal(date, slot, name, mode, today, nutrients, out));
+            run(() => addMeal(date, slot, name, mode, today, nutrients, out, condiments));
           }}
-          onSave={(name, out, nutrients) => {
+          onSave={(name, out, condiments, nutrients) => {
             setEditing(null);
-            if (editingMeal) run(() => saveMeal(editingMeal, name, out, nutrients));
+            if (editingMeal) run(() => saveMeal(editingMeal, name, out, condiments, nutrients));
           }}
           onRemove={() => {
             setEditing(null);
@@ -381,7 +386,7 @@ function MealRow({
         <button type="button" onClick={onOpen} aria-label={`Modifica: ${mealTitle(meal)}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
           <span className={`min-w-0 break-words ${meal.name ? "text-text" : "text-text-2"}`}>{mealTitle(meal)}</span>
         </button>
-        <p className="-mt-2 text-xs text-text-3">{meal.name ? `Fuori · ${nutrientsLine(nutrients)}` : "Non conta nei nutrienti. Tocca per dire cosa hai mangiato, se vuoi."}</p>
+        <p className="-mt-2 text-xs text-text-3">{hasFoods(meal) ? `Fuori · ${detailLine(meal, nutrients)}` : "Non conta nei nutrienti. Tocca per dire cosa hai mangiato, se vuoi."}</p>
       </>
     );
   }
@@ -391,7 +396,7 @@ function MealRow({
       <button type="button" onClick={onOpen} aria-label={`Modifica: ${meal.name}`} className="-my-1 flex min-h-11 items-center text-left text-[17px] leading-snug">
         <span className={`min-w-0 break-words ${toPrep && meal.prepared ? "text-text-2" : "text-text"}`}>{meal.name}</span>
       </button>
-      <p className="-mt-2 text-xs text-text-3">{nutrientsLine(nutrients)}</p>
+      <p className="-mt-2 text-xs text-text-3">{detailLine(meal, nutrients)}</p>
       <Segmented label={`Modalità: ${meal.name}`} value={meal.prep_mode} options={MODES} onChange={onMode} />
       {toPrep ? (
         <div className="flex items-center justify-between gap-3">

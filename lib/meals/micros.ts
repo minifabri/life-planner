@@ -1,6 +1,7 @@
 import type { MealPlan, Nutrient } from "../supabase/types";
 import { foodIndex } from "./food-index";
-import { NUTRIENTS, NUTRIENT_LABEL, listText, nutrientsOf, type Overrides } from "./nutrients";
+import { NUTRIENTS, NUTRIENT_LABEL, hasFoods, listText, mealNutrients, type Overrides } from "./nutrients";
+import { mealFoods } from "./rules";
 
 /**
  * Micronutrienti dei pasti, riconosciuti dal nome del piatto come i nutrienti (`nutrients.ts`).
@@ -56,9 +57,9 @@ export type DaySummary = {
   micros: DayRow<Micro>[];
 };
 
-/** Nutrienti e micronutrienti nei pasti di un giorno: per ciascuno, in quanti pasti compare. Gli extra contano come un pasto; un pasto fuori senza nome non conta. */
+/** Nutrienti e micronutrienti nei pasti di un giorno: per ciascuno, in quanti pasti compare. Gli extra contano come un pasto; un pasto fuori senza nulla scritto non conta. */
 export function daySummary(meals: MealPlan[], overrides?: Overrides): DaySummary {
-  const known = meals.filter((m) => m.name).map((m) => ({ nutrients: nutrientsOf(m.name, overrides), micros: recognizeMicros(m.name) }));
+  const known = meals.filter(hasFoods).map((m) => ({ nutrients: mealNutrients(m, overrides), micros: recognizeMicros(mealFoods(m)) }));
   return {
     planned: known.length,
     recognized: known.filter((m) => m.nutrients.length > 0 || m.micros.length > 0).length,

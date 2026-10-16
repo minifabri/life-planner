@@ -303,6 +303,7 @@ slot text check in ('breakfast','lunch','snack','dinner','extra'),  -- 'extra': 
 name text not null,                -- vuoto solo per un pasto mangiato fuori
 prep_mode text check in ('ready','to_prep') not null,
 eaten_out boolean default false,
+condiments text not null default '',  -- "olio, limone": fuori dal nome, contano in nutrienti e ingredienti (D66)
 prepared boolean default false, prepared_at timestamptz null,
 reminder_task_id uuid null references tasks on delete set null,
 unique (owner_id, date, slot)
@@ -995,15 +996,21 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Settimana desktop: la zona senza orario riempie lo spazio sopra l'agenda (le griglie orarie dei sette giorni restano allineate), bordo più marcato ed etichetta "senza orario" a sinistra; giorni passati all'80%; dettagli a 12 px in `text-2`. Legenda della barra laterale aggiornata.
 - Criteri: lint, typecheck, test e build; su desktop e iPhone, nei due temi, una settimana con eventi di aree diverse, un allenamento fatto, uno in programma e uno saltato.
 
-**Incremento 31 — Tour guidato** *(16 ottobre 2026, su richiesta di Bibi, D66)*
+**Incremento 31 — Condimenti del pasto** *(16 ottobre 2026, su richiesta di Bibi, D66)*
+- Migrazione `meal_condiments`: colonna `meal_plans.condiments` (testo, vuoto di default, massimo 200 caratteri); `search_all` cerca anche nei condimenti.
+- `mealFoods` (piatto + condimenti) e `setCondimentsOps` in `lib/meals/rules.ts`; `mealNutrients` e `hasFoods` in `lib/meals/nutrients.ts`. Bilancio della settimana, riepilogo del giorno, micronutrienti, ingredienti in casa usati e Idee leggono piatto e condimenti; la correzione a mano dei nutrienti resta del piatto e i condimenti si aggiungono.
+- Foglio del pasto: campo "Condimenti (facoltativo)" sotto il piatto (non per gli extra), con la riga di cosa aggiungono. Nel Giorno e nella Settimana i condimenti stanno nella riga piccola ("Con olio, limone · …"), mai nel titolo né nelle note dell'attività di preparazione. Export CSV: colonna "Condimenti".
+- Criteri: test dei moduli puri; su iPhone e desktop, "Farro, broccoli e tofu" con condimenti "olio, limone" mostra il titolo invariato, i grassi tra i nutrienti, la vitamina C nel riepilogo del giorno, e l'olio in casa risulta usato.
+
+**Incremento 32 — Tour guidato** *(16 ottobre 2026, su richiesta di Bibi, D67)*
 - Migrazione `tours_seen`: colonna `profiles.tours_seen text[]` con gli id dei tour visti o saltati (`intro`; poi uno per sezione). Resta sotto la RLS del profilo.
 - `lib/tour/tour.ts` (puro, con test): passi del tour iniziale, `withSeen`/`hasSeen`, `visibleSteps` (salta i passi il cui elemento non è visibile: lo stesso elenco vale per iPhone e desktop), `unionRect` (più elementi in un solo riflettore, es. le quattro liste della barra laterale) e `placeCard` (fumetto a destra della barra laterale, altrimenti sotto o sopra l'elemento, sempre dentro lo schermo).
 - `lib/data/tour.ts`: `markTourSeen` aggiorna subito la cache del profilo e poi Supabase; se il salvataggio non riesce (offline) il tour resta segnato sul dispositivo (`tours-seen-pending` in localStorage) e si riprova al prossimo avvio con `flushPendingTours`.
 - `components/tour/tour-provider.tsx`: `TourProvider` nel layout dell'app, `useStartTour()`. Gli elementi da evidenziare hanno `data-tour="…"` (barra mobile e laterale, frecce del giorno, barra del carico, aggiunta veloce, Cerca, Impostazioni). Il riflettore è un riquadro con un'ombra `--scrim` attorno; il fumetto è un `dialog` modale: fuoco sul pulsante principale, Tab resta nel fumetto, Esc salta, frecce avanti e indietro, animazioni spente con `prefers-reduced-motion`. Impostazioni › Guida › "Rivedi il tour" porta su Oggi e lo riavvia.
 - Criteri: lint, typecheck, test e build; su iPhone e desktop il tour parte al primo accesso, Salta e Ho capito non lo fanno ricomparire (nemmeno sull'altro dispositivo), "Rivedi il tour" funziona.
-- **Seguito** (incremento 32): tour di sezione (Calendario, Liste, Log…), con un id ciascuno in `TOURS` e partenza alla prima apertura della sezione.
+- **Seguito** (incremento 33): tour di sezione (Calendario, Liste, Log…), con un id ciascuno in `TOURS` e partenza alla prima apertura della sezione.
 
-**Incremento 32 — Tour di sezione** *(16 ottobre 2026, su richiesta di Bibi, D66)*
+**Incremento 33 — Tour di sezione** *(16 ottobre 2026, su richiesta di Bibi, D67)*
 - `lib/tour/tour.ts`: sei tour brevi in `TOURS`, con id `calendar`, `shopping`, `meals`, `wishlist`, `wardrobe`, `log` e nome in `TOUR_LABEL`. Ognuno ha da 2 a 4 passi, tutti su un elemento vero, e ogni passo racconta una funzione poco visibile (su richiesta di Bibi, niente "Settimana mostra la settimana"):
   - **Calendario**: trascinare per spostare, con annulla, e doppio clic per creare (desktop); la fascia Periodo da trascinare su un giorno (desktop); il "+" accanto a ogni giorno (iPhone); i segni discreti (rombo oro, ufficio, viaggio, 📦, compleanni);
   - **Spesa**: il reparto imparato dalle correzioni; l'articolo urgente che diventa «Comprare …» in Oggi; ciò che si spunta finisce «In casa» nei Pasti; *Di stagione*;

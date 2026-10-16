@@ -5,8 +5,8 @@ import { addIngredient, ingredientsIn, mealsUsing } from "./ingredients";
 const pantry = (...names: string[]) => names.map((name) => ({ name }));
 const names = (found: { name: string }[]) => found.map((f) => f.name);
 
-function meal(name: string, date: string, slot: MealSlot = "dinner"): MealPlan {
-  return { id: `${date}-${slot}`, date, slot, name, prep_mode: "ready", eaten_out: false, prepared: false, prepared_at: null, reminder_task_id: null };
+function meal(name: string, date: string, slot: MealSlot = "dinner", condiments = ""): MealPlan {
+  return { id: `${date}-${slot}`, date, slot, name, prep_mode: "ready", eaten_out: false, condiments, prepared: false, prepared_at: null, reminder_task_id: null };
 }
 
 describe("ingredienti nominati in un pasto", () => {
@@ -51,6 +51,11 @@ describe("pasti che usano un ingrediente", () => {
 
   it("solo da oggi in poi, dal più vicino", () => {
     expect(mealsUsing("Patate", meals, "2026-10-11").map((m) => m.name)).toEqual(["Gnocchi di patate", "Patate lesse", "Patate al forno"]);
+  });
+
+  it("anche nei condimenti", () => {
+    const withOil = [meal("Farro e broccoli", "2026-10-12", "lunch", "olio, limone"), meal("Pasta al pomodoro", "2026-10-13")];
+    expect(mealsUsing("Limoni", withOil, "2026-10-11").map((m) => m.name)).toEqual(["Farro e broccoli"]);
   });
 
   it("nessuno se non è nominato", () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MealMemory, MealPlan, MealSlot } from "../supabase/types";
 import { DISHES } from "./dishes";
 import { normalizeMealName } from "./rules";
-import { balanceNote, nutrientOverrides, nutrientsOf, recognizeNutrients, weekBalance } from "./nutrients";
+import { balanceNote, mealNutrients, nutrientOverrides, nutrientsOf, recognizeNutrients, weekBalance } from "./nutrients";
 
 const DAYS = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"];
 
@@ -14,6 +14,7 @@ const meal = (date: string, name: string, slot: MealSlot = "lunch"): MealPlan =>
   name,
   prep_mode: "ready",
   eaten_out: false,
+  condiments: "",
   prepared: false,
   prepared_at: null,
   reminder_task_id: null,
@@ -92,7 +93,25 @@ describe("nutrientsOf", () => {
   });
 });
 
+describe("mealNutrients", () => {
+  it("i condimenti si aggiungono al piatto, anche a quello corretto a mano", () => {
+    expect(mealNutrients({ name: "Farro, broccoli e tofu", condiments: "olio" })).toEqual(["protein", "carbs", "fat", "fiber"]);
+    const overrides = nutrientOverrides([memory("avanzi", { nutrients: ["protein"] })]);
+    expect(mealNutrients({ name: "Avanzi", condiments: "olio, limone" }, overrides)).toEqual(["protein", "fat"]);
+  });
+
+  it("senza condimenti sono quelli del piatto", () => {
+    expect(mealNutrients({ name: "Pane", condiments: "" })).toEqual(["carbs"]);
+  });
+});
+
 describe("weekBalance", () => {
+  it("un pasto fuori senza piatto ma con i condimenti conta", () => {
+    const balance = weekBalance([{ ...meal(DAYS[0], ""), eaten_out: true, condiments: "olio" }], DAYS);
+    expect(balance.planned).toBe(1);
+    expect(balance.rows.find((r) => r.nutrient === "fat")?.meals).toBe(1);
+  });
+
   it("conta gli extra e un pasto fuori con il nome, non uno fuori senza nome", () => {
     const out = (name: string) => ({ ...meal(DAYS[1], name, "dinner"), eaten_out: true });
     const balance = weekBalance([meal(DAYS[0], "Insalata"), meal(DAYS[0], "Olio", "extra"), out(""), { ...out("Pizza"), date: DAYS[2] }], DAYS);
