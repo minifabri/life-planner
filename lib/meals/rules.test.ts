@@ -11,6 +11,7 @@ import {
   normalizeMealName,
   rememberMealOp,
   reminderDate,
+  reminderHint,
   reminderRemovedOps,
   reminderRestoredOps,
   reminderSchedule,
@@ -80,6 +81,14 @@ describe("date e nomi", () => {
     expect(reminderSchedule(TODAY, "breakfast", CLOCK)).toEqual({ date: TODAY, time: "11:15" });
     expect(reminderSchedule(TODAY, "dinner", { today: TODAY, time: "21:59" })).toEqual({ date: TODAY, time: "22:00" });
     expect(reminderSchedule(TODAY, "dinner", { today: TODAY, time: "23:50" })).toEqual({ date: TODAY, time: "23:59" });
+  });
+
+  it("la riga sotto il pasto dice il giorno, e oggi stesso l'orario", () => {
+    expect(reminderHint("2026-10-11", TODAY)).toBe("Promemoria in Oggi: domani");
+    expect(reminderHint(TODAY, TODAY, "12:00:00")).toBe("Promemoria in Oggi alle 12:00");
+    expect(reminderHint(TODAY, TODAY, "19:00")).toBe("Promemoria in Oggi alle 19:00");
+    // Attività senza orario (nata ieri per il pasto di domani): niente "oggi" ripetuto.
+    expect(reminderHint(TODAY, TODAY, null)).toBe("Promemoria in Oggi");
   });
 
   it("pasto di un giorno passato: nessun promemoria", () => {

@@ -1,4 +1,4 @@
-import { addDays, type LocalDate } from "../dates/local";
+import { addDays, relativeDay, trimTime, type LocalDate } from "../dates/local";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode, Task } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
 
@@ -89,6 +89,15 @@ export function reminderSchedule(mealDate: LocalDate, slot: MealSlot, clock: Clo
   if (mealDate !== clock.today) return { date, time: null };
   const planned = SAME_DAY_PREP_TIME[slot];
   return { date, time: planned > clock.time ? planned : nextQuarter(clock.time) };
+}
+
+/**
+ * Riga discreta sotto il pasto: dove si trova il promemoria. Oggi stesso dice l'orario, se l'attività ne ha uno
+ * ("Promemoria in Oggi alle 12:00"); gli altri giorni il giorno ("Promemoria in Oggi: domani").
+ */
+export function reminderHint(prepDay: LocalDate, today: LocalDate, time?: string | null): string {
+  if (prepDay !== today) return `Promemoria in Oggi: ${relativeDay(prepDay, today)}`;
+  return time ? `Promemoria in Oggi alle ${trimTime(time)}` : "Promemoria in Oggi";
 }
 
 type MealKey = Pick<MealPlan, "id" | "date" | "slot" | "name">;

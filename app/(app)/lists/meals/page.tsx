@@ -14,17 +14,17 @@ import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useDayContext } from "@/lib/data/day-marks-hooks";
-import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
+import { useOffline, useTasks, useTimezone, useToday } from "@/lib/data/hooks";
 import { addMeal, hideMealIdea, removeMeal, saveMeal, setMealMode, setMealPrepared, snoozeMealIdea } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
-import { addDays, localTimeString, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { addDays, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { localDateString } from "@/lib/dates/today";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary, microTips } from "@/lib/meals/micros";
 import { NUTRIENT_LABEL, balanceNote, hasFoods, mealNutrients, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
-import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealFoods, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
+import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealFoods, mealTitle, reminderDate, reminderHint, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
 import { pantryGroups, type PantryEntry } from "@/lib/shopping/pantry";
 import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/types";
@@ -73,6 +73,8 @@ export default function MealsPage() {
   };
   const toast = useToast();
   const offline = useOffline();
+  // Le attività di Oggi: l'orario del promemoria di un pasto di oggi sta sulla sua attività.
+  const { data: tasks = [] } = useTasks(today, tz);
 
   const [view, setView] = useState<View>("day");
   const [selected, setSelected] = useState<LocalDate | null>(null);
@@ -264,6 +266,7 @@ export default function MealsPage() {
                   <MealRow
                     meal={meal}
                     today={today}
+                    reminderTime={tasks.find((t) => t.id === meal.reminder_task_id)?.time}
                     nutrients={mealNutrients(meal, overrides)}
                     ingredients={ingredientsIn(mealFoods(meal), pantry)}
                     onFinish={finish}
@@ -359,6 +362,7 @@ export default function MealsPage() {
 function MealRow({
   meal,
   today,
+  reminderTime,
   nutrients,
   ingredients,
   onFinish,
@@ -368,6 +372,7 @@ function MealRow({
 }: {
   meal: MealPlan;
   today: LocalDate;
+  reminderTime?: string | null;
   nutrients: Nutrient[];
   ingredients: PantryEntry[];
   onFinish: (entry: PantryEntry) => void;
@@ -381,7 +386,7 @@ function MealRow({
   const hint = !toPrep || meal.prepared
     ? null
     : meal.reminder_task_id && prepDay
-      ? `Promemoria in Oggi: ${relativeDay(prepDay, today)}`
+      ? reminderHint(prepDay, today, reminderTime)
       : "Senza promemoria";
   // Cucinato o già in tavola: gli ingredienti in casa si possono segnare come finiti da qui.
   const eaten = meal.prepared || meal.date <= today;
