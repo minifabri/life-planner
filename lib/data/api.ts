@@ -6,7 +6,7 @@ import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
 import { reminderRemovedOps, reminderRestoredOps, reminderToggledOps } from "../meals/rules";
 import { shoppingTaskRemovedOps, shoppingTaskRestoredOps, shoppingTaskToggledOps } from "../shopping/urgent";
 import { getSupabase } from "../supabase/client";
-import { commit, withPendingEvents, withPendingRecurrences, withPendingTasks } from "../sync/engine";
+import { commit, commitDirect, withPendingEvents, withPendingRecurrences, withPendingTasks } from "../sync/engine";
 import { byId, type DayEvents, type Op, type Row, type Table } from "../sync/ops";
 import { completePatch, reopenPatch } from "../tasks/actions";
 import { queryClient } from "./query-client";
@@ -44,39 +44,36 @@ export async function fetchAreas(): Promise<Area[]> {
  * (per rimaste indietro e nel periodo), quelle dei giorni richiesti in qualsiasi stato e quelle completate dal primo giorno in poi.
  */
 export async function fetchTasks(day: LocalDate, tz: string, to: LocalDate = day): Promise<Task[]> {
+  return withPendingTasks(check(await tasksFilter(getSupabase().from("tasks").select("*"), day, tz, to).eq("is_private", false)));
+}
+
+/** Filtro comune alle attività pubbliche e riservate di una vista. */
+export function tasksFilter<Q extends { is: (c: string, v: null) => Q; or: (f: string) => Q }>(query: Q, day: LocalDate, tz: string, to: LocalDate): Q {
   const dayStart = startOfLocalDay(day, tz).toISOString();
-  return withPendingTasks(
-    check(
-      await getSupabase()
-        .from("tasks")
-        .select("*")
-        .is("deleted_at", null)
-        .or(`status.eq.open,and(date.gte.${day},date.lte.${to}),completed_at.gte."${dayStart}"`),
-    ),
-  );
+  return query.is("deleted_at", null).or(`status.eq.open,and(date.gte.${day},date.lte.${to}),completed_at.gte."${dayStart}"`);
 }
 
 export type { DayEvents };
 
 /** Eventi che possono toccare i giorni da `day` a `to`: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
 export async function fetchEvents(day: LocalDate, tz: string, to: LocalDate = day): Promise<DayEvents> {
-  const supabase = getSupabase();
+  const events: EventRow[] = check(await eventsFilter(getSupabase().from("events").select("*"), day, tz, to).eq("is_private", false));
+  return withPendingEvents({ events, exceptions: await fetchExceptions(events) }, day, tz, to);
+}
+
+/** Filtro comune agli eventi pubblici e riservati di una vista: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
+export function eventsFilter<Q extends { is: (c: string, v: null) => Q; or: (f: string) => Q }>(query: Q, day: LocalDate, tz: string, to: LocalDate): Q {
   const from = startOfLocalDay(addDays(day, -7), tz).toISOString();
   const until = startOfLocalDay(addDays(to, 1), tz).toISOString();
-  const events: EventRow[] = check(
-    await supabase
-      .from("events")
-      .select("*")
-      .is("deleted_at", null)
-      .or(
-        `rrule.not.is.null,and(start_at.gte."${from}",start_at.lt."${until}"),and(all_day.is.true,start_date.lte.${to},start_date.gte.${addDays(day, -60)})`,
-      ),
-  );
+  return query
+    .is("deleted_at", null)
+    .or(`rrule.not.is.null,and(start_at.gte."${from}",start_at.lt."${until}"),and(all_day.is.true,start_date.lte.${to},start_date.gte.${addDays(day, -60)})`);
+}
+
+/** Le eccezioni (occorrenze spostate o cancellate) delle serie tra gli eventi. */
+export async function fetchExceptions(events: Pick<EventRow, "id" | "rrule">[]): Promise<EventException[]> {
   const recurring = events.filter((e) => e.rrule).map((e) => e.id);
-  const exceptions: EventException[] = recurring.length
-    ? check(await supabase.from("event_exceptions").select("*").in("event_id", recurring))
-    : [];
-  return withPendingEvents({ events, exceptions }, day, tz, to);
+  return recurring.length ? check(await getSupabase().from("event_exceptions").select("*").in("event_id", recurring)) : [];
 }
 
 /** Tutte le ricorrenze: sono poche e servono anche senza rete, per creare la prossima attività. */
@@ -105,7 +102,7 @@ export type TaskInput = Pick<
   Task,
   "title" | "notes" | "date" | "time" | "duration_min" | "due_date" | "window_start" | "attention" | "area_id"
 > &
-  Partial<Pick<Task, "remind">>;
+  Partial<Pick<Task, "remind" | "is_private">>;
 
 export type RepeatInput =
   | { kind: "none" }
@@ -144,16 +141,27 @@ function recurrenceInsert(id: string, input: TaskInput, repeat: Exclude<RepeatIn
  * Crea un'attività e ne restituisce l'id; con una ripetizione crea anche la ricorrenza di cui è la prima occorrenza.
  * Le occorrenze successive di una ripetizione fissa nascono alla prossima sincronizzazione (`materializeRecurrences`).
  */
+/** Le modifiche a un elemento riservato vanno dritte al server; le altre passano dalla outbox (technical-design.md, 6.1). */
+function writer(isPrivate: boolean | undefined) {
+  return isPrivate ? commitDirect : commit;
+}
+
+/** Vero se l'attività (anche solo l'id) o la modifica la rendono riservata. */
+function touchesPrivate(task: Pick<Task, "id"> | Task, patch: Partial<Task>): boolean {
+  return ("is_private" in task && !!task.is_private) || patch.is_private === true;
+}
+
 export async function createTask(input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<string> {
   const row: Partial<Task> & { id: string } = { id: uuidv7(), ...input };
   const ops: Op[] = [];
-  if (repeat.kind !== "none") {
+  // Una riservata non si ripete: il modello della ricorrenza, con il titolo, resterebbe sul dispositivo.
+  if (repeat.kind !== "none" && !input.is_private) {
     row.date = input.date ?? today;
     row.recurrence_id = uuidv7();
     row.source = "recurrence";
     ops.push(recurrenceInsert(row.recurrence_id, input, repeat, row.date));
   }
-  await commit([...ops, insert("tasks", row)]);
+  await writer(input.is_private)([...ops, insert("tasks", row)]);
   return row.id;
 }
 
@@ -164,12 +172,12 @@ function taskUpdate(task: Pick<Task, "id"> | Task, patch: Partial<Task>): Op {
 }
 
 export async function updateTask(task: Pick<Task, "id"> | Task, patch: Partial<Task>): Promise<void> {
-  await commit([taskUpdate(task, patch)]);
+  await writer(touchesPrivate(task, patch))([taskUpdate(task, patch)]);
 }
 
 /** Salva le modifiche a un'attività e, se richiesta, le aggiunge una ripetizione. */
 export async function saveTask(task: Task, input: TaskInput, repeat: RepeatInput, today: LocalDate): Promise<void> {
-  if (task.recurrence_id || repeat.kind === "none") return updateTask(task, input);
+  if (task.recurrence_id || repeat.kind === "none" || touchesPrivate(task, input)) return updateTask(task, input);
   const date = input.date ?? today;
   const recurrenceId = uuidv7();
   await commit([
@@ -247,7 +255,7 @@ export async function completeTask(task: Task, completedAt: Date, tz: string): P
   if (recurrence && date) {
     ops.push(insert("tasks", taskFromTemplate(recurrence.id, recurrence.template, await nextInstanceId(task), date)));
   }
-  await commit(ops);
+  await writer(task.is_private)(ops);
 }
 
 /**
@@ -255,12 +263,12 @@ export async function completeTask(task: Task, completedAt: Date, tz: string): P
  * se era un articolo urgente, l'articolo resta nella Spesa non più urgente.
  */
 export async function removeTask(task: Task): Promise<void> {
-  await commit([taskUpdate(task, { deleted_at: new Date().toISOString() }), ...reminderRemovedOps(task), ...shoppingTaskRemovedOps(task)]);
+  await writer(task.is_private)([taskUpdate(task, { deleted_at: new Date().toISOString() }), ...reminderRemovedOps(task), ...shoppingTaskRemovedOps(task)]);
 }
 
 /** Annulla un'eliminazione appena fatta. */
 export async function restoreTask(task: Task): Promise<void> {
-  await commit([taskUpdate(task, { deleted_at: null }), ...reminderRestoredOps(task), ...shoppingTaskRestoredOps(task)]);
+  await writer(task.is_private)([taskUpdate(task, { deleted_at: null }), ...reminderRestoredOps(task), ...shoppingTaskRestoredOps(task)]);
 }
 
 /** Rimette da fare un'attività; l'attività successiva della ricorrenza si toglie, se è ancora intatta. */
@@ -277,31 +285,33 @@ export async function reopenTask(task: Task): Promise<void> {
       ],
     });
   }
-  await commit(ops);
+  await writer(task.is_private)(ops);
 }
 
 export type EventInput = Pick<
   EventRow,
   "title" | "notes" | "location" | "start_at" | "end_at" | "all_day" | "start_date" | "end_date" | "tz" | "rrule" | "area_id" | "attention"
-> & { kind?: EventRow["kind"] };
+> & { kind?: EventRow["kind"]; is_private?: boolean };
 
 export async function createEvent(input: EventInput): Promise<string> {
   const id = uuidv7();
-  await commit([insert("events", { id, ...input })]);
+  await writer(input.is_private)([insert("events", { id, ...input })]);
   return id;
 }
 
 export async function updateEvent(event: EventRow, patch: Partial<EventRow>): Promise<void> {
-  await commit([{ kind: "update", table: "events", patch, where: byId(event.id), snapshot: { ...event, ...patch } }]);
+  await writer(event.is_private || patch.is_private === true)([
+    { kind: "update", table: "events", patch, where: byId(event.id), snapshot: { ...event, ...patch } },
+  ]);
 }
 
 /** Cancella una sola occorrenza di un evento ricorrente. */
-export async function cancelOccurrence(eventId: string, originalStart: Date): Promise<void> {
-  await commit([
+export async function cancelOccurrence(event: Pick<EventRow, "id" | "is_private">, originalStart: Date): Promise<void> {
+  await writer(event.is_private)([
     {
       kind: "insert",
       table: "event_exceptions",
-      row: { id: uuidv7(), event_id: eventId, original_start: originalStart.toISOString(), cancelled: true },
+      row: { id: uuidv7(), event_id: event.id, original_start: originalStart.toISOString(), cancelled: true },
       onConflict: "event_id,original_start",
       merge: true,
     },

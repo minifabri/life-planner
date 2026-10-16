@@ -2,6 +2,7 @@ import { addDays, atLocalTime, localTimeString, relativeDay, trimTime, type Loca
 import { localDateString } from "../dates/today";
 import { eventsForDay } from "../events/day";
 import type { Attention, EventException, EventRow, NotificationPrefs, Profile, Task } from "../supabase/types";
+import { PRIVATE_EVENT_TITLE, PRIVATE_TASK_TITLE, neutralized } from "../private/items";
 import { groupTasks } from "../tasks/classify";
 import { eveningHeading, morningOverview } from "../today/overview";
 
@@ -33,7 +34,8 @@ export type PlanTask = Pick<
   | "deleted_at"
   | "created_at"
   | "updated_at"
->;
+> &
+  Partial<Pick<Task, "is_private">>;
 
 export type PlanInput = {
   settings: ReminderSettings;
@@ -83,7 +85,10 @@ function enabled(attention: Attention, s: ReminderSettings): boolean {
 
 /** Notifiche con orario di invio dopo `from` e fino a `to` compreso. */
 export function planReminders(input: PlanInput, from: Date, to: Date): PlannedReminder[] {
-  const { settings: s, tasks, events, exceptions } = input;
+  const { settings: s, exceptions } = input;
+  // Di un elemento riservato la notifica dice solo che c'è (technical-design.md, 4.3): niente titolo, note o luogo.
+  const tasks = input.tasks.map((t) => neutralized(t, PRIVATE_TASK_TITLE));
+  const events = input.events.map((e) => neutralized(e, PRIVATE_EVENT_TITLE));
   const tz = s.timezone;
   const morning = trimTime(s.morning_overview_time);
   const evening = trimTime(s.evening_review_time);

@@ -93,6 +93,22 @@ export async function commit(ops: Op[]): Promise<void> {
   void sync();
 }
 
+/** Chiave delle query di attività ed eventi riservati: mai salvate sul dispositivo (lib/data/private.ts). */
+export const PRIVATE_ITEMS_KEY = "private-items";
+
+/**
+ * Salva subito sul server, senza passare dalla outbox né dalla cache salvata: è la strada di attività
+ * ed eventi riservati, il cui contenuto non deve restare in chiaro sul dispositivo. Serve la connessione:
+ * senza, la promessa fallisce e non resta nulla da inviare.
+ */
+export async function commitDirect(ops: Op[]): Promise<void> {
+  if (!(await currentOwner())) throw new Error("Sessione mancante");
+  for (const op of ops) {
+    if ((await send(op)) !== "done") throw new Error("Modifica non salvata");
+  }
+  for (const key of [PRIVATE_ITEMS_KEY, "tasks", "events"]) void queryClient.invalidateQueries({ queryKey: [key] });
+}
+
 async function pending(): Promise<{ op: Op; at: string }[]> {
   try {
     const owner = await currentOwner();

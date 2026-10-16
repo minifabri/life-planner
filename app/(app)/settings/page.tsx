@@ -849,8 +849,8 @@ function DataSection() {
         saved
           ? {
               text: unlocked
-                ? `Archivio pronto: ${file.name}. Contiene anche le registrazioni riservate: tienilo in un posto sicuro.`
-                : `Archivio pronto: ${file.name}. Le registrazioni riservate non ci sono: sblocca il Log e ripeti per averle.`,
+                ? `Archivio pronto: ${file.name}. Contiene anche ciò che è riservato: tienilo in un posto sicuro.`
+                : `Archivio pronto: ${file.name}. Ciò che è riservato non c’è: sblocca il Log e ripeti per averlo.`,
               tone: "ok",
             }
           : null,

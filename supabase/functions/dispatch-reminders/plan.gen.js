@@ -148,6 +148,14 @@ function eventsForDay(events, exceptions, day, tz = DEFAULT_TZ) {
   );
 }
 
+// lib/private/items.ts
+var PRIVATE_TASK_TITLE = "Attivit\xE0 riservata";
+var PRIVATE_EVENT_TITLE = "Evento riservato";
+function neutralized(item, title) {
+  if (!item.is_private) return item;
+  return { ...item, title, ..."notes" in item ? { notes: null } : {}, ..."location" in item ? { location: null } : {} };
+}
+
 // lib/tasks/classify.ts
 function windowStartOf(task, tz = DEFAULT_TZ) {
   return task.window_start ?? localDateString(new Date(task.created_at), tz);
@@ -265,7 +273,9 @@ function enabled(attention, s) {
   return attention === "high" ? s.notify_high : attention === "medium" ? s.notify_medium : false;
 }
 function planReminders(input, from, to) {
-  const { settings: s, tasks, events, exceptions } = input;
+  const { settings: s, exceptions } = input;
+  const tasks = input.tasks.map((t) => neutralized(t, PRIVATE_TASK_TITLE));
+  const events = input.events.map((e) => neutralized(e, PRIVATE_EVENT_TITLE));
   const tz = s.timezone;
   const morning = trimTime(s.morning_overview_time);
   const evening = trimTime(s.evening_review_time);

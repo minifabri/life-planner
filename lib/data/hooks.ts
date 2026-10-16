@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { addDays, endOfWeek, weekStart, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
+import { mergeById } from "../private/items";
 import { getSyncState, subscribeSyncState, type SyncState } from "../sync/engine";
+import type { DayEvents } from "../sync/ops";
 import { dismissPatch, movePatch, type TaskPatch } from "../tasks/actions";
 import type { Task } from "../supabase/types";
 import {
@@ -21,6 +23,8 @@ import {
   reopenTask,
   updateTask,
 } from "./api";
+import { useLogUnlocked } from "./log-hooks";
+import { PRIVATE_ITEMS_KEY, fetchPrivateEvents, fetchPrivateTasks, forgetPrivateItems } from "./private";
 import { fetchTemplates } from "./templates";
 import { workoutsQuery } from "./workouts-hooks";
 
@@ -72,22 +76,60 @@ function eventsQuery(day: LocalDate, tz: string) {
   return { queryKey: ["events", day], queryFn: () => fetchEvents(day, tz) };
 }
 
+/**
+ * Attività ed eventi riservati dei giorni da `from` a `to` (D68): segnaposto a Log bloccato, righe intere
+ * a Log sbloccato. Mai salvati sul dispositivo; il contenuto esce dalla memoria appena il Log si blocca.
+ * Senza rete mancano e basta: le viste mostrano il resto.
+ */
+function usePrivateItems<T>(kind: "tasks" | "events", from: LocalDate, to: LocalDate, tz: string, fetch: (full: boolean) => Promise<T>) {
+  const unlocked = useLogUnlocked();
+  useEffect(() => {
+    if (!unlocked) forgetPrivateItems();
+  }, [unlocked]);
+  return useQuery({
+    queryKey: [PRIVATE_ITEMS_KEY, kind, from, to, unlocked ? "full" : "stub"],
+    queryFn: () => fetch(unlocked),
+    gcTime: unlocked ? 0 : 5 * 60_000,
+    retry: false,
+  }).data;
+}
+
+/** Le attività di una vista con, in più, le riservate. */
+function useWithPrivateTasks(query: UseQueryResult<Task[]>, from: LocalDate, to: LocalDate, tz: string): UseQueryResult<Task[]> {
+  const extra = usePrivateItems("tasks", from, to, tz, (full) => fetchPrivateTasks(from, tz, to, full));
+  const data = useMemo(() => (query.data && extra ? mergeById(query.data, extra) : query.data), [query.data, extra]);
+  return { ...query, data } as UseQueryResult<Task[]>;
+}
+
+/** Gli eventi di una vista con, in più, i riservati. */
+function useWithPrivateEvents(query: UseQueryResult<DayEvents>, from: LocalDate, to: LocalDate, tz: string): UseQueryResult<DayEvents> {
+  const extra = usePrivateItems("events", from, to, tz, (full) => fetchPrivateEvents(from, tz, to, full));
+  const data = useMemo(
+    () =>
+      query.data && extra
+        ? { events: mergeById(query.data.events, extra.events), exceptions: mergeById(query.data.exceptions, extra.exceptions) }
+        : query.data,
+    [query.data, extra],
+  );
+  return { ...query, data } as UseQueryResult<DayEvents>;
+}
+
 export function useTasks(day: LocalDate, tz: string) {
-  return useQuery(tasksQuery(day, tz));
+  return useWithPrivateTasks(useQuery(tasksQuery(day, tz)), day, day, tz);
 }
 
 export function useEvents(day: LocalDate, tz: string) {
-  return useQuery(eventsQuery(day, tz));
+  return useWithPrivateEvents(useQuery(eventsQuery(day, tz)), day, day, tz);
 }
 
 /** Attività di un intervallo di giorni (settimana, mese). */
 export function useRangeTasks(from: LocalDate, to: LocalDate, tz: string) {
-  return useQuery({ queryKey: ["tasks", from, to], queryFn: () => fetchTasks(from, tz, to) });
+  return useWithPrivateTasks(useQuery({ queryKey: ["tasks", from, to], queryFn: () => fetchTasks(from, tz, to) }), from, to, tz);
 }
 
 /** Eventi di un intervallo di giorni (settimana, mese). */
 export function useRangeEvents(from: LocalDate, to: LocalDate, tz: string) {
-  return useQuery({ queryKey: ["events", from, to], queryFn: () => fetchEvents(from, tz, to) });
+  return useWithPrivateEvents(useQuery({ queryKey: ["events", from, to], queryFn: () => fetchEvents(from, tz, to) }), from, to, tz);
 }
 
 /** Tiene in cache ieri, oggi e domani, anche se l'app è stata aperta su un'altra schermata (technical-design.md, 6.2). */
@@ -149,6 +191,7 @@ export function useInvalidateDay() {
   return () => {
     qc.invalidateQueries({ queryKey: ["tasks"] });
     qc.invalidateQueries({ queryKey: ["events"] });
+    qc.invalidateQueries({ queryKey: [PRIVATE_ITEMS_KEY] });
     qc.invalidateQueries({ queryKey: ["workouts"] });
   };
 }

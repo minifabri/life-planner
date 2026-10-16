@@ -130,6 +130,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D65 | **Di stagione**: un calendario di frutta e verdura italiane, mese per mese, nell'app e senza servizi esterni. Nella **Spesa** una riga discreta in fondo, "Di stagione a ottobre", con frutta e verdura del mese da aggiungere con un tocco (prima quelle che compri già). Nelle **Idee per i pasti** la stagione conta come un fattore in più: un piatto fuori stagione scende, non sparisce. Nel **Guardaroba** (catalogo e scelta dei capi per un outfit) vengono prima i capi di stagione; quelli fuori stagione restano a un tocco, sotto "Fuori stagione · N". Ricerca e filtro per stagione mostrano tutto insieme | [PROPOSTA, 16 ottobre 2026] |
 | D66 | **Condimenti del pasto**: nel foglio di un pasto, sotto il piatto, un campo facoltativo per i condimenti (olio, limone…). Non entrano nel nome del piatto né nel titolo; contano nei nutrienti, nei micronutrienti e negli ingredienti in casa usati, e si vedono nella riga piccola sotto il piatto | [RICHIESTO il 16 ottobre 2026; dettagli PROPOSTA] |
 | D67 | **Tour guidato**: al primo accesso, su Oggi, un tour mette in evidenza le parti vere dell'app (lo schermo si scurisce e un riflettore illumina un elemento alla volta) con un fumetto. **Il tour non spiega l'ovvio** (che Settimana mostra la settimana): per ogni parte fa scoprire una funzione poco visibile, per esempio «spesa: ceci», «ogni lunedì», l'articolo urgente che diventa un'attività in Oggi, il trascinamento nel calendario. Una **X** lo chiude in ogni momento, **Ho capito** alla fine. Su iPhone segue la barra in basso, su desktop la barra laterale. Una volta visto o saltato non ricompare, su nessun dispositivo (salvato sul profilo); si rivede da Impostazioni › Guida. Testi neutri rispetto al genere, per chiunque usi l'app. Ogni sezione (Calendario, Spesa, Pasti, Wishlist, Guardaroba, Log) ha poi un breve tour suo, di 2–4 trucchi di quella sezione, che parte la prima volta che la si apre, mai prima del tour iniziale e mai insieme a lui; anche questi si rivedono da Impostazioni › Guida | [APPROVATO il 16 ottobre 2026; tour di sezione approvati lo stesso giorno, poi riscritti sui trucchi e con la X su richiesta di Bibi] |
+| D68 | **Attività ed eventi riservati e previsioni del ciclo**. Un'attività o un evento creato nell'app si può segnare **Riservato**: a Log bloccato compare ovunque (Oggi, Settimana, Mese, notifiche) come «Attività riservata» / «Evento riservato», con giorno, orario e durata veri, così il giorno non sembra libero; titolo, note, luogo, area e attenzione si vedono solo a Log sbloccato (stesso PIN / Face ID). Non compare nella ricerca né nell'export a Log bloccato. Per salvarlo serve la connessione; un'attività riservata non si ripete. Dalle registrazioni della categoria **Ciclo** del Log, nel **Mese** e solo a Log sbloccato: giorni del ciclo previsto (anello tratteggiato) e giorni fertili stimati (fondo tenue), con la durata media del ciclo e la nota che è una stima del calendario, non un metodo contraccettivo. A Log bloccato del ciclo non si vede nulla | [RICHIESTO il 16 ottobre 2026; scelte di Bibi: blocco neutro a Log bloccato, previsioni nel Mese; dettagli PROPOSTA] |
 
 ---
 
@@ -424,6 +425,7 @@ Le attività senza data non hanno una sezione "Inbox" dedicata nell'MVP: compaio
 ### 7.3 Month
 - Griglia con punti/segni minimi per giorno (eventi, scadenze, segni del Log), mai elenchi di testo nelle celle su mobile.
 - Tocco su un giorno → anteprima del giorno sotto la griglia; doppio tocco → Day.
+- **Ciclo** (D68), solo a Log sbloccato: anello tratteggiato attorno al numero nei giorni di ciclo previsto, fondo tenue nei giorni fertili; sotto la legenda la durata media e il prossimo ciclo previsto (o il ritardo). In fondo alla legenda "Mostra riservati" / "Nascondi riservati" sblocca e blocca senza passare dal Log.
 
 ### 7.4 Quick Capture
 - Mobile: pulsante centrale nella bottom navigation → foglio dal basso con campo testo e tastiera aperta.
@@ -468,6 +470,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - Vista Categorie: per ogni categoria con `track_last`, "ultima volta: N giorni fa" e accesso all'elenco.
 - Categorie sensibili: contenuto oscurato fino allo sblocco (Face ID/PIN), poi visibile per la sessione corrente con timeout.
 - Nota: il blocco è una protezione dell'interfaccia, non cifratura aggiuntiva dei dati.
+- Lo stesso sblocco apre anche attività ed eventi riservati (D68).
 
 ### 7.8 Morning overview ed Evening review
 - Morning: card in cima a Today fino a un orario configurabile o alla chiusura; contiene numero di eventi/attività, carico, scadenze vicine, rimaste indietro. Nessuna statistica superflua.

@@ -54,7 +54,7 @@ function withoutSecrets(table: ExportTable, rows: Row[]): Row[] {
 
 export type ExportOptions = {
   exportedAt: Date;
-  /** Falso se il Log era bloccato: le registrazioni riservate non sono nell'archivio. */
+  /** Falso se il Log era bloccato: registrazioni, attività ed eventi riservati non sono nell'archivio. */
   includesSensitive: boolean;
 };
 
@@ -72,8 +72,8 @@ function readme(data: ExportData, options: ExportOptions): string {
     "eventi.ics gli eventi creati nell'app, da importare in un calendario",
     "",
     options.includesSensitive
-      ? "Le registrazioni riservate del Log sono incluse: tieni questo archivio in un posto sicuro."
-      : "Le registrazioni riservate del Log NON sono incluse, perché il Log era bloccato. Sbloccalo e ripeti l'esportazione per averle.",
+      ? "Ciò che è riservato (registrazioni del Log, attività ed eventi) è incluso: tieni questo archivio in un posto sicuro."
+      : "Ciò che è riservato (registrazioni del Log, attività ed eventi) NON è incluso, perché il Log era bloccato. Sbloccalo e ripeti l'esportazione per averlo.",
     "Non sono inclusi: PIN e chiavi del blocco, credenziali dei calendari collegati, dispositivi delle notifiche.",
     "",
     "Righe per tabella:",

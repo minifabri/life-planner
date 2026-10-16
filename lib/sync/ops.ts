@@ -106,6 +106,7 @@ function completeTask(at: string) {
     meal_plan_id: null,
     event_id: null,
     shopping_item_id: null,
+    is_private: false,
     deleted_at: null,
     created_at: at,
     updated_at: at,
@@ -135,6 +136,7 @@ function completeEvent(at: string) {
     icloud_href: null,
     icloud_etag: null,
     lesson: null,
+    is_private: false,
     deleted_at: null,
     created_at: at,
     updated_at: at,
@@ -142,10 +144,13 @@ function completeEvent(at: string) {
   });
 }
 
-/** Le attività di una vista del giorno dopo una modifica in attesa (`at` è il momento della modifica). */
+/**
+ * Le attività di una vista del giorno dopo una modifica in attesa (`at` è il momento della modifica).
+ * Le riservate non passano mai da qui: si scrivono direttamente e non restano in cache (`commitDirect`).
+ */
 export function applyToTasks(tasks: Task[], op: Op, at: string): Task[] {
   if (op.table !== "tasks") return tasks;
-  return applyToRows(tasks, op, completeTask(at)).filter((t) => !t.deleted_at);
+  return applyToRows(tasks, op, completeTask(at), (t) => !t.is_private).filter((t) => !t.deleted_at && !t.is_private);
 }
 
 /** Stesso criterio della query `fetchEvents`: l'evento può toccare i giorni da `day` a `to` (di norma un giorno solo). */
@@ -165,8 +170,8 @@ export type DayEvents = { events: EventRow[]; exceptions: EventException[] };
 /** Gli eventi di una vista (un giorno, oppure i giorni da `day` a `to`) dopo una modifica in attesa. */
 export function applyToDayEvents(data: DayEvents, op: Op, at: string, day: LocalDate, tz: string, to: LocalDate = day): DayEvents {
   if (op.table === "events") {
-    const events = applyToRows(data.events, op, completeEvent(at), (e) => eventTouchesDay(e, day, tz, to)).filter(
-      (e) => !e.deleted_at && eventTouchesDay(e, day, tz, to),
+    const events = applyToRows(data.events, op, completeEvent(at), (e) => !e.is_private && eventTouchesDay(e, day, tz, to)).filter(
+      (e) => !e.deleted_at && !e.is_private && eventTouchesDay(e, day, tz, to),
     );
     return { events, exceptions: data.exceptions };
   }

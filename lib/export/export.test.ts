@@ -164,10 +164,10 @@ describe("buildExport", () => {
     expect(parseIcs(read("eventi.ics"), TZ).items.map((i) => i.title)).toEqual(["Dentista"]);
   });
 
-  it("le istruzioni dicono se le registrazioni riservate ci sono", () => {
-    expect(read("LEGGIMI.txt")).toContain("NON sono incluse");
+  it("le istruzioni dicono se ciò che è riservato c'è", () => {
+    expect(read("LEGGIMI.txt")).toContain("NON è incluso");
     const full = buildExport(data, { exportedAt: new Date("2026-10-11T07:00:00Z"), includesSensitive: true });
-    expect(decode(full[0].data)).toContain("sono incluse: tieni questo archivio in un posto sicuro");
+    expect(decode(full[0].data)).toContain("è incluso: tieni questo archivio in un posto sicuro");
   });
 
   it("dà all'archivio il nome con la data", () => {
