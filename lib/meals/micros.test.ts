@@ -14,6 +14,7 @@ const meal = (name: string, slot: MealSlot = "lunch"): MealPlan => ({
   name,
   prep_mode: "ready",
   eaten_out: false,
+  condiments: "",
   prepared: false,
   prepared_at: null,
   reminder_task_id: null,
@@ -80,6 +81,14 @@ describe("daySummary", () => {
     const summary = daySummary([meal("Avanzi", "dinner")], overrides);
     expect(summary.recognized).toBe(1);
     expect(count(summary.nutrients).protein).toBe(1);
+  });
+});
+
+describe("condimenti", () => {
+  it("contano nei micronutrienti del pasto, senza farne un pasto in più", () => {
+    const summary = daySummary([{ ...meal("Farro e tofu"), condiments: "limone" }]);
+    expect(summary.planned).toBe(1);
+    expect(summary.micros.find((r) => r.key === "vitC")?.meals).toBe(1);
   });
 });
 

@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { Sheet } from "@/components/ui/sheet";
 import { addIngredient, ingredientsIn } from "@/lib/meals/ingredients";
-import { NUTRIENTS, NUTRIENT_LABEL, nutrientsOf, recognizeNutrients, sameNutrients, type Overrides } from "@/lib/meals/nutrients";
+import { NUTRIENTS, NUTRIENT_LABEL, listText, nutrientsOf, recognizeNutrients, sameNutrients, type Overrides } from "@/lib/meals/nutrients";
 import { SLOT_LABEL, normalizeMealName } from "@/lib/meals/rules";
 import type { Idea } from "@/lib/meals/suggest";
 import type { PantryEntry } from "@/lib/shopping/pantry";
@@ -60,8 +60,8 @@ export function MealSheet({
   /** I nutrienti già corretti a mano, per nome del piatto. */
   overrides: Overrides;
   /** `nutrients` c'è solo se sono stati corretti: l'elenco scelto, o `null` per tornare a quelli del nome. */
-  onAdd: (name: string, mode: PrepMode, nutrients?: Nutrient[] | null, out?: boolean) => void;
-  onSave: (name: string, out: boolean, nutrients?: Nutrient[] | null) => void;
+  onAdd: (name: string, mode: PrepMode, nutrients?: Nutrient[] | null, out?: boolean, condiments?: string) => void;
+  onSave: (name: string, out: boolean, condiments: string, nutrients?: Nutrient[] | null) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
@@ -80,7 +80,10 @@ export function MealSheet({
   // Scrivendo un nome già noto si riprende la sua modalità abituale, finché non la si cambia a mano.
   const known = suggestions.find((s) => s.name_normalized === normalizeMealName(trimmed));
   const [modeTouched, setModeTouched] = useState(false);
-  const named = ingredientsIn(name, pantry);
+  // Condimenti: facoltativi, fuori dal nome del piatto. Gli extra sono già "fuori pasto e condimenti".
+  const [condiments, setCondiments] = useState(meal?.condiments ?? "");
+  const seasoning = extra ? "" : condiments.replace(/\s+/g, " ").trim();
+  const named = ingredientsIn(`${name}, ${seasoning}`, pantry);
   const unused = pantry.filter((entry) => !named.includes(entry));
   const effectiveMode = !meal && !modeTouched && known ? known.default_prep_mode : mode;
 
@@ -92,6 +95,9 @@ export function MealSheet({
   const wanted = picked && !sameNutrients(picked, recognizeNutrients(trimmed)) ? picked : null;
   const corrected = picked !== null && !(wanted === null ? saved === null : saved !== null && sameNutrients(wanted, saved));
 
+  // Ciò che i condimenti aggiungono a quanto dice già il piatto.
+  const added = recognizeNutrients(seasoning).filter((n) => !nutrients.includes(n));
+
   function toggle(nutrient: Nutrient) {
     setPicked(nutrients.includes(nutrient) ? nutrients.filter((n) => n !== nutrient) : NUTRIENTS.filter((n) => n === nutrient || nutrients.includes(n)));
   }
@@ -99,8 +105,8 @@ export function MealSheet({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!trimmed && !out) return;
-    if (meal) onSave(trimmed, out, corrected ? wanted : undefined);
-    else onAdd(trimmed, out || extra ? "ready" : effectiveMode, corrected ? wanted : undefined, out);
+    if (meal) onSave(trimmed, out, seasoning, corrected ? wanted : undefined);
+    else onAdd(trimmed, out || extra ? "ready" : effectiveMode, corrected ? wanted : undefined, out, seasoning);
   }
 
   return (
@@ -187,7 +193,27 @@ export function MealSheet({
             className={inputClass}
           />
         </Field>
-        {out && !trimmed ? <p className="-mt-2 text-xs text-text-3">Senza piatto il pasto resta segnato, ma non conta nei nutrienti.</p> : null}
+        {out && !trimmed && !seasoning ? <p className="-mt-2 text-xs text-text-3">Senza piatto il pasto resta segnato, ma non conta nei nutrienti.</p> : null}
+        {extra ? null : (
+          <>
+            <Field label="Condimenti (facoltativo)" htmlFor="meal-condiments">
+              <input
+                id="meal-condiments"
+                value={condiments}
+                onChange={(e) => setCondiments(e.target.value)}
+                placeholder="Es. olio, limone"
+                maxLength={200}
+                autoComplete="off"
+                enterKeyHint="done"
+                className={inputClass}
+              />
+            </Field>
+            <p className="-mt-2 text-xs text-text-3">
+              Non entrano nel nome del piatto: contano nei nutrienti e negli ingredienti usati.
+              {added.length > 0 ? ` Aggiungono ${listText(added.map((n) => NUTRIENT_LABEL[n].toLowerCase()))}.` : ""}
+            </p>
+          </>
+        )}
         {extra ? <p className="-mt-2 text-xs text-text-3">Contano nei nutrienti del giorno e della settimana come un pasto in più.</p> : null}
         {unused.length > 0 && !out ? (
           <section className="-mt-1 flex flex-col gap-1.5">
@@ -257,7 +283,11 @@ export function MealSheet({
           ) : (
             <span />
           )}
-          <Button type="submit" variant="primary" disabled={(!trimmed && !out) || (!!meal && trimmed === meal.name && out === meal.eaten_out && !corrected)}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={(!trimmed && !out) || (!!meal && trimmed === meal.name && out === meal.eaten_out && seasoning === meal.condiments && !corrected)}
+          >
             {meal ? "Salva" : "Aggiungi"}
           </Button>
         </div>

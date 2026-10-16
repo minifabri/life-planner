@@ -6,6 +6,7 @@ import {
   addMealOps,
   hideIdeaOp,
   mealDot,
+  mealFoods,
   mealTitle,
   normalizeMealName,
   rememberMealOp,
@@ -16,6 +17,7 @@ import {
   reminderToggledOps,
   removeMealOps,
   renameMealOps,
+  setCondimentsOps,
   setEatenOutOps,
   setModeOps,
   setNutrientsOps,
@@ -117,6 +119,22 @@ describe("pasto → attività", () => {
     w = run(w, setEatenOutOps(w.meals[0], false, NOW));
     expect(w.tasks).toEqual([]);
     expect(w.meals[0]).toMatchObject({ eaten_out: false, prep_mode: "ready", name: "Riso e lenticchie" });
+  });
+
+  it("i condimenti restano fuori dal titolo e dall'attività, ma dicono cosa si è mangiato", () => {
+    let w = run({ meals: [], tasks: [] }, addMealOps({ id: "c", date: "2026-10-12", slot: "lunch", name: "Farro, broccoli e tofu", prep_mode: "to_prep", condiments: "olio, limone" }, "t2", TODAY));
+    expect(w.meals[0]).toMatchObject({ name: "Farro, broccoli e tofu", condiments: "olio, limone" });
+    expect(mealTitle(w.meals[0])).toBe("Farro, broccoli e tofu");
+    expect(mealFoods(w.meals[0])).toBe("Farro, broccoli e tofu, olio, limone");
+    expect(w.tasks[0].notes).toBe("Farro, broccoli e tofu");
+    expect(setCondimentsOps(w.meals[0], "olio, limone")).toEqual([]);
+    w = run(w, setCondimentsOps(w.meals[0], ""));
+    expect(w.meals[0].condiments).toBe("");
+    expect(w.tasks[0].notes).toBe("Farro, broccoli e tofu");
+  });
+
+  it("un pasto senza condimenti li ha vuoti", () => {
+    expect(withMeal("ready").meals[0].condiments).toBe("");
   });
 
   it("un pasto fuori può nascere senza nome, e si legge comunque", () => {

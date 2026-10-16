@@ -125,10 +125,10 @@ export function buildExport(data: ExportData, options: ExportOptions): ZipEntry[
       ]),
   );
   const meals = toCsv(
-    ["Data", "Pasto", "Nome", "Da preparare", "Preparato", "Fuori"],
+    ["Data", "Pasto", "Nome", "Condimenti", "Da preparare", "Preparato", "Fuori"],
     [...data.meal_plans]
       .sort((a, b) => byText("date")(a, b) || SLOT_ORDER.indexOf(text(a.slot)) - SLOT_ORDER.indexOf(text(b.slot)))
-      .map((r) => [text(r.date), SLOT[text(r.slot)] ?? text(r.slot), text(r.name), r.prep_mode === "to_prep", r.prepared === true, r.eaten_out === true]),
+      .map((r) => [text(r.date), SLOT[text(r.slot)] ?? text(r.slot), text(r.name), text(r.condiments), r.prep_mode === "to_prep", r.prepared === true, r.eaten_out === true]),
   );
 
   const appEvents = alive(data.events).filter((e) => e.source === "app") as unknown as EventRow[];

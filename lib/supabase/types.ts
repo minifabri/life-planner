@@ -260,6 +260,8 @@ export type MealPlan = {
   prep_mode: PrepMode;
   /** Mangiato fuori: il nome può essere vuoto, e allora il pasto non conta nei nutrienti. */
   eaten_out: boolean;
+  /** Condimenti ("olio, limone"): contano nei nutrienti e negli ingredienti, ma non stanno nel nome del piatto. Vuoto se non ci sono. */
+  condiments: string;
   prepared: boolean;
   prepared_at: string | null;
   /** Attività "Preparare … di domani" collegata, se esiste ancora. */

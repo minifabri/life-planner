@@ -303,6 +303,7 @@ slot text check in ('breakfast','lunch','snack','dinner','extra'),  -- 'extra': 
 name text not null,                -- vuoto solo per un pasto mangiato fuori
 prep_mode text check in ('ready','to_prep') not null,
 eaten_out boolean default false,
+condiments text not null default '',  -- "olio, limone": fuori dal nome, contano in nutrienti e ingredienti (D66)
 prepared boolean default false, prepared_at timestamptz null,
 reminder_task_id uuid null references tasks on delete set null,
 unique (owner_id, date, slot)
@@ -994,6 +995,12 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Allenamenti: `WorkoutIcon` (muscolo, come il segno del giorno) nelle righe e nei blocchi, spunta quando fatto; `WorkoutMark` diventa un punto arancio nel Mese. Stato da `shownStatus`.
 - Settimana desktop: la zona senza orario riempie lo spazio sopra l'agenda (le griglie orarie dei sette giorni restano allineate), bordo più marcato ed etichetta "senza orario" a sinistra; giorni passati all'80%; dettagli a 12 px in `text-2`. Legenda della barra laterale aggiornata.
 - Criteri: lint, typecheck, test e build; su desktop e iPhone, nei due temi, una settimana con eventi di aree diverse, un allenamento fatto, uno in programma e uno saltato.
+
+**Incremento 31 — Condimenti del pasto** *(16 ottobre 2026, su richiesta di Bibi, D66)*
+- Migrazione `meal_condiments`: colonna `meal_plans.condiments` (testo, vuoto di default, massimo 200 caratteri); `search_all` cerca anche nei condimenti.
+- `mealFoods` (piatto + condimenti) e `setCondimentsOps` in `lib/meals/rules.ts`; `mealNutrients` e `hasFoods` in `lib/meals/nutrients.ts`. Bilancio della settimana, riepilogo del giorno, micronutrienti, ingredienti in casa usati e Idee leggono piatto e condimenti; la correzione a mano dei nutrienti resta del piatto e i condimenti si aggiungono.
+- Foglio del pasto: campo "Condimenti (facoltativo)" sotto il piatto (non per gli extra), con la riga di cosa aggiungono. Nel Giorno e nella Settimana i condimenti stanno nella riga piccola ("Con olio, limone · …"), mai nel titolo né nelle note dell'attività di preparazione. Export CSV: colonna "Condimenti".
+- Criteri: test dei moduli puri; su iPhone e desktop, "Farro, broccoli e tofu" con condimenti "olio, limone" mostra il titolo invariato, i grassi tra i nutrienti, la vitamina C nel riepilogo del giorno, e l'olio in casa risulta usato.
 
 ## 14. Decisioni approvate
 
