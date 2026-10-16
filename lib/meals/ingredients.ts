@@ -1,11 +1,11 @@
 import type { LocalDate } from "../dates/local";
 import { normalizeName } from "../shopping/entry";
 import type { MealPlan } from "../supabase/types";
-import { SLOTS } from "./rules";
+import { SLOTS, mealFoods } from "./rules";
 
 /**
  * Ingredienti in casa riconosciuti nei pasti (D45). I pasti sono testo libero: un ingrediente è "in uso"
- * quando la sua parola principale compare nel nome di un pasto, al singolare o al plurale.
+ * quando la sua parola principale compare nel nome di un pasto o nei suoi condimenti, al singolare o al plurale.
  */
 
 const STOP = new Set(
@@ -45,7 +45,7 @@ export function mealsUsing(ingredient: string, meals: MealPlan[], from: LocalDat
   const key = head(ingredient);
   if (key === undefined) return [];
   return meals
-    .filter((m) => m.date >= from && words(m.name).includes(key))
+    .filter((m) => m.date >= from && words(mealFoods(m)).includes(key))
     .sort((a, b) => a.date.localeCompare(b.date) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
 }
 

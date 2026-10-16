@@ -120,7 +120,7 @@ describe("buildExport", () => {
     ],
     shopping_items: [{ id: "s1", name: "Latte", quantity: "2", department: "Frigo", checked: true, created_at: "2026-10-01T09:00:00Z", deleted_at: null }],
     meal_plans: [
-      { id: "m2", date: "2026-10-12", slot: "dinner", name: "Zuppa", prep_mode: "ready", prepared: false },
+      { id: "m2", date: "2026-10-12", slot: "dinner", name: "Zuppa", condiments: "olio, limone", prep_mode: "ready", prepared: false },
       { id: "m1", date: "2026-10-12", slot: "lunch", name: "Pasta al ragù", prep_mode: "to_prep", prepared: true },
     ],
     events: [
@@ -157,7 +157,7 @@ describe("buildExport", () => {
 
   it("scrive Spesa e Pasti in italiano e in ordine", () => {
     expect(read("csv/spesa.csv")).toBe("﻿Nome,Quantità,Reparto,Presa,Aggiunta il\r\nLatte,2,Frigo,sì,2026-10-01\r\n");
-    expect(read("csv/pasti.csv")).toBe("﻿Data,Pasto,Nome,Da preparare,Preparato,Fuori\r\n2026-10-12,Pranzo,Pasta al ragù,sì,sì,no\r\n2026-10-12,Cena,Zuppa,no,no,no\r\n");
+    expect(read("csv/pasti.csv")).toBe("﻿Data,Pasto,Nome,Condimenti,Da preparare,Preparato,Fuori\r\n2026-10-12,Pranzo,Pasta al ragù,,sì,sì,no\r\n2026-10-12,Cena,Zuppa,\"olio, limone\",no,no,no\r\n");
   });
 
   it("nel calendario vanno solo gli eventi creati nell'app e non eliminati", () => {

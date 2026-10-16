@@ -1,13 +1,13 @@
 import type { LocalDate } from "../dates/local";
 import type { MealMemory, MealPlan, Nutrient } from "../supabase/types";
 import { foodIndex } from "./food-index";
-import { normalizeMealName } from "./rules";
+import { mealFoods, normalizeMealName } from "./rules";
 
 /**
  * Nutrienti dei pasti, riconosciuti dal nome del piatto con un dizionario locale di alimenti.
  * È un'indicazione qualitativa: dice quali nutrienti porta un piatto, non quanti grammi.
- * Ciò che il nome non dice (l'olio del condimento, le quantità) non si può sapere: per questo
- * ogni piatto si può correggere a mano (`meal_memory.nutrients`).
+ * Ciò che il nome non dice (le quantità) non si può sapere: per questo ogni piatto si può correggere
+ * a mano (`meal_memory.nutrients`). I condimenti del pasto (`meal_plans.condiments`) si aggiungono al piatto.
  */
 
 export const NUTRIENTS: Nutrient[] = ["protein", "carbs", "fat", "fiber"];
@@ -66,11 +66,22 @@ export function nutrientsOf(name: string, overrides?: Overrides): Nutrient[] {
   return chosen ? inOrder(new Set(chosen)) : recognizeNutrients(name);
 }
 
+/** I nutrienti di un pasto: quelli del piatto, più quelli dei suoi condimenti. */
+export function mealNutrients(meal: Pick<MealPlan, "name"> & { condiments?: string }, overrides?: Overrides): Nutrient[] {
+  const dish = meal.name ? nutrientsOf(meal.name, overrides) : [];
+  return meal.condiments ? inOrder(new Set([...dish, ...recognizeNutrients(meal.condiments)])) : dish;
+}
+
+/** Il pasto dice cosa si è mangiato: ha un piatto o dei condimenti. Un pasto fuori senza nulla scritto non conta. */
+export function hasFoods(meal: Pick<MealPlan, "name"> & { condiments?: string }): boolean {
+  return !!mealFoods(meal);
+}
+
 export function sameNutrients(a: Nutrient[], b: Nutrient[]): boolean {
   return a.length === b.length && a.every((n) => b.includes(n));
 }
 
-/** Sotto questa quota dei pasti riconosciuti un nutriente è "poco". I grassi stanno più in basso: il condimento non compare nei nomi. */
+/** Sotto questa quota dei pasti riconosciuti un nutriente è "poco". I grassi stanno più in basso: il condimento spesso non si scrive. */
 const LOW_SHARE: Record<Nutrient, number> = { protein: 0.5, carbs: 0.5, fat: 0.25, fiber: 0.5 };
 
 /** Con meno pasti riconosciuti di così non si dà un giudizio. */
@@ -92,9 +103,9 @@ export type Balance = {
   rows: BalanceRow[];
 };
 
-/** Come si distribuiscono i nutrienti nei pasti dei giorni dati. Gli extra contano come un pasto; un pasto fuori senza nome non conta. */
+/** Come si distribuiscono i nutrienti nei pasti dei giorni dati. Gli extra contano come un pasto; un pasto fuori senza nulla scritto non conta. */
 export function weekBalance(meals: MealPlan[], days: LocalDate[], overrides?: Overrides): Balance {
-  const inWeek = meals.filter((m) => m.name && days.includes(m.date)).map((m) => ({ date: m.date, nutrients: nutrientsOf(m.name, overrides) }));
+  const inWeek = meals.filter((m) => hasFoods(m) && days.includes(m.date)).map((m) => ({ date: m.date, nutrients: mealNutrients(m, overrides) }));
   const recognized = inWeek.filter((m) => m.nutrients.length > 0).length;
   const rows = NUTRIENTS.map((nutrient) => {
     const perDay = days.map((d) => inWeek.filter((m) => m.date === d && m.nutrients.includes(nutrient)).length);
