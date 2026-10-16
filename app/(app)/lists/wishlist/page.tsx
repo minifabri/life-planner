@@ -96,16 +96,16 @@ export default function WishlistPage() {
       <PageHeader eyebrow="Liste" title="Wishlist" />
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={() => setEditing("new")}>
+        <Button variant="primary" onClick={() => setEditing("new")} tour="wishlist-add">
           Aggiungi
         </Button>
-        <Button onClick={() => setImporting(true)}>Incolla da testo</Button>
+        <Button onClick={() => setImporting(true)} tour="wishlist-import">Incolla da testo</Button>
       </div>
 
-      <Segmented label="Stato" value={status} options={STATUSES} onChange={setStatus} />
+      <Segmented label="Stato" value={status} options={STATUSES} onChange={setStatus} tour="wishlist-filters" />
 
       {categories.length > 0 ? (
-        <div role="group" aria-label="Categoria" className="-mx-5 flex gap-1.5 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
+        <div role="group" aria-label="Categoria" data-tour="wishlist-filters" className="-mx-5 flex gap-1.5 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
           <button type="button" aria-pressed={!activeCategory} onClick={() => setCategory(null)} className={chip(!activeCategory)}>
             Tutte
           </button>

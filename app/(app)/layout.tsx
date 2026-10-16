@@ -8,6 +8,7 @@ import { SyncManager } from "@/components/data/sync-manager";
 import { CaptureProvider } from "@/components/capture/capture-provider";
 import { SearchProvider } from "@/components/search/search-provider";
 import { AppShell } from "@/components/shell/app-shell";
+import { TourProvider } from "@/components/tour/tour-provider";
 import { ToastProvider } from "@/components/ui/toast";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -32,7 +33,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <SyncManager />
         <CaptureProvider>
           <SearchProvider>
-            <AppShell>{children}</AppShell>
+            <TourProvider>
+              <AppShell>{children}</AppShell>
+            </TourProvider>
           </SearchProvider>
         </CaptureProvider>
       </ToastProvider>

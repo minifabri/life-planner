@@ -8,7 +8,7 @@
 - Next.js 16.4 con Cache Components: verifica le API nella documentazione in `node_modules/next/dist/docs/` prima di usarle.
 
 ## Regole
-- Lingua dell'interfaccia e dei testi: italiano.
+- Lingua dell'interfaccia e dei testi: italiano, neutro rispetto al genere: chi usa l'app può essere chiunque. Niente "Benvenuta/o", "sei pronta/o" e simili; si scrive "Ti diamo il benvenuto", "Puoi iniziare".
 - Dati: il client parla con Supabase via `lib/supabase/client.ts`; ogni tabella ha RLS con `owner_id = auth.uid()`. Ogni nuova tabella deve avere RLS e le quattro policy, come in `supabase/migrations/20261009140000_init_schema.sql`.
 - Migrazioni: un file SQL per modifica in `supabase/migrations/`, poi applicato al progetto `life-planner` (id `hvliluilwazzcphukyjn`). Dopo ogni modifica DDL controlla gli advisor di sicurezza.
 - Segreti: mai nel codice né con prefisso `NEXT_PUBLIC_` (tranne URL e chiave publishable di Supabase e chiave VAPID pubblica). I segreti server vivono in Supabase Vault.

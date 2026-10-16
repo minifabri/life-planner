@@ -30,10 +30,10 @@ import type { MealPlan, MealSlot, Nutrient, PrepMode } from "@/lib/supabase/type
 
 type View = "day" | "week" | "ideas";
 
-const VIEWS: { value: View; label: string }[] = [
+const VIEWS: { value: View; label: string; tour?: string }[] = [
   { value: "day", label: "Giorno" },
-  { value: "week", label: "Settimana" },
-  { value: "ideas", label: "Idee" },
+  { value: "week", label: "Settimana", tour: "meals-week" },
+  { value: "ideas", label: "Idee", tour: "meals-ideas" },
 ];
 
 const MODES: { value: PrepMode; label: string }[] = [
@@ -242,7 +242,7 @@ export default function MealsPage() {
         <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onLess={lessIdea} onHide={hideIdea} />
       ) : (
         <>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2" data-tour="meals-slots">
           {SLOTS.map((slot) => {
             const meal = mealAt(day, slot);
             return (

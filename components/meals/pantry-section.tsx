@@ -73,7 +73,7 @@ export function PantrySection({ uses, today, onFinish }: { uses: PantryUse[]; to
   };
 
   return (
-    <section className="flex flex-col">
+    <section className="flex flex-col" data-tour="meals-pantry">
       <h2>
         <button
           type="button"

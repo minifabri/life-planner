@@ -15,6 +15,8 @@ export type Profile = {
   weather_city: string | null;
   weather_lat: number | null;
   weather_lon: number | null;
+  /** Tour guidati già visti o saltati (lib/tour/tour.ts). */
+  tours_seen: string[];
 } & NotificationPrefs;
 
 /** Preferenze delle notifiche (technical-design.md, 7.2). Gli orari sono "HH:mm:ss". */
