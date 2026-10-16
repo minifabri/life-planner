@@ -108,7 +108,9 @@ const DATE = words(
 
 const WINDOW = words(
   `entro\\s+(?:(?<wn>${NUM})\\s+(?<wunit>giorni|giorno|settimane|settimana|mesi|mese)|(?:il\\s+|l['’]\\s*|la\\s+)?(?:${DATE_CORE}|(?<bare>\\d{1,2})))` +
-    `|(?:entro\\s+|a\\s+|per\\s+)?(?:la\\s+)?fine\\s+(?:del\\s+|della\\s+|dell['’]\\s*)?(?<fine>mese|settimana|anno)`,
+    `|(?:entro\\s+|a\\s+|per\\s+)?(?:la\\s+|il\\s+|questo\\s+)?fine\\s+(?:del\\s+|della\\s+|dell['’]\\s*)?(?<fine>mese|settimana|anno)` +
+    // "entro il weekend", "entro questo week-end", "entro il prossimo weekend": la domenica.
+    `|entro\\s+(?:il\\s+|lo\\s+|questo\\s+)?(?<wknext>prossimo\\s+)?(?<wkend>week-?end)(?<wknext2>\\s+prossimo)?`,
 );
 
 const TIME = words(
@@ -220,6 +222,11 @@ function readDate(g: Record<string, string | undefined>, today: LocalDate): Date
     const wd = weekdayOf(g.wd);
     const next = nextWeekday(today, wd);
     return { date: next, past: isoWeekday(today) === wd ? today : addDays(next, -7) };
+  }
+
+  if (g.wkend) {
+    const date = g.wknext || g.wknext2 ? addDays(endOfWeek(today), 7) : endOfWeek(today);
+    return { date, past: date };
   }
 
   if (g.fine) {

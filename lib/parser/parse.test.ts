@@ -141,6 +141,11 @@ const SUITE: [string, Expected][] = [
   ["sistemare l'armadio entro 3 giorni", { kind: "task", title: "Sistemare l'armadio", windowEnd: "2026-10-13" }],
   ["riordinare la cantina entro fine settimana", { kind: "task", title: "Riordinare la cantina", windowEnd: "2026-10-11" }],
   ["parrucchiere entro fine mese", { kind: "task", title: "Parrucchiere", windowEnd: "2026-10-31", categoryId: "parrucchiere" }],
+  ["entro mercoledì comprare le lampadine", { kind: "task", title: "Comprare le lampadine", windowEnd: "2026-10-14" }],
+  ["entro il weekend fare il cambio di stagione", { kind: "task", title: "Fare il cambio di stagione", windowEnd: "2026-10-11" }],
+  ["cambio di stagione entro il fine settimana", { kind: "task", title: "Cambio di stagione", windowEnd: "2026-10-11" }],
+  ["lavare le tende entro questo week-end", { kind: "task", title: "Lavare le tende", windowEnd: "2026-10-11" }],
+  ["entro il prossimo weekend sistemare il balcone", { kind: "task", title: "Sistemare il balcone", windowEnd: "2026-10-18" }],
 
   // Evento o attività
   ["Parrucchiere giovedì alle 10", { kind: "event", title: "Parrucchiere", date: "2026-10-15", time: "10:00", categoryId: "parrucchiere" }],

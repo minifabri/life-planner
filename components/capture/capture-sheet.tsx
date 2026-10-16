@@ -21,7 +21,14 @@ const KINDS: CaptureKind[] = ["task", "event", "workout", "shopping", "wishlist"
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 const NEXT_ATTENTION: Record<Attention, Attention> = { low: "medium", medium: "high", high: "low" };
 const ATTENTION_LABEL: Record<Attention, string> = { low: "bassa", medium: "media", high: "alta" };
-const EXAMPLES = ["domani alle 20 mettere in ammollo i ceci", "dentista martedì alle 15", "corsa domani 45 min", "comprare tofu"];
+const EXAMPLES = [
+  "domani alle 20 mettere in ammollo i ceci",
+  "dentista martedì alle 15",
+  "entro il weekend fare il cambio di stagione",
+  "compleanno Marta 12 ottobre",
+  "corsa domani 45 min",
+  "comprare tofu",
+];
 const PREFIXES = ["spesa:", "wish:", "log:"];
 
 /** I chip non rubano il fuoco al campo di testo: su iPhone la tastiera resta aperta. */
