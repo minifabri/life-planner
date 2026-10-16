@@ -40,6 +40,7 @@ export type WardrobeInput = Pick<
   | "status"
   | "favorite"
   | "notes"
+  | "image_url"
 >;
 
 export async function createWardrobeItem(input: WardrobeInput): Promise<string> {
