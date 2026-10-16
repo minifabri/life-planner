@@ -13,7 +13,7 @@
 - Migrazioni: un file SQL per modifica in `supabase/migrations/`, poi applicato al progetto `life-planner` (id `hvliluilwazzcphukyjn`). Dopo ogni modifica DDL controlla gli advisor di sicurezza.
 - Segreti: mai nel codice né con prefisso `NEXT_PUBLIC_` (tranne URL e chiave publishable di Supabase e chiave VAPID pubblica). I segreti server vivono in Supabase Vault.
 - Cibo: tutto ciò che l'app propone di suo (piatti, esempi, testi) è vegano, per chiunque la usi. Niente carne, pesce, uova, latticini o miele.
-- Design: usa i token di `app/globals.css` (design system v0.1). Viola pieno solo per l'azione principale, oro solo per attenzione alta, aree come punto da 6 px.
+- Design: usa i token di `app/globals.css` (design system v0.1). Viola pieno solo per l'azione principale, oro solo per attenzione alta. Aree come punto da 6 px, tranne i blocchi degli eventi (sfumatura e striscia dell'area, `.area-tint`, D64). Arancio `--workout` solo per gli allenamenti.
 - Accessibilità: target ≥ 44 px, elementi interattivi reali (`button`, `a`, `input` con `label`), rispetto di `prefers-reduced-motion`.
 - Logica complessa (parser, date, ricorrenze, regole pasti) in moduli puri in `lib/` con test Vitest.
 - Prima di dichiarare finito: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verdi, e verifica su iPhone (PWA installata) e desktop.

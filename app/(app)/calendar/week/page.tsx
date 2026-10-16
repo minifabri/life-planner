@@ -16,7 +16,7 @@ import { canMoveEvent, dayHighlights, freeLabel, moveEventPatch, periodTasks, we
 import { addDays, dueLabel, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
-import { WorkoutMark } from "@/components/workouts/workout-row";
+import { WorkoutIcon } from "@/components/workouts/workout-row";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
 import { useTimezone, useToday } from "@/lib/data/hooks";
 import { updateTask } from "@/lib/data/api";
@@ -154,15 +154,15 @@ export default function WeekPage() {
                               <Diamond label={item.deadline ? "Scadenza" : "Importante"} />
                             ) : item.kind === "workout" ? (
                               <>
-                                <WorkoutMark />
-                                <span className="sr-only">Allenamento</span>
+                                {item.done ? <Icon name="check" size={13} strokeWidth={2.2} className="shrink-0 text-workout" /> : <WorkoutIcon size={12} />}
+                                <span className="sr-only">{item.done ? "Allenamento fatto" : "Allenamento"}</span>
                               </>
                             ) : item.kind === "event" ? (
                               <AreaDot area={areaById.get(item.areaId ?? "")} fallback />
                             ) : (
                               <span aria-hidden className="size-2 shrink-0 rounded-full border-[1.3px] border-text-3" />
                             )}
-                            <span className={`min-w-0 truncate ${item.done ? "text-text-3 line-through" : gold ? "text-gold" : item.kind === "event" ? "text-text" : "text-text-2"}`}>
+                            <span className={`min-w-0 truncate ${item.done ? (item.kind === "workout" ? "text-text-2" : "text-text-3 line-through") : gold ? "text-gold" : item.kind === "event" ? "text-text" : "text-text-2"}`}>
                               {item.title}
                             </span>
                           </span>
