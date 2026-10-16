@@ -995,7 +995,7 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Settimana desktop: la zona senza orario riempie lo spazio sopra l'agenda (le griglie orarie dei sette giorni restano allineate), bordo più marcato ed etichetta "senza orario" a sinistra; giorni passati all'80%; dettagli a 12 px in `text-2`. Legenda della barra laterale aggiornata.
 - Criteri: lint, typecheck, test e build; su desktop e iPhone, nei due temi, una settimana con eventi di aree diverse, un allenamento fatto, uno in programma e uno saltato.
 
-**Incremento 31 — Tour guidato** *(16 ottobre 2026, su richiesta di Bibi, D65)*
+**Incremento 31 — Tour guidato** *(16 ottobre 2026, su richiesta di Bibi, D66)*
 - Migrazione `tours_seen`: colonna `profiles.tours_seen text[]` con gli id dei tour visti o saltati (`intro`; poi uno per sezione). Resta sotto la RLS del profilo.
 - `lib/tour/tour.ts` (puro, con test): passi del tour iniziale, `withSeen`/`hasSeen`, `visibleSteps` (salta i passi il cui elemento non è visibile: lo stesso elenco vale per iPhone e desktop), `unionRect` (più elementi in un solo riflettore, es. le quattro liste della barra laterale) e `placeCard` (fumetto a destra della barra laterale, altrimenti sotto o sopra l'elemento, sempre dentro lo schermo).
 - `lib/data/tour.ts`: `markTourSeen` aggiorna subito la cache del profilo e poi Supabase; se il salvataggio non riesce (offline) il tour resta segnato sul dispositivo (`tours-seen-pending` in localStorage) e si riprova al prossimo avvio con `flushPendingTours`.
@@ -1003,7 +1003,7 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Criteri: lint, typecheck, test e build; su iPhone e desktop il tour parte al primo accesso, Salta e Ho capito non lo fanno ricomparire (nemmeno sull'altro dispositivo), "Rivedi il tour" funziona.
 - **Seguito** (incremento 32): tour di sezione (Calendario, Liste, Log…), con un id ciascuno in `TOURS` e partenza alla prima apertura della sezione.
 
-**Incremento 32 — Tour di sezione** *(16 ottobre 2026, su richiesta di Bibi, D65)*
+**Incremento 32 — Tour di sezione** *(16 ottobre 2026, su richiesta di Bibi, D66)*
 - `lib/tour/tour.ts`: sei tour brevi in `TOURS`, con id `calendar`, `shopping`, `meals`, `wishlist`, `wardrobe`, `log` e nome in `TOUR_LABEL`. Ognuno ha da 2 a 4 passi, tutti su un elemento vero:
   - **Calendario**: viste Giorno/Settimana/Mese; trascinare per spostare (desktop) o toccare un giorno e "+" (iPhone); i segni, cioè la legenda della barra laterale su desktop e l'elenco dei giorni su iPhone;
   - **Spesa**: scrivere come si parla, *Compri spesso*, spunta e tre puntini;

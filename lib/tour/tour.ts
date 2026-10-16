@@ -1,5 +1,5 @@
 /**
- * Tour guidato (D65): passi, stato "già visto" e posizione del fumetto.
+ * Tour guidato (D66): passi, stato "già visto" e posizione del fumetto.
  * Logica pura; il componente in `components/tour/` misura gli elementi e disegna.
  */
 

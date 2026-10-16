@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IdeasView } from "@/components/wardrobe/ideas-view";
 import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
+import { OffSeasonToggle } from "@/components/wardrobe/off-season";
 import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
 import { PlanList } from "@/components/wardrobe/plan-list";
@@ -26,6 +27,7 @@ import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categ
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
 import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
 import { resolvePlan, upcomingPlans, type ResolvedPlan } from "@/lib/wardrobe/plans";
+import { splitBySeason } from "@/lib/wardrobe/season";
 import { itemUsage, timesLabel } from "@/lib/wardrobe/stats";
 import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
 import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
@@ -43,6 +45,8 @@ const chip = (active: boolean) =>
   `flex min-h-11 shrink-0 items-center rounded-xl border px-3 text-[13px] transition-colors capitalize ${
     active ? "border-line-2 bg-surface-2 text-text" : "border-line text-text-2 hover:text-text"
   }`;
+
+const ITEM_GRID = "grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4";
 
 function toggleIn(list: string[] | undefined, value: string): string[] {
   const set = new Set(list ?? []);
@@ -104,11 +108,25 @@ export default function WardrobePage() {
 
   const [filters, setFilters] = useState<WardrobeFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [showOffSeason, setShowOffSeason] = useState(false);
   const [editing, setEditing] = useState<WardrobeItem | "new" | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const visible = filterWardrobe(items, filters);
+  // Prima i capi di stagione, gli altri a un tocco. Se cerchi o scegli tu la stagione, si vede tutto insieme.
+  const bySeason = filters.text || filters.seasons?.length ? { current: visible, other: [] } : splitBySeason(visible, today);
+  const offSeasonOpen = showOffSeason || bySeason.current.length === 0;
+  const tile = (item: WardrobeItem) => (
+    <WardrobeTile
+      key={item.id}
+      item={item}
+      selecting={selecting}
+      selected={selected.has(item.id)}
+      onOpen={() => setEditing(item)}
+      onToggleSelect={() => toggleSelected(item.id)}
+    />
+  );
   const visibleOutfits = filterOutfits(outfits, filters.text ?? "");
   const activeQuery = view === "outfits" ? outfitsQuery : query;
   const anchor = items.find((i) => i.id === anchorId) ?? null;
@@ -429,18 +447,17 @@ export default function WardrobePage() {
               hint="Aggiungi un capo con una foto, o solo con nome e categoria: il resto si completa dopo."
             />
           ) : (
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {visible.map((item) => (
-                <WardrobeTile
-                  key={item.id}
-                  item={item}
-                  selecting={selecting}
-                  selected={selected.has(item.id)}
-                  onOpen={() => setEditing(item)}
-                  onToggleSelect={() => toggleSelected(item.id)}
-                />
-              ))}
-            </ul>
+            <>
+              {bySeason.current.length > 0 ? <ul className={ITEM_GRID}>{bySeason.current.map(tile)}</ul> : null}
+              {bySeason.other.length > 0 && bySeason.current.length > 0 ? (
+                <OffSeasonToggle count={bySeason.other.length} open={offSeasonOpen} controls="wardrobe-off-season" onToggle={() => setShowOffSeason(!offSeasonOpen)} />
+              ) : null}
+              {offSeasonOpen && bySeason.other.length > 0 ? (
+                <ul id="wardrobe-off-season" aria-label="Fuori stagione" className={ITEM_GRID}>
+                  {bySeason.other.map(tile)}
+                </ul>
+              ) : null}
+            </>
           )}
         </>
       ) : view === "stats" ? (

@@ -4,12 +4,14 @@ import { useState } from "react";
 import { Button, Field, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
+import { OffSeasonToggle } from "@/components/wardrobe/off-season";
 import { WardrobePhoto } from "@/components/wardrobe/photo";
 import type { OutfitInput } from "@/lib/data/outfits";
 import { relativeDay, type LocalDate } from "@/lib/dates/local";
 import { CATEGORY_LABEL, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
 import { distinctValues } from "@/lib/wardrobe/list";
 import { replaceItem, resolveItems, suggestOutfitTags, toggleItem, wearsOf } from "@/lib/wardrobe/outfits";
+import { splitBySeason } from "@/lib/wardrobe/season";
 import type { Outfit, WardrobeItem, WardrobeWear } from "@/lib/supabase/types";
 
 type Tags = Pick<Outfit, "styles" | "occasions" | "seasons">;
@@ -100,6 +102,7 @@ export function OutfitSheet({
   const [showMore, setShowMore] = useState(false);
   const [picking, setPicking] = useState<Picking | null>(!outfit && initialItemIds.length === 0 ? { mode: "add" } : null);
   const [pickCategory, setPickCategory] = useState<string | null>(null);
+  const [showOffSeason, setShowOffSeason] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -144,6 +147,22 @@ export function OutfitSheet({
     const replaced = picking.mode === "replace" ? items.find((i) => i.id === picking.id) : null;
     const categories = distinctValues(items, (i) => [i.category]);
     const candidates = items.filter((i) => !pickCategory || i.category === pickCategory).filter((i) => i.id !== replaced?.id);
+    // Prima i capi di stagione; gli altri restano a un tocco, e si vedono subito se non c'è altro.
+    const { current, other } = splitBySeason(candidates, today);
+    const offSeasonOpen = showOffSeason || current.length === 0;
+    const tile = (item: WardrobeItem) => {
+      const included = itemIds.includes(item.id);
+      const label = item.name ?? CATEGORY_LABEL[item.category];
+      return (
+        <BoardTile
+          key={item.id}
+          item={item}
+          label={picking.mode === "replace" ? `Usa: ${label}` : `${included ? "Togli" : "Aggiungi"}: ${label}`}
+          pressed={picking.mode === "add" ? included : undefined}
+          onClick={() => pick(item.id)}
+        />
+      );
+    };
     return (
       <Sheet title={replaced ? "Sostituisci capo" : "Scegli i capi"} isOpen onClose={onClose}>
         <div className="flex flex-col gap-4">
@@ -175,21 +194,19 @@ export function OutfitSheet({
           {candidates.length === 0 ? (
             <p className="py-6 text-center text-sm text-text-3">{items.length === 0 ? "Il guardaroba è vuoto: aggiungi prima qualche capo." : "Nessun capo in questa categoria."}</p>
           ) : (
-            <ul className="grid grid-cols-3 gap-2">
-              {candidates.map((item) => {
-                const included = itemIds.includes(item.id);
-                const label = item.name ?? CATEGORY_LABEL[item.category];
-                return (
-                  <BoardTile
-                    key={item.id}
-                    item={item}
-                    label={picking.mode === "replace" ? `Usa: ${label}` : `${included ? "Togli" : "Aggiungi"}: ${label}`}
-                    pressed={picking.mode === "add" ? included : undefined}
-                    onClick={() => pick(item.id)}
-                  />
-                );
-              })}
-            </ul>
+            <>
+              {current.length > 0 ? <ul className="grid grid-cols-3 gap-2">{current.map(tile)}</ul> : null}
+              {other.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {current.length > 0 ? <OffSeasonToggle count={other.length} open={offSeasonOpen} controls="outfit-off-season" onToggle={() => setShowOffSeason(!offSeasonOpen)} /> : null}
+                  {offSeasonOpen ? (
+                    <ul id="outfit-off-season" aria-label="Fuori stagione" className="grid grid-cols-3 gap-2">
+                      {other.map(tile)}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
           )}
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm text-text-2">{itemIds.length === 1 ? "1 capo" : `${itemIds.length} capi`}</span>

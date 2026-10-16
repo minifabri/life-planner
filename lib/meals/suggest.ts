@@ -1,5 +1,6 @@
 import { addDays, diffDays, type LocalDate } from "../dates/local";
 import type { DaySign } from "../days/marks";
+import { isInSeason, produceIn } from "../shopping/seasonal";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { DISHES } from "./dishes";
 import { ingredientsIn, words } from "./ingredients";
@@ -10,13 +11,13 @@ import { normalizeMealName } from "./rules";
  * Idee per i pasti: regole locali, deterministiche e spiegabili, senza servizi esterni.
  * Propone i piatti già usati in quel momento della giornata e alcuni piatti nuovi (`DISHES`),
  * ordinati da ciò che manca nella settimana e nel giorno, dagli ingredienti in casa da usare,
- * dalla varietà rispetto ai giorni vicini, dall'abitudine e dal tipo di giorno. Tra i piatti nuovi contano
+ * dalla varietà rispetto ai giorni vicini, dall'abitudine, dal tipo di giorno e dalla stagione di frutta e verdura. Tra i piatti nuovi contano
  * anche la somiglianza con ciò che si mangia di solito e un giro settimanale, così non sono sempre gli stessi.
  */
 
-export type Factor = "balance" | "pantry" | "variety" | "habit" | "day" | "taste" | "fresh";
+export type Factor = "balance" | "pantry" | "variety" | "habit" | "day" | "season" | "taste" | "fresh";
 
-export const WEIGHTS: Record<Factor, number> = { balance: 3, pantry: 2, variety: 2, habit: 2, day: 1, taste: 1, fresh: 1 };
+export const WEIGHTS: Record<Factor, number> = { balance: 3, pantry: 2, variety: 2, habit: 2, day: 1, season: 2, taste: 1, fresh: 1 };
 
 export type IdeaData = {
   memory: MealMemory[];
@@ -109,6 +110,9 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
     const gaps = others.filter((m) => normalizeMealName(m.name) === c.key).map((m) => Math.abs(diffDays(m.date, ctx.day)));
     const protein = nutrients.includes("protein");
     const foods = words(c.name);
+    // Frutta e verdura con una stagione: un piatto con prodotti fuori stagione scende, non sparisce.
+    const produce = produceIn(c.name);
+    const seasonal = produce.filter((p) => isInSeason(p, ctx.day));
     const familiar = c.uses > 0 || usualFoods.size === 0 || foods.length === 0 ? null : foods.filter((w) => usualFoods.has(w)).length / foods.length;
 
     const factors: Record<Factor, number> = {
@@ -117,6 +121,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
       variety: varietyScore(gaps.length ? Math.min(...gaps) : undefined),
       habit: c.uses > 0 ? 0.6 + 0.4 * Math.min(1, c.uses / 5) : 0.4,
       day: workout ? (protein ? 1 : 0.3) : office ? (c.mode === "to_prep" ? 1 : 0.4) : 0.5,
+      season: produce.length === 0 ? 0.5 : seasonal.length / produce.length,
       // Solo per i piatti nuovi: tra gli abituali decide già l'abitudine.
       taste: familiar === null ? 0.5 : 0.2 + 0.8 * familiar,
       fresh: c.uses > 0 ? 0.5 : turn(`${ctx.weekFrom}:${ctx.slot}:${c.key}`),
@@ -130,6 +135,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
       inHouse.length > 0 ? `Usa ${listText(inHouse.map((i) => i.name.toLowerCase()))}, che hai in casa` : null,
       bringsLow.length > 0 ? `Porta ${labels(bringsLow)}, che scarseggiano nella settimana` : null,
       completes.length > 0 ? `Completa il giorno con ${labels(completes)}` : null,
+      seasonal.length > 0 && seasonal.length === produce.length ? `Di stagione: ${listText(seasonal.map((p) => p.name.toLowerCase()))}` : null,
       workout && protein && !bringsLow.includes("protein") && !completes.includes("protein") ? "Proteine nel giorno di allenamento" : null,
       office && c.mode === "to_prep" ? "Si prepara prima, per il giorno in ufficio" : null,
       familiar !== null && familiar >= 0.5 ? "Con ingredienti che usi spesso" : null,

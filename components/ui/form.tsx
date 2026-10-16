@@ -25,7 +25,7 @@ export function Segmented<T extends string>({
 }: {
   label: string;
   value: T;
-  /** `tour`: valore di `data-tour` del pulsante, per il tour di sezione (D65). */
+  /** `tour`: valore di `data-tour` del pulsante, per il tour di sezione (D66). */
   options: { value: T; label: string; tour?: string }[];
   onChange: (value: T) => void;
   /** Valore di `data-tour` del gruppo. */
@@ -66,7 +66,7 @@ export function Button({
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
-  /** Valore di `data-tour`, per il tour di sezione (D65). */
+  /** Valore di `data-tour`, per il tour di sezione (D66). */
   tour?: string;
 }) {
   const styles = {
