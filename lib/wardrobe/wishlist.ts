@@ -18,7 +18,42 @@ export function guessGarment(name: string): WardrobeCategory | null {
   return GARMENT_RULES.find((rule) => rule.match.test(name))?.garment ?? null;
 }
 
-type WishGarment = Pick<WishlistItem, "id" | "name" | "brand" | "image_url" | "notes"> & Partial<Pick<WishlistItem, "garment" | "colors" | "styles">>;
+/** Parole di colore (italiano e inglese, come nei titoli dei negozi) e il colore della palette che indicano. */
+const COLOR_RULES: { match: RegExp; color: string }[] = [
+  { match: /azzurr[oaie]|celest[ei]|light blue|sky blue/, color: "azzurro" },
+  { match: /ner[oaie]|black/, color: "nero" },
+  { match: /bianc[oa]|bianch[ie]|white|panna|avorio|ivory|cream/, color: "bianco" },
+  { match: /grigi[oae]?|grey|gray|antracite/, color: "grigio" },
+  { match: /beige|cammello|camel|sabbia|sand|nude|taupe/, color: "beige" },
+  { match: /marron[ei]|brown|cuoio|cognac|tabacco|moka/, color: "marrone" },
+  { match: /blu|blue|navy|denim/, color: "blu" },
+  { match: /verd[ei]|green|oliva|olive|kaki|khaki|militare/, color: "verde" },
+  { match: /giall[oaie]|yellow|senape|mustard/, color: "giallo" },
+  { match: /arancion[ei]|arancio|orange/, color: "arancione" },
+  { match: /bordeaux|bordò|burgundy|vinaccia/, color: "bordeaux" },
+  { match: /ross[oaie]|red/, color: "rosso" },
+  { match: /rosa|pink|cipria/, color: "rosa" },
+  { match: /lilla|lilac|lavanda|lavender|viola|purple/, color: "lilla" },
+  { match: /oro|dorat[oaie]|gold(?:en)?/, color: "oro" },
+  { match: /argento|argentat[oaie]|silver/, color: "argento" },
+];
+
+/** I colori nominati in un testo (es. il titolo di una pagina prodotto). Solo parole intere: "Rossetti" non è rosso. */
+export function colorsFromText(text: string): string[] {
+  let rest = ` ${text.toLowerCase()} `;
+  const found: string[] = [];
+  for (const rule of COLOR_RULES) {
+    const whole = new RegExp(`(?<![\\p{L}])(?:${rule.match.source})(?![\\p{L}])`, "giu");
+    if (rest.search(whole) >= 0) {
+      if (!found.includes(rule.color)) found.push(rule.color);
+      // "Light blue" è azzurro: tolta la parola, non conta anche come blu.
+      rest = rest.replace(whole, " ");
+    }
+  }
+  return found;
+}
+
+type WishGarment =Pick<WishlistItem, "id" | "name" | "brand" | "image_url" | "notes"> & Partial<Pick<WishlistItem, "garment" | "colors" | "styles">>;
 
 /** Il capo da creare quando un articolo della wishlist entra nel guardaroba: niente da reinserire a mano. */
 export function wardrobeRowFromWish(wish: WishGarment) {

@@ -6,9 +6,13 @@ import { Icon } from "@/components/ui/icon";
 import { Sheet } from "@/components/ui/sheet";
 import { CategoryIcon } from "@/components/wardrobe/category-icon";
 import { WardrobePhoto } from "@/components/wardrobe/photo";
+import { useOffline } from "@/lib/data/hooks";
+import { fetchLinkMetadata } from "@/lib/data/wishlist";
 import { suggestDefaults } from "@/lib/wardrobe/catalog";
 import { suggestName } from "@/lib/wardrobe/colors";
 import { detectColors } from "@/lib/wardrobe/image";
+import { colorsFromText, guessGarment } from "@/lib/wardrobe/wishlist";
+import { failureMessage } from "@/lib/wishlist/metadata";
 import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUSES, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
 import type { WardrobeCategory, WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
 import type { WardrobeInput } from "@/lib/data/wardrobe";
@@ -87,6 +91,12 @@ export function ItemSheet({
   const [subcategoryAuto, setSubcategoryAuto] = useState(!item);
   const [looking, setLooking] = useState<"first" | "again" | null>(null);
   const [seen, setSeen] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  // L'immagine del negozio, se il capo arriva da un link: resta finché non c'è una foto propria.
+  const [image, setImage] = useState(item?.image_url ?? "");
+  const [fetching, setFetching] = useState(false);
+  const [linkNote, setLinkNote] = useState<string | null>(null);
+  const offline = useOffline();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -166,6 +176,65 @@ export function ItemSheet({
     });
   }
 
+  const link = url.trim();
+  const validLink = /^https?:\/\/\S+\.\S+/i.test(link);
+
+  /** Come nella wishlist: dalla pagina del prodotto nome, marca e immagine; dal titolo tipo di capo e colori. Si riempie solo ciò che non hai scelto tu. */
+  async function recover() {
+    setFetching(true);
+    setLinkNote(null);
+    try {
+      const reply = await fetchLinkMetadata(link);
+      if (!reply.ok) {
+        setLinkNote(failureMessage(reply.reason));
+        return;
+      }
+      const meta = reply.metadata;
+      const now = live.current;
+      const title = meta.title ?? "";
+      const filled: string[] = [];
+      if (meta.image && !image) {
+        setImage(meta.image);
+        filled.push("immagine");
+      }
+      if (meta.brand && !brand.trim()) {
+        setBrand(meta.brand);
+        // La marca sta negli altri dettagli: si aprono, così si vede cosa è arrivato.
+        setShowMore(true);
+        filled.push("marca");
+      }
+      const garment = guessGarment(title);
+      const nextCategory = now.categoryAuto && garment ? garment : now.category;
+      if (nextCategory !== now.category) {
+        setCategory(nextCategory);
+        setSubcategory(now.subcategoryAuto ? "" : now.subcategory);
+        filled.push("categoria");
+      }
+      const found = colorsFromText(title);
+      if (now.colorsAuto && found.length > 0) {
+        setColors(found);
+        setColorsAuto(false);
+        setDetected(false);
+        filled.push("colori");
+      }
+      if (title && (now.nameAuto || !now.name.trim())) {
+        setName(title);
+        setNameAuto(false);
+        filled.push("nome");
+      }
+      if (now.autoFilled) applySuggestion(nextCategory, `${title || now.name} ${now.subcategory}`);
+      setLinkNote(
+        filled.length
+          ? `Dal link: ${filled.join(", ")}.${reply.missing.length ? ` Non ${reply.missing.length === 1 ? "è arrivato" : "sono arrivati"}: ${reply.missing.join(", ")}.` : ""} Controlla e correggi se serve.`
+          : "La pagina è stata letta, ma non ha aggiunto nulla: completa a mano.",
+      );
+    } catch {
+      setLinkNote("Per leggere il link serve la connessione.");
+    } finally {
+      setFetching(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -185,6 +254,7 @@ export function ItemSheet({
       status,
       favorite,
       notes: notes.trim() || null,
+      image_url: image || null,
       photo,
     });
     if (!ok) {
@@ -208,6 +278,9 @@ export function ItemSheet({
               <img src={photoPreview} alt="" className="size-full object-cover" />
             ) : item ? (
               <WardrobePhoto item={item} />
+            ) : image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image} alt="" className="size-full object-cover" />
             ) : (
               <CategoryIcon category={category} />
             )}
@@ -235,6 +308,25 @@ export function ItemSheet({
             <span className="text-xs text-text-3">Facoltativa: si può aggiungere anche dopo.</span>
           </div>
         </div>
+
+        {item ? null : (
+          <div className="flex flex-col gap-2">
+            <Field label="Link del prodotto (facoltativo)" htmlFor="wardrobe-url">
+              <input id="wardrobe-url" type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} autoComplete="off" autoCapitalize="none" placeholder="https://…" className={inputClass} />
+            </Field>
+            {validLink ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={recover} disabled={fetching || offline}>
+                  {fetching ? "Leggo la pagina…" : "Recupera dati dal link"}
+                </Button>
+                {offline ? <span className="text-xs text-text-3">Serve la connessione</span> : null}
+              </div>
+            ) : null}
+            <p role="status" aria-live="polite" className={linkNote ? "text-sm text-text-2" : "sr-only"}>
+              {linkNote}
+            </p>
+          </div>
+        )}
 
         <Field label="Nome (facoltativo)" htmlFor="wardrobe-name">
           <input
@@ -395,7 +487,7 @@ export function ItemSheet({
           ) : (
             <span />
           )}
-          <Button type="submit" variant="primary" disabled={busy}>
+          <Button type="submit" variant="primary" disabled={busy || fetching}>
             Salva
           </Button>
         </div>

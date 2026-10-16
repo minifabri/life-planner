@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compatibility, guessGarment, wardrobeRowFromWish } from "./wishlist";
+import { colorsFromText, compatibility, guessGarment, wardrobeRowFromWish } from "./wishlist";
 import type { Outfit, WardrobeItem } from "../supabase/types";
 
 function item(id: string, patch: Partial<WardrobeItem> = {}): WardrobeItem {
@@ -108,5 +108,19 @@ describe("compatibility", () => {
   it("un outfit con colori che stonano non viene proposto", () => {
     expect(compatibility({ garment: "shoes", colors: ["verde"] }, items, outfits).completes.map((o) => o.id)).toEqual(["senza-scarpe"]);
     expect(compatibility({ garment: "shoes", colors: ["verde"] }, items, [outfit("rosso", ["top-rosso", "jeans"])]).completes).toEqual([]);
+  });
+});
+
+describe("colorsFromText", () => {
+  it("trova i colori nel titolo, in italiano e in inglese", () => {
+    expect(colorsFromText("Stivaletti neri in pelle")).toEqual(["nero"]);
+    expect(colorsFromText("Maglia a righe bianca e blu")).toEqual(["bianco", "blu"]);
+    expect(colorsFromText("Oversized Shirt - Light Blue")).toEqual(["azzurro"]);
+    expect(colorsFromText("Borsa bordò con catena dorata")).toEqual(["bordeaux", "oro"]);
+  });
+
+  it("conta solo parole intere", () => {
+    expect(colorsFromText("Rossetti e orologio")).toEqual([]);
+    expect(colorsFromText("Cappotto lungo")).toEqual([]);
   });
 });
