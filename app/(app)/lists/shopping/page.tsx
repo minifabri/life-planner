@@ -93,7 +93,7 @@ export default function ShoppingPage() {
               // Da -1 (nessuno) si entra dal primo o dall'ultimo, e si torna a -1 dopo un giro.
               setActive(((active + 1 + step + suggestions.length + 1) % (suggestions.length + 1)) - 1);
             }}
-            placeholder="Aggiungi… prova “2 latte”"
+            placeholder="Aggiungi… prova “2 latte d’avena”"
             autoComplete="off"
             autoCapitalize="none"
             enterKeyHint="done"
@@ -169,7 +169,7 @@ export default function ShoppingPage() {
           Carico la lista…
         </p>
       ) : items.length === 0 ? (
-        <EmptyState title="La lista è vuota." hint="Scrivi cosa ti serve: anche “2 latte” o “500 g farina”. Il reparto lo trovo io." />
+        <EmptyState title="La lista è vuota." hint="Scrivi cosa ti serve: anche “2 latte d’avena” o “500 g farina”. Il reparto lo trovo io." />
       ) : null}
 
       {groups.map((group) => (
