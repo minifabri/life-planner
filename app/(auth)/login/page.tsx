@@ -65,7 +65,7 @@ export default function LoginPage() {
           <span className="font-mono text-[13px] tracking-[0.08em]">planner</span>
         </span>
         <h1 className="text-[34px] font-light leading-tight tracking-[-0.02em]">
-          {step === "email" ? "Bentornata." : "Controlla la posta."}
+          {step === "email" ? "Ciao di nuovo." : "Controlla la posta."}
         </h1>
         <p className="text-[15px] leading-relaxed text-text-2">
           {step === "email"
