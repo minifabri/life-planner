@@ -3,9 +3,10 @@
 import { useState, type MouseEvent } from "react";
 import { DaySigns } from "@/components/days/day-signs";
 import { KindIcon } from "@/components/today/quiet-events";
-import { AreaDot } from "@/components/today/task-row";
+import { AreaDot, areaTintStyle } from "@/components/today/task-row";
+import { Icon } from "@/components/ui/icon";
 import { AttentionMark, Diamond } from "@/components/ui/marks";
-import { WorkoutMark } from "@/components/workouts/workout-row";
+import { WorkoutIcon } from "@/components/workouts/workout-row";
 import type { EditorDraft, EditorTarget } from "@/components/today/item-editor";
 import { canMoveEvent, hourRange, layoutBlocks, slotAt, timeToMinutes, timedBlocks, type DayView } from "@/lib/calendar/view";
 import { formatDuration, shortDate, trimTime, weekdayName, type LocalDate } from "@/lib/dates/local";
@@ -14,6 +15,7 @@ import type { Occurrence } from "@/lib/events/day";
 import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
 import type { Area, DayMark, Task, Workout } from "@/lib/supabase/types";
 import { LOAD_LABEL } from "@/lib/tasks/load";
+import { shownStatus } from "@/lib/workouts/summary";
 
 /** Altezza di un'ora e durata minima disegnata: un blocco non scende mai sotto i 44 px toccabili. */
 const HOUR_PX = 56;
@@ -24,6 +26,23 @@ export type Dragged = { task: Task } | { workout: Workout } | { occurrence: Occu
 /** Il doppio clic crea solo sullo spazio libero: sopra un elemento vale il suo clic. */
 function onEmptySpace(e: MouseEvent) {
   return !(e.target as Element).closest("button, a, input, label");
+}
+
+/** Aspetto di un allenamento secondo lo stato: fatto pieno, in programma tratteggiato arancio, saltato grigio. */
+function workoutLook(workout: Workout, today: LocalDate) {
+  const status = shownStatus(workout, today);
+  if (status === "done") return { status, className: "workout-done", label: "fatto" };
+  if (status === "skipped") return { status, className: "border-dashed border-line-2 bg-bg text-text-3", label: "saltato" };
+  return { status, className: "workout-planned bg-bg", label: null };
+}
+
+/** Icona dell'allenamento: la spunta quando è fatto. */
+function WorkoutGlyph({ status }: { status: ReturnType<typeof shownStatus> }) {
+  return status === "done" ? (
+    <Icon name="check" size={13} strokeWidth={2.2} className="shrink-0 text-workout" />
+  ) : (
+    <WorkoutIcon size={12} muted={status === "skipped"} />
+  );
 }
 
 const chipClass =
@@ -66,6 +85,8 @@ export function WeekGrid({
   const { startHour, endHour } = hourRange(blocksByDay.flat());
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const top = (min: number) => ((min - startHour * 60) / 60) * HOUR_PX;
+  // L'etichetta "Senza orario" compare a sinistra solo se in settimana c'è qualcosa senza orario.
+  const anyUntimed = views.some((v) => v.occurrences.some((o) => o.allDay) || v.untimed.length > 0 || v.workouts.some((w) => !w.time));
 
   return (
     <div className="hidden md:flex">
@@ -118,8 +139,15 @@ export function WeekGrid({
                 onDoubleClick={(e) => {
                   if (onEmptySpace(e)) onCreate(view.day);
                 }}
-                className="flex min-h-[52px] flex-col gap-1 border-b border-line px-1 pb-1.5"
+                className="relative flex min-h-[52px] flex-1 flex-col gap-1 border-b border-line-2 px-1 pb-1.5"
               >
+                {index === 0 && anyUntimed ? (
+                  <li aria-hidden className="absolute -left-11 bottom-2 w-9 text-right font-mono text-[10px] uppercase leading-tight tracking-[0.06em] text-text-3">
+                    senza
+                    <br />
+                    orario
+                  </li>
+                ) : null}
                 {view.quiet.map((o) => (
                   <li key={o.key}>
                     <button
@@ -141,10 +169,11 @@ export function WeekGrid({
                       onDragStart={() => onDragStart({ occurrence: o, fromDay: view.day })}
                       onDragEnd={onDragEnd}
                       onClick={() => onEdit({ kind: "event", occurrence: o })}
-                      className={`${chipClass} border-line bg-surface`}
+                      style={areaTintStyle(areaById.get(o.event.area_id ?? ""))}
+                      className={`${chipClass} border-line bg-surface ${o.event.area_id && areaById.has(o.event.area_id) ? "area-tint rounded-l-none" : ""}`}
                     >
-                      <span className="min-w-0 break-words">{o.event.title}</span>
-                      <AreaDot area={areaById.get(o.event.area_id ?? "")} />
+                      <span className="min-w-0 break-words font-medium">{o.event.title}</span>
+                      <AttentionMark level={o.event.attention} />
                     </button>
                   </li>
                 ))}
@@ -162,25 +191,29 @@ export function WeekGrid({
                 ))}
                 {view.workouts
                   .filter((w) => !w.time)
-                  .map((w) => (
-                    <li key={w.id}>
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={() => onDragStart({ workout: w })}
-                        onDragEnd={onDragEnd}
-                        onClick={() => onEditWorkout(w)}
-                        className={`${chipClass} border-line-2`}
-                      >
-                        <span className={`min-w-0 break-words ${w.status === "done" ? "text-text-3 line-through" : ""}`}>{w.activity}</span>
-                        <WorkoutMark />
-                        <span className="sr-only">Allenamento</span>
-                      </button>
-                    </li>
-                  ))}
+                  .map((w) => {
+                    const look = workoutLook(w, today);
+                    return (
+                      <li key={w.id}>
+                        <button
+                          type="button"
+                          draggable
+                          onDragStart={() => onDragStart({ workout: w })}
+                          onDragEnd={onDragEnd}
+                          onClick={() => onEditWorkout(w)}
+                          className={`${chipClass} ${look.className}`}
+                        >
+                          <WorkoutGlyph status={look.status} />
+                          <span className="sr-only">Allenamento: </span>
+                          <span className="min-w-0 break-words">{w.activity}</span>
+                          {look.label ? <span className="ml-auto shrink-0 text-xs text-text-3">{look.label}</span> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
               </ul>
 
-              {/* I giorni già passati restano leggibili ma in secondo piano. */}
+              {/* I giorni già passati restano leggibili, appena in secondo piano. */}
               <div
                 onDoubleClick={(e) => {
                   if (!onEmptySpace(e)) return;
@@ -189,7 +222,7 @@ export function WeekGrid({
                   // L'orario vale per qualunque tipo si scelga nel foglio.
                   onCreate(view.day, { type: "event", startTime: start, endTime: end, time: start });
                 }}
-                className={`relative select-none ${view.day < today ? "opacity-60" : ""}`}
+                className={`relative select-none ${view.day < today ? "opacity-80" : ""}`}
                 style={{ height: hours.length * HOUR_PX }}
               >
                 {hours.map((h, i) => (
@@ -215,6 +248,7 @@ export function WeekGrid({
                     const time = `${String(Math.floor(b.startMin / 60)).padStart(2, "0")}:${String(b.startMin % 60).padStart(2, "0")}`;
                     if (b.occurrence) {
                       const o = b.occurrence;
+                      const area = areaById.get(o.event.area_id ?? "");
                       return (
                         <li key={b.key} className="absolute" style={style}>
                           <button
@@ -223,20 +257,23 @@ export function WeekGrid({
                             onDragStart={() => onDragStart({ occurrence: o, fromDay: view.day })}
                             onDragEnd={onDragEnd}
                             onClick={() => onEdit({ kind: "event", occurrence: o })}
-                            className="flex size-full flex-col overflow-hidden rounded-[10px] border border-line bg-surface px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2"
+                            style={areaTintStyle(area)}
+                            className={`flex size-full flex-col overflow-hidden rounded-[10px] border border-line bg-surface px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2 ${area ? "area-tint rounded-l-none" : ""}`}
                           >
                             <span className="flex items-center gap-1.5">
-                              <AreaDot area={areaById.get(o.event.area_id ?? "")} />
                               <span className="min-w-0 flex-1 truncate font-medium">{o.event.title}</span>
                               <AttentionMark level={o.event.attention} />
                             </span>
-                            <span className="truncate text-[11.5px] text-text-3">{o.endTime ? `${time}–${o.endTime}` : time}</span>
+                            <span className="truncate text-xs text-text-2">
+                              {[o.endTime ? `${time}–${o.endTime}` : time, area?.name].filter(Boolean).join(" · ")}
+                            </span>
                           </button>
                         </li>
                       );
                     }
                     if (b.workout) {
                       const w = b.workout;
+                      const look = workoutLook(w, today);
                       return (
                         <li key={b.key} className="absolute" style={style}>
                           <button
@@ -245,15 +282,15 @@ export function WeekGrid({
                             onDragStart={() => onDragStart({ workout: w })}
                             onDragEnd={onDragEnd}
                             onClick={() => onEditWorkout(w)}
-                            className="flex size-full flex-col overflow-hidden rounded-[10px] border border-line-2 bg-bg px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2"
+                            className={`flex size-full flex-col overflow-hidden rounded-[10px] border px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2 ${look.className}`}
                           >
                             <span className="flex items-center gap-1.5">
-                              <span className={`min-w-0 truncate ${w.status === "done" ? "text-text-3 line-through" : ""}`}>{w.activity}</span>
-                              <WorkoutMark />
-                              <span className="sr-only">Allenamento</span>
+                              <WorkoutGlyph status={look.status} />
+                              <span className="sr-only">Allenamento: </span>
+                              <span className={`min-w-0 truncate ${look.status === "done" ? "font-medium" : ""}`}>{w.activity}</span>
                             </span>
-                            <span className="truncate text-[11.5px] text-text-3">
-                              {[time, w.duration_min ? formatDuration(w.duration_min) : null].filter(Boolean).join(" · ")}
+                            <span className="truncate text-xs text-text-2">
+                              {[time, w.duration_min ? formatDuration(w.duration_min) : null, look.label].filter(Boolean).join(" · ")}
                             </span>
                           </button>
                         </li>
@@ -272,7 +309,7 @@ export function WeekGrid({
                           className="flex size-full flex-col overflow-hidden rounded-[10px] border border-dashed border-line-2 bg-bg px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2"
                         >
                           <span className={`min-w-0 truncate ${done ? "text-text-3 line-through" : ""}`}>{t.title}</span>
-                          <span className="truncate text-[11.5px] text-text-3">
+                          <span className="truncate text-xs text-text-2">
                             {[trimTime(t.time!), t.duration_min ? formatDuration(t.duration_min) : null].filter(Boolean).join(" · ")}
                           </span>
                         </button>

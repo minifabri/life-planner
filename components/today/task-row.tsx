@@ -1,11 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Icon } from "@/components/ui/icon";
 import { AttentionMark } from "@/components/ui/marks";
 import { formatDuration, trimTime } from "@/lib/dates/local";
 import type { Area, Task } from "@/lib/supabase/types";
 import { readTheme } from "@/lib/theme";
+
+/** Colore dell'area nel tema attivo. */
+export function areaColor(area: Area): string {
+  return readTheme() === "light" ? area.color_light : area.color_dark;
+}
+
+/** Imposta `--area` per `.area-tint`: sfumatura e striscia dell'area sui blocchi degli eventi. */
+export function areaTintStyle(area: Area | undefined): CSSProperties | undefined {
+  return area ? ({ "--area": areaColor(area) } as CSSProperties) : undefined;
+}
 
 /** Punto da 6 px con il colore dell'area di vita. Con `fallback` resta un punto neutro anche senza area. */
 export function AreaDot({ area, fallback = false }: { area: Area | undefined; fallback?: boolean }) {
@@ -14,7 +24,7 @@ export function AreaDot({ area, fallback = false }: { area: Area | undefined; fa
     <span
       title={area.name}
       className="size-1.5 shrink-0 rounded-full"
-      style={{ background: readTheme() === "light" ? area.color_light : area.color_dark }}
+      style={{ background: areaColor(area) }}
     >
       <span className="sr-only">Area: {area.name}</span>
     </span>

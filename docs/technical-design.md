@@ -988,6 +988,13 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Sezioni 9.1b e 9.1c. Migrazione `event_kinds_gcal_ics`, Edge Function `gcal-ics`, `lib/gcal/`, `lib/events/kind.ts`, pagina `/settings/google`, riga discreta in Oggi, Settimana e Mese, opzione "Compleanno" nell'editor.
 - Criteri: test dei moduli puri (indirizzo, periodo, impronta, piano di scrittura, tipo dal titolo, ricorrenza annuale e 29 febbraio, separazione dall'agenda); un evento 📦 creato su Google compare in piccolo nel suo giorno dopo l'aggiornamento di Google; un compleanno creato nell'app compare l'anno dopo; seconda sync senza scritture.
 
+**Incremento 30 — Calendario più leggibile** *(16 ottobre 2026, su richiesta di Bibi, D64)*
+- Token: `--workout` (arancio, uguale a `--area-train`) e utility `text-workout`/`bg-workout`/`border-workout`; classi `.area-tint` (sfumatura, bordo e striscia di 3 px dell'area, `--area` impostato da `areaTintStyle`), `.workout-done` e `.workout-planned` in `app/globals.css`, con il loro hover (stanno fuori dai layer e vincono sulle utility).
+- `EventBlock` (Oggi, anteprima del Mese) e i blocchi della Settimana desktop usano `.area-tint`; il punto dell'area resta nelle righe e nella Settimana mobile.
+- Allenamenti: `WorkoutIcon` (muscolo, come il segno del giorno) nelle righe e nei blocchi, spunta quando fatto; `WorkoutMark` diventa un punto arancio nel Mese. Stato da `shownStatus`.
+- Settimana desktop: la zona senza orario riempie lo spazio sopra l'agenda (le griglie orarie dei sette giorni restano allineate), bordo più marcato ed etichetta "senza orario" a sinistra; giorni passati all'80%; dettagli a 12 px in `text-2`. Legenda della barra laterale aggiornata.
+- Criteri: lint, typecheck, test e build; su desktop e iPhone, nei due temi, una settimana con eventi di aree diverse, un allenamento fatto, uno in programma e uno saltato.
+
 ## 14. Decisioni approvate
 
 Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e riassunte qui sono state approvate. Restano [DA VERIFICARE] solo i fatti da confermare con gli spike S1–S4.

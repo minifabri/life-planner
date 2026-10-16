@@ -91,12 +91,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         {pathname.startsWith("/calendar/week") ? (
           <ul aria-label="Legenda" className="flex flex-col gap-2.5 px-2.5 text-xs text-text-3">
             <li className="flex items-center gap-2">
-              <span aria-hidden className="h-2.5 w-[18px] rounded-[3px] border border-line-2 bg-surface-2" />
-              Evento
+              <span aria-hidden className="h-2.5 w-[18px] rounded-r-[3px] border border-l-[3px] border-line-2 border-l-text-2 bg-surface-2" />
+              Evento, col colore dell&apos;area
             </li>
             <li className="flex items-center gap-2">
               <span aria-hidden className="h-2.5 w-[18px] rounded-[3px] border border-dashed border-text-3" />
               Attività con orario
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="h-2.5 w-[18px] rounded-[3px] border border-dashed border-workout" />
+              Allenamento in programma
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden className="workout-done h-2.5 w-[18px] rounded-[3px] border" />
+              Allenamento fatto
             </li>
             <li className="flex items-center gap-2">
               <span aria-hidden className="mx-[5px] size-2 rotate-45 bg-gold" />

@@ -25,6 +25,7 @@
   --area-teach: #b9a4ff;
   --area-practice: #79c7b5;
   --area-train: #e9a873;
+  --workout: #e9a873;
   --area-home: #a3a9b8;
   --area-care: #e7a2c6;
   --dept-produce: #8fcb8a;
@@ -58,6 +59,7 @@
   --area-teach: #6b4fd8;
   --area-practice: #2e8c76;
   --area-train: #b86a2a;
+  --workout: #b86a2a;
   --area-home: #6f7687;
   --area-care: #b8508a;
   --dept-produce: #3c8a3f;
@@ -85,6 +87,7 @@
   --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
   --color-gold: var(--gold);
+  --color-workout: var(--workout);
   --color-scrim: var(--scrim);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -138,6 +141,29 @@ body {
 .dept-tint {
   background: color-mix(in oklab, var(--dept) 13%, var(--surface));
   border-color: color-mix(in oklab, var(--dept) 26%, var(--line));
+}
+
+/* Calendario: evento con la sfumatura e la striscia della sua area (--area lo imposta l'elemento) */
+.area-tint {
+  background: color-mix(in oklab, var(--area) 13%, var(--surface));
+  border-color: color-mix(in oklab, var(--area) 26%, var(--line));
+  border-left: 3px solid var(--area);
+}
+.area-tint:hover {
+  background: color-mix(in oklab, var(--area) 20%, var(--surface2));
+}
+
+/* Allenamento: fatto è pieno, in programma è solo il bordo tratteggiato */
+.workout-done {
+  background: color-mix(in oklab, var(--workout) 15%, var(--surface));
+  border-color: color-mix(in oklab, var(--workout) 34%, var(--line));
+}
+.workout-done:hover {
+  background: color-mix(in oklab, var(--workout) 22%, var(--surface2));
+}
+.workout-planned {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--workout) 50%, var(--line2));
 }
 
 @keyframes pop {

@@ -126,6 +126,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 | D61 | **Mangiato fuori**: un pasto si può segnare come mangiato fuori senza scrivere il piatto. Il momento risulta occupato; senza nome non conta nei nutrienti, con il nome (facoltativo) sì | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D62 | **Idee nel foglio del pasto**: aggiungendo un pasto, sotto i ricorrenti compaiono tre idee per quel momento, con "Altre idee" e **Meno** ("Meno spesso": il piatto non viene proposto per tre settimane, poi torna). L'esempio nel campo segue il momento (a merenda non "riso e lenticchie") | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
 | D63 | **Più piatti proposti, che cambiano**: l'elenco dei piatti dell'app (vegani, con almeno due nutrienti e un micronutriente riconosciuti) passa da 40 a circa 150 e resta nell'app, senza servizi esterni. I piatti nuovi girano di settimana in settimana e vengono prima quelli con ingredienti già usati spesso | [APPROVATO il 12 ottobre 2026; dettagli PROPOSTA] |
+| D64 | **Calendario più leggibile**: gli eventi prendono la sfumatura e una striscia a sinistra del colore della loro area (non più solo il punto), con il nome dell'area accanto all'orario. Gli allenamenti hanno un colore proprio, l'arancio della palette (`--workout`), e l'icona del muscolo: *in programma* bordo tratteggiato arancio, *fatto* sfumatura piena con la spunta, *saltato* grigio con "saltato"; mai barrati. Nel Mese l'allenamento è un punto arancio: il rombo resta solo a scadenze e cose importanti. In Settimana su desktop la zona "Senza orario" è separata dall'agenda oraria; i giorni passati sono attenuati meno e le righe di dettaglio sono più grandi | [APPROVATO il 16 ottobre 2026] |
 
 ---
 
@@ -188,7 +189,7 @@ Il centro dell'esperienza è **Today**: aprendo l'app al mattino si capisce subi
 
 ### 3.2 Consigliate dal team (da approvare)
 - **[PROPOSTA]** Ricorrenze in due modalità: **a calendario fisso** ("ogni lunedì") e **dopo il completamento** ("30 giorni dopo l'ultima volta"). Le seconde sono utili per attività domestiche e cura personale.
-- **[PROPOSTA]** Aree di vita predefinite (Lavoro, Insegnamento yoga, Pratica yoga, Casa, Cura personale, Acquisti, Eventi; "Allenamento" è diventato un tipo a sé, D41), rinominabili e opzionali, ciascuna con un colore discreto usato solo come piccolo segno.
+- **[PROPOSTA]** Aree di vita predefinite (Lavoro, Insegnamento yoga, Pratica yoga, Casa, Cura personale, Acquisti, Eventi; "Allenamento" è diventato un tipo a sé, D41), rinominabili e opzionali, ciascuna con un colore discreto usato come piccolo segno e, sui blocchi degli eventi nel calendario, come sfumatura con striscia (D64).
 - **[PROPOSTA]** Fasce di silenzio per le notifiche (es. 22:00–7:30), salvo attenzione alta configurata diversamente.
 - **[PROPOSTA]** Prefissi rapidi opzionali nel Quick Capture per chi vuole essere esplicito: `spesa:`, `wish:`, `log:`.
 - **[PROPOSTA]** "Trasforma": convertire un elemento in un altro tipo (es. articolo wishlist → articolo spesa, attività → evento) senza riscriverlo.
@@ -548,7 +549,7 @@ Ambiguità (es. evento o attività) → si sceglie il default e lo si rende evid
 - **Discipline**: testo libero; si propongono prima quelle già usate, poi alcune predefinite (Allenamento, Corsa, Camminata, Forza, Palestra, Pilates, Nuoto, Bici).
 - **Completare**: casella di spunta rotonda, con annulla. Un allenamento in programma in un giorno passato si mostra come **saltato**; non compare in Rimaste indietro e non va riprogrammato.
 - **Today**: sezione "Allenamento" con gli allenamenti del giorno e il riepilogo della settimana ("2 di 3 · 1 h 30": fatti su totali, minuti fatti). Gli allenamenti in programma contano nel carico del giorno.
-- **Calendario**: in Settimana si trascinano tra i giorni; in Mese hanno un segno proprio (un piccolo rombo).
+- **Calendario**: in Settimana si trascinano tra i giorni e hanno un colore proprio, arancio, con l'icona del muscolo (fatto pieno con la spunta, in programma tratteggiato, saltato grigio); in Mese un punto arancio (D64).
 - **Storico**: ultime 12 settimane con il riepilogo di ognuna; si apre da Today e da Impostazioni.
 - **Trasforma in allenamento**: su attività ed eventi, tranne attività ricorrenti o nate da un pasto, serie ed eventi di altri calendari.
 - **Salute di Apple** (D42): sola lettura. Un allenamento registrato da iPhone o Apple Watch completa quello in programma dello stesso giorno e disciplina; se non c'è, ne crea uno già fatto. Dettagli in `technical-design.md` 9.8.
