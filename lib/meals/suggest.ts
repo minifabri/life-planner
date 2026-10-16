@@ -4,20 +4,21 @@ import { isInSeason, produceIn } from "../shopping/seasonal";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { DISHES } from "./dishes";
 import { ingredientsIn, words } from "./ingredients";
-import { NUTRIENTS, NUTRIENT_LABEL, listText, mealNutrients, nutrientsOf, weekBalance, type Overrides } from "./nutrients";
-import { normalizeMealName } from "./rules";
+import { MICROS, MICRO_LABEL, inText, recognizeMicros, type Micro } from "./micros";
+import { NUTRIENTS, NUTRIENT_LABEL, hasFoods, listText, mealNutrients, nutrientsOf, weekBalance, type Overrides } from "./nutrients";
+import { mealFoods, normalizeMealName } from "./rules";
 
 /**
  * Idee per i pasti: regole locali, deterministiche e spiegabili, senza servizi esterni.
  * Propone i piatti già usati in quel momento della giornata e alcuni piatti nuovi (`DISHES`),
- * ordinati da ciò che manca nella settimana e nel giorno, dagli ingredienti in casa da usare,
+ * ordinati da ciò che manca nella settimana e nel giorno (nutrienti e micronutrienti), dagli ingredienti in casa da usare,
  * dalla varietà rispetto ai giorni vicini, dall'abitudine, dal tipo di giorno e dalla stagione di frutta e verdura. Tra i piatti nuovi contano
  * anche la somiglianza con ciò che si mangia di solito e un giro settimanale, così non sono sempre gli stessi.
  */
 
-export type Factor = "balance" | "pantry" | "variety" | "habit" | "day" | "season" | "taste" | "fresh";
+export type Factor = "balance" | "micros" | "pantry" | "variety" | "habit" | "day" | "season" | "taste" | "fresh";
 
-export const WEIGHTS: Record<Factor, number> = { balance: 3, pantry: 2, variety: 2, habit: 2, day: 1, season: 2, taste: 1, fresh: 1 };
+export const WEIGHTS: Record<Factor, number> = { balance: 3, micros: 1, pantry: 2, variety: 2, habit: 2, day: 1, season: 2, taste: 1, fresh: 1 };
 
 export type IdeaData = {
   memory: MealMemory[];
@@ -85,6 +86,9 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
   // Senza altri pasti nel giorno non c'è niente da completare.
   const dayMissing = sameDay.length === 0 ? [] : NUTRIENTS.filter((n) => !dayHas.has(n));
   const planned = new Set(sameDay.map((m) => normalizeMealName(m.name)));
+  // I micronutrienti che i pasti del giorno non portano, se almeno uno ne porta qualcuno.
+  const dayMicros = sameDay.filter(hasFoods).map((m) => recognizeMicros(mealFoods(m)));
+  const microsMissing: Micro[] = dayMicros.some((ms) => ms.length > 0) ? MICROS.filter((m) => !dayMicros.some((ms) => ms.includes(m))) : [];
 
   const inSlot = memory.filter((m) => m.slot === ctx.slot);
   // "Non proporre" vale sempre, "Meno spesso" fino al suo giorno.
@@ -106,6 +110,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
 
   function idea(c: Candidate): Idea {
     const nutrients = nutrientsOf(c.name, overrides);
+    const fills = recognizeMicros(c.name).filter((m) => microsMissing.includes(m));
     const inHouse = ingredientsIn(c.name, pantry);
     const gaps = others.filter((m) => normalizeMealName(m.name) === c.key).map((m) => Math.abs(diffDays(m.date, ctx.day)));
     const protein = nutrients.includes("protein");
@@ -117,6 +122,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
 
     const factors: Record<Factor, number> = {
       balance: most === 0 ? 0.5 : nutrients.reduce((sum, n) => sum + wanted(n), 0) / most,
+      micros: microsMissing.length === 0 ? 0.5 : fills.length / microsMissing.length,
       pantry: pantry.length === 0 ? 0.5 : inHouse.length > 0 ? 1 : 0.3,
       variety: varietyScore(gaps.length ? Math.min(...gaps) : undefined),
       habit: c.uses > 0 ? 0.6 + 0.4 * Math.min(1, c.uses / 5) : 0.4,
@@ -135,6 +141,7 @@ export function suggestMeals(data: IdeaData, ctx: IdeaContext, limit = 9): Idea[
       inHouse.length > 0 ? `Usa ${listText(inHouse.map((i) => i.name.toLowerCase()))}, che hai in casa` : null,
       bringsLow.length > 0 ? `Porta ${labels(bringsLow)}, che scarseggiano nella settimana` : null,
       completes.length > 0 ? `Completa il giorno con ${labels(completes)}` : null,
+      fills.length > 0 ? `Porta ${listText(fills.map((m) => inText(MICRO_LABEL[m])))}, che ${fills.length === 1 ? "manca" : "mancano"} nel giorno` : null,
       seasonal.length > 0 && seasonal.length === produce.length ? `Di stagione: ${listText(seasonal.map((p) => p.name.toLowerCase()))}` : null,
       workout && protein && !bringsLow.includes("protein") && !completes.includes("protein") ? "Proteine nel giorno di allenamento" : null,
       office && c.mode === "to_prep" ? "Si prepara prima, per il giorno in ufficio" : null,

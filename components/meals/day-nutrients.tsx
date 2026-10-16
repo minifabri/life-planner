@@ -2,7 +2,8 @@
 
 import { useId, useState } from "react";
 import { Icon } from "@/components/ui/icon";
-import { rowsNote, type DayRow, type DaySummary } from "@/lib/meals/micros";
+import { MicroTips } from "@/components/meals/micro-tips";
+import { microTips, rowsNote, type DayRow, type DaySummary } from "@/lib/meals/micros";
 import { listText } from "@/lib/meals/nutrients";
 
 function mealsText(count: number): string {
@@ -73,6 +74,7 @@ export function DayNutrients({ summary, extras = false }: { summary: DaySummary;
         <div id={panel} className="mt-1 flex flex-col gap-3 rounded-[14px] border border-line bg-surface px-4 py-3">
           <Bars title="Nutrienti" rows={summary.nutrients} total={summary.recognized} />
           <Bars title="Micronutrienti" rows={summary.micros} total={summary.recognized} />
+          <MicroTips tips={microTips(summary)} />
           <p className="text-xs text-text-3">
             {summary.recognized === summary.planned
               ? `Su ${mealsText(summary.planned)} del giorno.`

@@ -21,7 +21,7 @@ import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
-import { daySummary } from "@/lib/meals/micros";
+import { daySummary, microTips } from "@/lib/meals/micros";
 import { NUTRIENT_LABEL, balanceNote, hasFoods, mealNutrients, nutrientOverrides, nutrientsOf, weekBalance } from "@/lib/meals/nutrients";
 import { SLOTS, SLOT_LABEL, SNOOZE_DAYS, mealDot, mealFoods, mealTitle, reminderDate, suggestionsFor, type MealDot } from "@/lib/meals/rules";
 import { suggestMeals, type Idea } from "@/lib/meals/suggest";
@@ -239,7 +239,7 @@ export default function MealsPage() {
             <WeekView days={days} today={today} mealAt={mealAt} signsOf={signsOf} overrides={overrides} onOpen={(date, slot) => setEditing({ date, slot })} />
         </>
       ) : view === "ideas" ? (
-        <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onLess={lessIdea} onHide={hideIdea} />
+        <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} tips={microTips(daySummary(dayMeals, overrides))} past={day < today} onAdd={addIdea} onLess={lessIdea} onHide={hideIdea} />
       ) : (
         <>
         <ul className="flex flex-col gap-2" data-tour="meals-slots">

@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/form";
+import { MicroTips } from "@/components/meals/micro-tips";
 import { EmptyState } from "@/components/ui/page-header";
+import type { MicroTip } from "@/lib/meals/micros";
 import { NUTRIENT_LABEL } from "@/lib/meals/nutrients";
 import { SLOT_LABEL } from "@/lib/meals/rules";
 import type { Idea } from "@/lib/meals/suggest";
@@ -14,6 +16,7 @@ const PAGE = 3;
 export function MealIdeasView({
   slots,
   note,
+  tips,
   past,
   onAdd,
   onLess,
@@ -23,6 +26,8 @@ export function MealIdeasView({
   slots: { slot: MealSlot; ideas: Idea[] }[];
   /** La frase sul bilancio della settimana. */
   note: string;
+  /** Cosa aggiungere per i micronutrienti che mancano nei pasti già scelti del giorno. */
+  tips: MicroTip[];
   /** Il giorno è già passato: non c'è niente da proporre. */
   past: boolean;
   onAdd: (idea: Idea) => void;
@@ -38,6 +43,7 @@ export function MealIdeasView({
   return (
     <>
       <p className="text-sm text-text-2">{note}</p>
+      <MicroTips tips={tips} />
       {slots.map(({ slot, ideas }) => {
         const count = Math.max(1, Math.ceil(ideas.length / PAGE));
         const current = (pages[slot] ?? 0) % count;
