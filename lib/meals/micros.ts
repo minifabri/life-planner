@@ -34,6 +34,20 @@ const SOURCES: Record<Micro, string> = {
   folate: "lenticchie, ceci, fagioli, piselli, fave, legumi, edamame, hummus, falafel, spinaci, bietola, cime rapa, asparagi, broccoli, cavoletti, cavolfiore, cavolo, lattuga, insalata, rucola, cicoria, radicchio, carciofo, barbabietola, avocado, guacamole, arancia, arachidi, quinoa, verdura, minestrone, uovo, frittata, omelette",
 };
 
+/**
+ * Cosa aggiungere a un pasto per portare un micronutriente che manca: piccole aggiunte vegane,
+ * da mettere sopra o accanto a ciò che è già in programma.
+ */
+export const MICRO_ADDS: Record<Micro, string> = {
+  iron: "una manciata di semi di zucca, ceci o lenticchie, spinaci con una spruzzata di limone",
+  calcium: "tofu, una bevanda di soia arricchita, mandorle o un cucchiaio di tahina",
+  zinc: "semi di zucca, anacardi, ceci o fiocchi d'avena",
+  omega3: "un cucchiaio di semi di lino macinati o di chia, una manciata di noci",
+  vitA: "carote, zucca, patata dolce o una manciata di spinaci",
+  vitC: "peperone crudo, un kiwi, un'arancia o una spruzzata di limone",
+  folate: "legumi, spinaci, asparagi o mezzo avocado",
+};
+
 const findMicros = foodIndex(MICROS.map((m): [Micro[], string] => [[m], SOURCES[m]]));
 
 /** I micronutrienti di cui il piatto ha una buona fonte, sempre nello stesso ordine. Vuoto se il nome non dice nulla. */
@@ -69,7 +83,7 @@ export function daySummary(meals: MealPlan[], overrides?: Overrides): DaySummary
 }
 
 /** L'etichetta dentro una frase: "ferro", "vitamina C". */
-function inText(label: string): string {
+export function inText(label: string): string {
   return label.charAt(0).toLowerCase() + label.slice(1);
 }
 
@@ -80,4 +94,12 @@ export function rowsNote(rows: DayRow<unknown>[]): string | null {
   if (present.length === 0) return null;
   if (missing.length === 0) return "ci sono tutti";
   return missing.length <= present.length ? `${missing.length === 1 ? "manca" : "mancano"} ${listText(missing)}` : `solo ${listText(present)}`;
+}
+
+export type MicroTip = { key: Micro; label: string; adds: string };
+
+/** Per ogni micronutriente che non compare nei pasti del giorno, cosa aggiungere. Vuoto se nessun pasto dice qualcosa: non c'è niente da completare. */
+export function microTips(summary: DaySummary): MicroTip[] {
+  if (summary.recognized === 0) return [];
+  return summary.micros.filter((r) => r.meals === 0).map((r) => ({ key: r.key, label: r.label, adds: MICRO_ADDS[r.key] }));
 }

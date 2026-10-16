@@ -83,6 +83,12 @@ describe("suggestMeals", () => {
     expect(ideas[0].reason).toContain("Completa il giorno con proteine");
   });
 
+  it("mette avanti ciò che porta i micronutrienti che mancano nel giorno", () => {
+    const ideas = suggestMeals(data({ memory: [memory("Pasta al pomodoro"), memory("Porridge con noci")], meals: [meal(WED, "dinner", "Riso e lenticchie")] }), ctx());
+    const porridge = ideas.find((i) => i.name === "Porridge con noci");
+    expect(porridge?.reason).toContain("Porta omega-3, che manca nel giorno");
+  });
+
   it("mette avanti ciò che usa un ingrediente in casa", () => {
     const own = [memory("Pasta al pomodoro"), memory("Pasta e zucchine")];
     const ideas = suggestMeals(data({ memory: own, pantry: [{ name: "Zucchine" }] }), ctx());

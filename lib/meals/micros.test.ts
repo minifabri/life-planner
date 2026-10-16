@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MealPlan, MealSlot } from "../supabase/types";
 import { DISHES } from "./dishes";
-import { daySummary, recognizeMicros, rowsNote } from "./micros";
+import { MICRO_ADDS, MICROS, daySummary, microTips, recognizeMicros, rowsNote } from "./micros";
 import { nutrientOverrides } from "./nutrients";
 
 const DAY = "2026-10-12";
@@ -101,5 +101,25 @@ describe("rowsNote", () => {
     expect(rowsNote(rows([1, 0, 0, 0, 0, 1, 0]))).toBe("solo ferro e vitamina C");
     expect(rowsNote(rows([1, 1, 1, 1, 1, 1, 1]))).toBe("ci sono tutti");
     expect(rowsNote(rows([0, 0, 0, 0, 0, 0, 0]))).toBeNull();
+  });
+});
+
+describe("microTips", () => {
+  it("per ogni micronutriente che manca nel giorno dice cosa aggiungere", () => {
+    const tips = microTips(daySummary([meal("Riso e lenticchie"), meal("Arancia", "snack")]));
+    expect(tips.map((t) => t.key)).toEqual(["calcium", "omega3", "vitA"]);
+    expect(tips.find((t) => t.key === "omega3")?.adds).toContain("semi di lino");
+  });
+
+  it("senza pasti riconosciuti non c'è niente da completare", () => {
+    expect(microTips(daySummary([]))).toEqual([]);
+    expect(microTips(daySummary([meal("Avanzi")]))).toEqual([]);
+  });
+
+  it("propone solo aggiunte vegane, che l'app riconosce come fonte", () => {
+    for (const m of MICROS) {
+      expect(MICRO_ADDS[m]).not.toMatch(/latte|yogurt|formaggio|uov|pesce|salmone|sardine|tonno|carne|miele/);
+      expect(recognizeMicros(MICRO_ADDS[m])).toContain(m);
+    }
   });
 });
