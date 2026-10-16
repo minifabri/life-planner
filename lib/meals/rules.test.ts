@@ -13,6 +13,7 @@ import {
   reminderDate,
   reminderRemovedOps,
   reminderRestoredOps,
+  reminderSchedule,
   reminderTitle,
   reminderToggledOps,
   removeMealOps,
@@ -28,6 +29,8 @@ import {
 
 const TODAY = "2026-10-10"; // sabato
 const NOW = "2026-10-10T09:00:00.000Z";
+/** Le 11 a Roma, nello stesso istante di NOW. */
+const CLOCK = { today: TODAY, time: "11:00" };
 
 /** Lo stato come lo vedrebbe l'app: pasti della settimana e attività, dopo una serie di operazioni. */
 type World = { meals: MealPlan[]; tasks: Task[] };
@@ -40,7 +43,7 @@ function run(world: World, ops: Op[]): World {
 }
 
 function withMeal(mode: PrepMode, date = "2026-10-12"): World {
-  return run({ meals: [], tasks: [] }, addMealOps({ id: "m", date, slot: "lunch", name: "Riso e lenticchie", prep_mode: mode }, "t1", TODAY));
+  return run({ meals: [], tasks: [] }, addMealOps({ id: "m", date, slot: "lunch", name: "Riso e lenticchie", prep_mode: mode }, "t1", CLOCK));
 }
 
 describe("date e nomi", () => {
@@ -50,11 +53,37 @@ describe("date e nomi", () => {
     expect(weekStart("2026-10-11")).toBe("2026-10-05");
   });
 
-  it("si prepara il giorno prima, se non è già passato", () => {
+  it("si prepara il giorno prima; un pasto di oggi, oggi stesso; uno passato, mai", () => {
     expect(reminderDate("2026-10-12", TODAY)).toBe("2026-10-11");
     expect(reminderDate("2026-10-11", TODAY)).toBe("2026-10-10");
-    expect(reminderDate("2026-10-10", TODAY)).toBeNull();
+    expect(reminderDate("2026-10-10", TODAY)).toBe("2026-10-10");
     expect(reminderDate("2026-10-08", TODAY)).toBeNull();
+  });
+
+  it("pasto di domani: il promemoria resta oggi, il giorno prima, all'orario dei pasti", () => {
+    expect(reminderSchedule("2026-10-11", "lunch", CLOCK)).toEqual({ date: "2026-10-10", time: null });
+    // Anche a sera tardi: l'orario lo decide l'avviso dei pasti, come prima.
+    expect(reminderSchedule("2026-10-11", "breakfast", { today: TODAY, time: "23:30" })).toEqual({ date: "2026-10-10", time: null });
+    expect(reminderSchedule("2026-10-14", "dinner", CLOCK)).toEqual({ date: "2026-10-13", time: null });
+  });
+
+  it("pasto di oggi con l'orario ancora lontano: oggi, un'ora circa prima", () => {
+    expect(reminderSchedule(TODAY, "dinner", CLOCK)).toEqual({ date: TODAY, time: "19:00" });
+    expect(reminderSchedule(TODAY, "snack", CLOCK)).toEqual({ date: TODAY, time: "15:30" });
+    expect(reminderSchedule(TODAY, "lunch", { today: TODAY, time: "07:15" })).toEqual({ date: TODAY, time: "12:00" });
+    expect(reminderSchedule(TODAY, "breakfast", { today: TODAY, time: "06:40" })).toEqual({ date: TODAY, time: "07:30" });
+  });
+
+  it("pasto di oggi con l'orario quasi raggiunto, o già passato: al prossimo quarto d'ora, mai nel passato", () => {
+    expect(reminderSchedule(TODAY, "lunch", { today: TODAY, time: "12:00" })).toEqual({ date: TODAY, time: "12:15" });
+    expect(reminderSchedule(TODAY, "lunch", { today: TODAY, time: "12:40" })).toEqual({ date: TODAY, time: "12:45" });
+    expect(reminderSchedule(TODAY, "breakfast", CLOCK)).toEqual({ date: TODAY, time: "11:15" });
+    expect(reminderSchedule(TODAY, "dinner", { today: TODAY, time: "21:59" })).toEqual({ date: TODAY, time: "22:00" });
+    expect(reminderSchedule(TODAY, "dinner", { today: TODAY, time: "23:50" })).toEqual({ date: TODAY, time: "23:59" });
+  });
+
+  it("pasto di un giorno passato: nessun promemoria", () => {
+    expect(reminderSchedule("2026-10-09", "dinner", CLOCK)).toBeNull();
   });
 
   it("il titolo dell'attività nomina il momento", () => {
@@ -62,6 +91,7 @@ describe("date e nomi", () => {
     expect(reminderTitle("breakfast")).toBe("Preparare la colazione di domani");
     expect(reminderTitle("snack")).toBe("Preparare la merenda di domani");
     expect(reminderTitle("dinner")).toBe("Preparare la cena di domani");
+    expect(reminderTitle("dinner", true)).toBe("Preparare la cena di oggi");
   });
 
   it("riconosce lo stesso piatto scritto in modi diversi", () => {
@@ -92,12 +122,29 @@ describe("pasto → attività", () => {
     expect(meals[0].reminder_task_id).toBeNull();
   });
 
-  it("i pasti di oggi e dei giorni passati non generano attività", () => {
-    for (const date of [TODAY, "2026-10-08"]) {
-      const { meals, tasks } = withMeal("to_prep", date);
-      expect(tasks).toEqual([]);
-      expect(meals[0]).toMatchObject({ prep_mode: "to_prep", reminder_task_id: null });
-    }
+  it("un pasto di domani ha l'attività oggi, senza orario", () => {
+    const { tasks } = withMeal("to_prep", "2026-10-11");
+    expect(tasks[0]).toMatchObject({ title: "Preparare il pranzo di domani", date: TODAY, time: null });
+  });
+
+  it("un pasto di oggi non resta senza promemoria: l'attività è oggi, con un orario prima del pasto", () => {
+    const { meals, tasks } = withMeal("to_prep", TODAY);
+    expect(meals[0]).toMatchObject({ prep_mode: "to_prep", reminder_task_id: "t1" });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({ title: "Preparare il pranzo di oggi", notes: "Riso e lenticchie", date: TODAY, time: "12:00", source: "meal", meal_plan_id: "m" });
+  });
+
+  it("passare a Da preparare un pasto di oggi crea anche l'attività di oggi", () => {
+    let w = withMeal("ready", TODAY);
+    w = run(w, setModeOps(w.meals[0], "to_prep", "t2", { today: TODAY, time: "12:20" }, NOW));
+    expect(w.tasks).toHaveLength(1);
+    expect(w.tasks[0]).toMatchObject({ id: "t2", date: TODAY, time: "12:30" });
+  });
+
+  it("i pasti dei giorni passati non generano attività", () => {
+    const { meals, tasks } = withMeal("to_prep", "2026-10-08");
+    expect(tasks).toEqual([]);
+    expect(meals[0]).toMatchObject({ prep_mode: "to_prep", reminder_task_id: null });
   });
 
   it("segnare Preparato dal planner completa l'attività; toglierlo la riapre", () => {
@@ -122,7 +169,7 @@ describe("pasto → attività", () => {
   });
 
   it("i condimenti restano fuori dal titolo e dall'attività, ma dicono cosa si è mangiato", () => {
-    let w = run({ meals: [], tasks: [] }, addMealOps({ id: "c", date: "2026-10-12", slot: "lunch", name: "Farro, broccoli e tofu", prep_mode: "to_prep", condiments: "olio, limone" }, "t2", TODAY));
+    let w = run({ meals: [], tasks: [] }, addMealOps({ id: "c", date: "2026-10-12", slot: "lunch", name: "Farro, broccoli e tofu", prep_mode: "to_prep", condiments: "olio, limone" }, "t2", CLOCK));
     expect(w.meals[0]).toMatchObject({ name: "Farro, broccoli e tofu", condiments: "olio, limone" });
     expect(mealTitle(w.meals[0])).toBe("Farro, broccoli e tofu");
     expect(mealFoods(w.meals[0])).toBe("Farro, broccoli e tofu, olio, limone");
@@ -138,7 +185,7 @@ describe("pasto → attività", () => {
   });
 
   it("un pasto fuori può nascere senza nome, e si legge comunque", () => {
-    const w = run({ meals: [], tasks: [] }, addMealOps({ id: "o", date: "2026-10-12", slot: "dinner", name: "", prep_mode: "ready", eaten_out: true }, "t9", TODAY));
+    const w = run({ meals: [], tasks: [] }, addMealOps({ id: "o", date: "2026-10-12", slot: "dinner", name: "", prep_mode: "ready", eaten_out: true }, "t9", CLOCK));
     expect(w.tasks).toEqual([]);
     expect(w.meals[0]).toMatchObject({ eaten_out: true, name: "" });
     expect(mealTitle(w.meals[0])).toBe("Mangiato fuori");
@@ -149,21 +196,21 @@ describe("pasto → attività", () => {
   it("passare a Pronto elimina l'attività e azzera Preparato", () => {
     let w = withMeal("to_prep");
     w = run(w, setPreparedOps(w.meals[0], true, NOW));
-    w = run(w, setModeOps(w.meals[0], "ready", "t2", TODAY, NOW));
+    w = run(w, setModeOps(w.meals[0], "ready", "t2", CLOCK, NOW));
     expect(w.tasks).toEqual([]);
     expect(w.meals[0]).toMatchObject({ prep_mode: "ready", prepared: false, reminder_task_id: null });
   });
 
   it("tornare a Da preparare crea una nuova attività", () => {
     let w = withMeal("ready");
-    w = run(w, setModeOps(w.meals[0], "to_prep", "t2", TODAY, NOW));
+    w = run(w, setModeOps(w.meals[0], "to_prep", "t2", CLOCK, NOW));
     expect(w.meals[0]).toMatchObject({ prep_mode: "to_prep", reminder_task_id: "t2" });
     expect(w.tasks.map((t) => t.id)).toEqual(["t2"]);
   });
 
   it("scegliere la modalità che c'è già non fa nulla", () => {
     const w = withMeal("to_prep");
-    expect(setModeOps(w.meals[0], "to_prep", "t2", TODAY, NOW)).toEqual([]);
+    expect(setModeOps(w.meals[0], "to_prep", "t2", CLOCK, NOW)).toEqual([]);
   });
 
   it("cambiare piatto aggiorna le note dell'attività", () => {
@@ -219,8 +266,8 @@ describe("attività → pasto", () => {
   it("l'eliminazione di un'attività vecchia non scollega quella nuova", () => {
     let w = withMeal("to_prep");
     const old = w.tasks[0];
-    w = run(w, setModeOps(w.meals[0], "ready", "t2", TODAY, NOW));
-    w = run(w, setModeOps(w.meals[0], "to_prep", "t2", TODAY, NOW));
+    w = run(w, setModeOps(w.meals[0], "ready", "t2", CLOCK, NOW));
+    w = run(w, setModeOps(w.meals[0], "to_prep", "t2", CLOCK, NOW));
     w = run(w, reminderRemovedOps(old));
     expect(w.meals[0].reminder_task_id).toBe("t2");
   });
@@ -230,7 +277,7 @@ describe("modifiche fatte offline e inviate dopo", () => {
   it("una fila di modifiche in attesa porta allo stesso stato finale, anche riapplicata sui dati del server", () => {
     const queue: Op[] = [];
     let local = withMeal("to_prep");
-    queue.push(...addMealOps({ id: "m", date: "2026-10-12", slot: "lunch", name: "Riso e lenticchie", prep_mode: "to_prep" }, "t1", TODAY));
+    queue.push(...addMealOps({ id: "m", date: "2026-10-12", slot: "lunch", name: "Riso e lenticchie", prep_mode: "to_prep" }, "t1", CLOCK));
     for (const step of [
       (w: World) => reminderToggledOps(w.tasks[0], true, NOW),
       (w: World) => renameMealOps(w.meals[0], "Farro e ceci"),

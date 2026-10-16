@@ -320,7 +320,7 @@ unique (owner_id, slot, name_normalized)
 ```
 
 Regole del planner pasti (logica in `lib/meals/`):
-- Pasto `to_prep` e non `prepared` → esiste un'attività il giorno prima (`date = pasto.date - 1`, `source = 'meal'`, titolo "Preparare {slot} di domani", note con il nome del piatto).
+- Pasto `to_prep` e non `prepared` → esiste un'attività il giorno prima (`date = pasto.date - 1`, `source = 'meal'`, titolo "Preparare {slot} di domani", note con il nome del piatto). Per un pasto di oggi il giorno prima è passato: l'attività è oggi ("Preparare {slot} di oggi") con un orario (`time`) un'ora circa prima del pasto (colazione 07:30, pranzo 12:00, merenda 15:30, cena 19:00); se quell'orario è già passato, al prossimo quarto d'ora, mai nel passato (`reminderSchedule` in `lib/meals/rules.ts`). Nessuna attività per i pasti di giorni passati.
 - Spuntare l'attività → `meal_plans.prepared = true`. Rimettere da fare l'attività → `prepared = false`.
 - Segnare "Preparato" dal planner → l'attività collegata diventa `done`.
 - Eliminare l'attività → solo il promemoria sparisce (`reminder_task_id = null`); il pasto resta `to_prep`. Non viene ricreata automaticamente.
@@ -455,7 +455,7 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
    - Media: una notifica all'orario (o all'orario della morning overview se senza orario).
    - Alta: notifica + richiamo il giorno prima.
    - Fasce di silenzio: le notifiche che cadono dentro vengono spostate alla fine della fascia (tranne le alte, se configurato).
-   - Attività dei pasti: notifica all'orario `meal_prep_reminder_time` (proposta 20:00) del giorno prima, se il pasto non è ancora preparato.
+   - Attività dei pasti: notifica all'orario `meal_prep_reminder_time` (proposta 20:00) del giorno prima, se il pasto non è ancora preparato; per un pasto di oggi, all'orario dell'attività.
    Le righe vanno in `reminders`.
 2. **Supabase Cron ogni minuto** → `net.http_post` verso l'Edge Function `dispatch-reminders`.
 3. La funzione seleziona i `reminders` con `fire_at <= now()` e `sent_at is null` (max 50 per giro), ricontrolla che il target esista e non sia già completato, invia il push a tutte le subscription dell'utente, segna `sent_at`. In caso di risposta 404/410 elimina la subscription scaduta.
@@ -474,7 +474,7 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
   - Alta: in più il richiamo del giorno prima, alla stessa ora locale; senza orario all'ora della revisione serale.
   - Eventi: all'inizio (quelli di tutto il giorno al mattino); le serie rispettano eccezioni e cambio dell'ora.
   - Promemoria (`tasks.remind`, incremento 27): la stessa notifica della media, anche con attenzione bassa o con il livello spento nelle impostazioni.
-  - Pasti: l'attività "Preparare … di domani" avvisa a `meal_prep_reminder_time` se è ancora aperta, qualunque sia l'attenzione.
+  - Pasti: l'attività "Preparare … di domani" avvisa a `meal_prep_reminder_time` se è ancora aperta (quella di un pasto di oggi, al suo `time`), qualunque sia l'attenzione.
   - Silenzio: l'invio slitta alla fine della fascia e il testo si adegua ("Ieri alle 23:00"); le alte la attraversano solo con `quiet_allow_high`. Un elemento con orario dentro la fascia viene quindi avvisato dopo il suo orario.
   - Panoramica del mattino e revisione della sera: facoltative, spente in partenza; la sera solo se resta qualcosa di aperto.
   - Un elemento creato o modificato dopo l'orario previsto non manda l'avviso in ritardo. Spostato a un altro orario, avvisa di nuovo (la chiave contiene data e ora).

@@ -115,9 +115,11 @@ export function planReminders(input: PlanInput, from: Date, to: Date): PlannedRe
 
     if (t.source === "meal") {
       if (!s.notify_meal_prep || !t.date) continue;
+      // Il giorno prima all'orario dei pasti; un pasto di oggi ha già il suo orario sull'attività.
+      const time = t.time ? trimTime(t.time) : null;
       add(
-        { key: `task:${t.id}:meal:${t.date}`, targetType: "task", targetId: t.id, title: t.title, url: "/today" },
-        atLocalTime(t.date, trimTime(s.meal_prep_reminder_time), tz),
+        { key: `task:${t.id}:meal:${t.date}${time ? `T${time}` : ""}`, targetType: "task", targetId: t.id, title: t.title, url: "/today" },
+        atLocalTime(t.date, time ?? trimTime(s.meal_prep_reminder_time), tz),
         false,
         t.updated_at,
         t.date,

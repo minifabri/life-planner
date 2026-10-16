@@ -13,6 +13,7 @@ import {
   setNutrientsOps,
   setPreparedOps,
   snoozeIdeaOp,
+  type Clock,
 } from "../meals/rules";
 import { getSupabase } from "../supabase/client";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
@@ -84,18 +85,18 @@ export async function addMeal(
   slot: MealSlot,
   name: string,
   mode: PrepMode,
-  today: LocalDate,
+  clock: Clock,
   nutrients?: Nutrient[] | null,
   out = false,
   condiments = "",
 ): Promise<void> {
   const meal = { id: uuidv7(), date, slot, name, prep_mode: out ? ("ready" as const) : mode, eaten_out: out, condiments };
   const memory = out ? (name && nutrients !== undefined ? await nutrientsOps(slot, name, "ready", nutrients) : []) : await rememberOps(slot, name, mode, new Date().toISOString(), nutrients);
-  await commit([...addMealOps(meal, uuidv7(), today), ...memory]);
+  await commit([...addMealOps(meal, uuidv7(), clock), ...memory]);
 }
 
-export async function setMealMode(meal: MealPlan, mode: PrepMode, today: LocalDate): Promise<void> {
-  await commit(setModeOps(meal, mode, uuidv7(), today, new Date().toISOString()));
+export async function setMealMode(meal: MealPlan, mode: PrepMode, clock: Clock): Promise<void> {
+  await commit(setModeOps(meal, mode, uuidv7(), clock, new Date().toISOString()));
 }
 
 export async function setMealPrepared(meal: MealPlan, prepared: boolean): Promise<void> {

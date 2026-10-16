@@ -18,7 +18,8 @@ import { useOffline, useTimezone, useToday } from "@/lib/data/hooks";
 import { addMeal, hideMealIdea, removeMeal, saveMeal, setMealMode, setMealPrepared, snoozeMealIdea } from "@/lib/data/meals";
 import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
-import { addDays, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { addDays, localTimeString, relativeDay, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { localDateString } from "@/lib/dates/today";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary, microTips } from "@/lib/meals/micros";
@@ -65,6 +66,11 @@ function capitalize(text: string) {
 export default function MealsPage() {
   const tz = useTimezone();
   const { today } = useToday(tz);
+  // L'ora di adesso, letta al momento del tocco: decide quando ricordare un pasto da preparare per oggi.
+  const clock = () => {
+    const now = new Date();
+    return { today: localDateString(now, tz), time: localTimeString(now, tz) };
+  };
   const toast = useToast();
   const offline = useOffline();
 
@@ -121,7 +127,7 @@ export default function MealsPage() {
   const sheetIdeas = editing && !editingMeal && editing.slot !== "extra" && editing.date >= today ? ideasFor(editing.date, editing.slot) : [];
 
   function addIdea(idea: Idea) {
-    run(() => addMeal(day, idea.slot, idea.name, idea.mode, today));
+    run(() => addMeal(day, idea.slot, idea.name, idea.mode, clock()));
     toast({ message: `Aggiunto: ${SLOT_LABEL[idea.slot].toLowerCase()} di ${day === today ? "oggi" : weekdayName(day)}` });
   }
 
@@ -262,7 +268,7 @@ export default function MealsPage() {
                     ingredients={ingredientsIn(mealFoods(meal), pantry)}
                     onFinish={finish}
                     onOpen={() => setEditing({ date: day, slot })}
-                    onMode={(mode) => run(() => setMealMode(meal, mode, today))}
+                    onMode={(mode) => run(() => setMealMode(meal, mode, clock()))}
                     onPrepared={(prepared) => run(() => setMealPrepared(meal, prepared))}
                   />
                 ) : (
@@ -278,7 +284,7 @@ export default function MealsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => run(() => addMeal(day, slot, "", "ready", today, undefined, true))}
+                      onClick={() => run(() => addMeal(day, slot, "", "ready", clock(), undefined, true))}
                       aria-label={`${SLOT_LABEL[slot]}: mangiato fuori`}
                       className="flex min-h-11 items-center rounded-lg px-2.5 text-sm text-text-3 hover:bg-surface-2 hover:text-text"
                     >
@@ -334,7 +340,7 @@ export default function MealsPage() {
           onAdd={(name, mode, nutrients, out, condiments) => {
             const { date, slot } = editing;
             setEditing(null);
-            run(() => addMeal(date, slot, name, mode, today, nutrients, out, condiments));
+            run(() => addMeal(date, slot, name, mode, clock(), nutrients, out, condiments));
           }}
           onSave={(name, out, condiments, nutrients) => {
             setEditing(null);
