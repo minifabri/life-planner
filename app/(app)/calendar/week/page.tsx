@@ -86,7 +86,7 @@ export default function WeekPage() {
             <section aria-label="Periodo" className="flex flex-col gap-2 rounded-[14px] border border-dashed border-line-2 px-3 py-3">
               <h2 className="label-mono flex items-center justify-between gap-3">
                 Periodo
-                <span className="hidden normal-case tracking-normal text-text-3 md:inline">Trascina su un giorno per fissarla</span>
+                <span data-tour="calendar-period" className="hidden normal-case tracking-normal text-text-3 md:inline">Trascina su un giorno per fissarla</span>
               </h2>
               <ul className="grid gap-1 sm:grid-cols-2 md:grid-cols-3">
                 {period.map((t) => (

@@ -236,7 +236,7 @@ export default function ShoppingPage() {
       ) : null}
 
       {seasonal.length > 0 ? (
-        <section aria-label="Di stagione" className="flex flex-col gap-1.5">
+        <section aria-label="Di stagione" data-tour="shopping-seasonal" className="flex flex-col gap-1.5">
           <h2 className="label-mono">Di stagione a {MONTH_NAME[monthOf(today) - 1]}</h2>
           <ul className="no-scrollbar -mx-5 flex gap-1.5 overflow-x-auto px-5 md:-mx-10 md:flex-wrap md:px-10">
             {seasonal.map((p) => (

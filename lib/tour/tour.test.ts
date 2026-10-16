@@ -102,11 +102,11 @@ describe("tour di sezione", () => {
     }
   });
 
-  it("il calendario mostra il trascinamento su desktop e il tocco su iPhone", () => {
+  it("il calendario mostra il trascinamento su desktop e il + su iPhone", () => {
     const desktop = visibleSteps(CALENDAR_TOUR, (t) => t !== "calendar-days");
-    const phone = visibleSteps(CALENDAR_TOUR, (t) => t !== "calendar-grid" && t !== "calendar-legend");
-    expect(desktop.map((s) => s.title)).toEqual(["Giorno, settimana, mese", "Sposta trascinando", "Cosa vogliono dire i segni"]);
-    expect(phone.map((s) => s.title)).toEqual(["Giorno, settimana, mese", "Apri un giorno", "Cosa vogliono dire i segni"]);
+    const phone = visibleSteps(CALENDAR_TOUR, (t) => t === "calendar-days");
+    expect(desktop.map((s) => s.title)).toEqual(["Sposta trascinando", "Fissa le cose «entro»", "I segni discreti"]);
+    expect(phone.map((s) => s.title)).toEqual(["Aggiungi senza passare da Oggi", "I segni discreti"]);
   });
 
   it("testi neutri e, se parlano di cibo, solo vegani", () => {

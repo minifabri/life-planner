@@ -14,146 +14,153 @@ export type TourStep = {
 };
 
 /**
- * Tour iniziale, mostrato su Oggi. I passi il cui elemento non è visibile si saltano:
- * così lo stesso elenco va bene su iPhone (barra in basso) e su desktop (barra laterale).
- * Testi neutri: nessun aggettivo riferito a chi usa l'app.
+ * Tour iniziale, mostrato su Oggi. Non spiega l'ovvio (che Settimana mostra la settimana):
+ * per ogni parte racconta un trucco che non salta all'occhio.
+ * I passi il cui elemento non è visibile si saltano: così lo stesso elenco va bene su iPhone
+ * (barra in basso) e su desktop (barra laterale).
+ * Testi neutri: nessun aggettivo riferito a chi usa l'app. Esempi di cibo solo vegani.
  */
 export const INTRO_TOUR: TourStep[] = [
   {
     title: "Ti diamo il benvenuto",
-    body: "In un minuto ti mostriamo le cose principali del planner. Puoi saltare il tour quando vuoi e rivederlo dalle Impostazioni.",
+    body: "Ecco qualche trucco che a prima vista non si nota. Chiudi con la X quando vuoi: la guida si rivede dalle Impostazioni.",
   },
   {
     target: "add",
-    title: "Aggiungi qualsiasi cosa",
-    body: "Scrivi come parli: «dentista giovedì alle 10», «bolletta della luce entro il weekend». Giorno, ora e area li riconosce da solo.",
+    title: "Una frase, e fa tutto da sé",
+    body: "«Yoga ogni lunedì alle 18» si ripete. «Ricordami di chiamare Sara domani» ti manda una notifica. «Compleanno di Marta 12 ottobre» torna ogni anno. Con un link, l'articolo va dritto in Wishlist.",
+  },
+  {
+    target: "add",
+    title: "Scorciatoie",
+    body: "Con «spesa: ceci» l'articolo va dritto nella lista della Spesa, con «log: parrucchiere» nel Log. Sul computer, il tasto N apre l'aggiunta da qualsiasi schermata.",
   },
   {
     target: "day",
-    title: "Muoviti tra i giorni",
-    body: "Con le frecce passi al giorno prima o a quello dopo. Sul telefono puoi anche scorrere col dito.",
-  },
-  {
-    target: "load",
-    title: "Quanto è piena la giornata",
-    body: "La barra mostra il tempo pianificato: in grigio quello già passato, in viola quello che resta.",
+    title: "Cambia giorno col dito",
+    body: "Sul telefono scorri a destra o a sinistra sulla pagina; sul computer usa le frecce della tastiera.",
   },
   {
     target: "quick-add",
-    title: "Aggiunta al volo",
-    body: "Scrivi qui e premi Invio per mettere un'attività in questo giorno, una dopo l'altra. I dettagli si aggiungono toccando la riga.",
+    title: "Una dopo l'altra",
+    body: "Scrivi e premi Invio: l'attività resta in questo giorno e il campo è subito pronto per la prossima.",
   },
   {
     target: "calendar",
     title: "Calendario",
-    body: "Settimana e mese, con il colore di ogni area. Ci trovi anche gli eventi di Google Calendar e iCloud.",
+    body: "Sul computer sposti le cose trascinandole da un giorno all'altro. Gli eventi che iniziano con 📦 diventano spedizioni: piccole, e senza pesare sulla giornata.",
   },
   {
     target: "lists",
-    title: "Liste",
-    body: "Spesa, pasti della settimana, wishlist e guardaroba, tutti in un posto.",
+    title: "Le liste si parlano",
+    body: "Un articolo urgente della Spesa diventa un'attività in Oggi. Ciò che compri finisce «In casa», e le idee per i pasti partono da lì.",
   },
   {
     target: "log",
     title: "Log",
-    body: "Segna quando fai le cose che si ripetono, come parrucchiere o unghie, e vedi subito quanto tempo è passato dall'ultima volta.",
+    body: "Insegna al Log le tue parole: dopo, «unghie oggi» scritto nell'aggiunta diventa una registrazione, e vedi quanto tempo è passato dall'ultima volta.",
   },
   {
     target: "search",
     title: "Cerca",
-    body: "Trova attività, eventi e articoli delle liste da qualsiasi schermata.",
+    body: "Trova attività, eventi e articoli delle liste. Sul computer si apre da ovunque con ⌘K o Ctrl+K.",
   },
   {
     target: "settings",
     title: "Impostazioni",
-    body: "Tema, notifiche e calendari collegati. Qui trovi anche questa guida, per rivederla quando vuoi.",
+    body: "Collega Google Calendar e iCloud, scegli la città per il meteo del Guardaroba e crea dei template: gruppi di attività che nascono tutti insieme.",
   },
   {
-    title: "Tutto pronto",
-    body: "Puoi iniziare: aggiungi la prima cosa della giornata.",
+    title: "Ogni sezione ha i suoi trucchi",
+    body: "La prima volta che apri Calendario, Spesa, Pasti, Wishlist, Guardaroba o Log, un mini tour ti mostra quelli di quella sezione.",
   },
 ];
 
 /*
- * Tour di sezione: 2–4 passi, la prima volta che si apre la sezione.
- * Alcuni passi esistono in due versioni (desktop e iPhone) con elementi diversi:
+ * Tour di sezione: 2–4 passi, la prima volta che si apre la sezione, ognuno con una funzione
+ * poco visibile. Alcuni passi esistono in due versioni (desktop e iPhone) con elementi diversi:
  * si vede solo quella il cui elemento è sullo schermo.
  */
 
 export const CALENDAR_TOUR: TourStep[] = [
   {
-    target: "calendar-views",
-    title: "Giorno, settimana, mese",
-    body: "Passa da una vista all'altra. Il giorno è la schermata Oggi.",
-  },
-  {
     target: "calendar-grid",
     title: "Sposta trascinando",
-    body: "Trascina un'attività, un allenamento o un evento su un altro giorno per spostarlo. Con un doppio clic su un giorno ne crei uno nuovo lì.",
+    body: "Trascina un'attività su un altro giorno: hai qualche secondo per annullare. Allo stesso modo si spostano allenamenti ed eventi creati qui. Con un doppio clic su un giorno crei qualcosa lì.",
+  },
+  {
+    target: "calendar-period",
+    title: "Fissa le cose «entro»",
+    body: "Le attività come «entro venerdì» stanno nella fascia Periodo. Trascinane una su un giorno e diventa un impegno di quel giorno.",
   },
   {
     target: "calendar-days",
-    title: "Apri un giorno",
-    body: "Tocca un giorno per vederlo per intero. Con il + accanto aggiungi qualcosa direttamente in quel giorno.",
+    title: "Aggiungi senza passare da Oggi",
+    body: "Il + accanto a ogni giorno crea l'attività o l'evento direttamente lì. Tocca il giorno per vederlo per intero.",
   },
   {
     target: "calendar-legend",
-    title: "Cosa vogliono dire i segni",
-    body: "Gli eventi hanno il colore della loro area, le attività con orario il bordo tratteggiato e gli allenamenti l'arancio. Il rombo oro segna scadenze e cose importanti.",
+    title: "I segni discreti",
+    body: "Il rombo oro segna scadenze e cose importanti. Le piccole icone grigie sono ufficio, viaggio, spedizioni 📦 e compleanni: si vedono, ma non riempiono la giornata.",
   },
   {
     target: "calendar-days",
-    title: "Cosa vogliono dire i segni",
-    body: "Il punto colorato è l'area di un evento, l'arancio è un allenamento, il rombo oro una scadenza o una cosa importante. La barra mostra quanto è piena la giornata.",
+    title: "I segni discreti",
+    body: "Il rombo oro segna scadenze e cose importanti. Le piccole icone grigie sono ufficio, viaggio, spedizioni 📦 e compleanni: si vedono, ma non riempiono la giornata.",
   },
 ];
 
 export const SHOPPING_TOUR: TourStep[] = [
   {
     target: "shopping-add",
-    title: "Scrivi come parli",
-    body: "«2 latte d'avena», «500 g farina»: quantità e reparto li riconosce da solo. Mentre scrivi ti suggerisce le cose già comprate.",
-  },
-  {
-    target: "shopping-frequent",
-    title: "Compri spesso",
-    body: "Le cose che prendi più spesso: un tocco e tornano in lista.",
+    title: "Il reparto lo impara",
+    body: "Scrivi «2 latte d'avena» o «500 g farina»: quantità e reparto li trova da solo. Se correggi un reparto, la prossima volta se lo ricorda.",
   },
   {
     target: "shopping-list",
-    title: "Spunta in negozio",
-    body: "Tocca il quadratino per mettere un articolo nel carrello. Con i tre puntini lo modifichi.",
+    title: "Urgente? Finisce in Oggi",
+    body: "Dai tre puntini segna un articolo come urgente: in Oggi compare «Comprare …», da fare entro due giorni. Quando lo spunti qui, si completa anche lì.",
+  },
+  {
+    target: "shopping-list",
+    title: "Dalla Spesa ai Pasti",
+    body: "Quello che spunti finisce «In casa» nei Pasti, e le idee per i pasti lo usano per prime.",
+  },
+  {
+    target: "shopping-seasonal",
+    title: "Di stagione",
+    body: "In fondo trovi frutta e verdura di questo mese, prima quelle che compri già: un tocco e sono in lista.",
   },
 ];
 
 export const MEALS_TOUR: TourStep[] = [
   {
-    target: "meals-views",
-    title: "Giorno, Settimana, Idee",
-    body: "Nel giorno scrivi cosa mangi a colazione, pranzo e cena; tocca un momento per riempirlo.",
-  },
-  {
-    target: "meals-week",
-    title: "L'equilibrio della settimana",
-    body: "La settimana mostra tutti i pasti e come si distribuiscono proteine, carboidrati, grassi e fibre.",
+    target: "meals-slots",
+    title: "Da preparare",
+    body: "Segna un pasto come «Da preparare»: il giorno prima, in Oggi, compare «Preparare il pranzo di domani». Se mangi fuori, basta segnarlo: il piatto è facoltativo.",
   },
   {
     target: "meals-ideas",
-    title: "Idee per i momenti vuoti",
-    body: "Proposte per i pasti ancora da decidere, a partire dai piatti abituali e da ciò che c'è in casa, come ceci, tofu o verdure di stagione.",
+    title: "Idee vegane per i buchi",
+    body: "Proposte per i pasti ancora vuoti, dai tuoi piatti abituali, da ciò che c'è in casa e da ciò che è di stagione. «Meno» ne nasconde una per tre settimane.",
+  },
+  {
+    target: "meals-week",
+    title: "Quanto è varia la settimana",
+    body: "Proteine, carboidrati, grassi e fibre di tutta la settimana, riconosciuti dal nome del piatto. Nel Giorno, la riga dei micronutrienti mostra ferro, calcio, omega-3 e altri.",
   },
   {
     target: "meals-pantry",
     title: "In casa",
-    body: "Gli ingredienti comprati con la Spesa e non ancora finiti, con i pasti in programma che li usano. «Finito» li toglie dall'elenco.",
+    body: "Gli ingredienti comprati e i pasti che li usano. «Finito» li toglie da qui e li rimette nella lista della Spesa.",
   },
 ];
 
 export const WISHLIST_TOUR: TourStep[] = [
   {
     target: "wishlist-add",
-    title: "Aggiungi un desiderio",
-    body: "Incolla un link o scrivi il nome; prezzo, marca e categoria sono facoltativi.",
+    title: "Basta un link",
+    body: "Incolla il link di un prodotto: nome, immagine e prezzo li prova a recuperare da solo. Quelli che non trova restano vuoti, mai inventati.",
   },
   {
     target: "wishlist-import",
@@ -162,39 +169,39 @@ export const WISHLIST_TOUR: TourStep[] = [
   },
   {
     target: "wishlist-filters",
-    title: "Stato e categorie",
-    body: "Separa ciò che desideri da ciò che hai comprato o scartato, e filtra per categoria.",
+    title: "Dalla Wishlist all'armadio",
+    body: "Segna un articolo come capo e ti dice cosa hai già di simile nel Guardaroba. Quando lo compri, entra nel Guardaroba senza riscrivere nulla.",
   },
 ];
 
 export const WARDROBE_TOUR: TourStep[] = [
   {
-    target: "wardrobe-week",
-    title: "La settimana",
-    body: "Ufficio, viaggio e allenamenti dei prossimi giorni, per scegliere cosa mettere. Tocca un giorno per segnarlo.",
+    target: "wardrobe-pieces",
+    title: "Una foto basta",
+    body: "Fotografa un capo: colori, tipo e nome li propone l'app, tutto sul telefono e sempre correggibile. «Indossato oggi» chiede capo per capo cosa va lavato.",
   },
   {
-    target: "wardrobe-pieces",
-    title: "Capi e outfit",
-    body: "Aggiungi i capi con una foto, poi componi gli outfit da indossare o da pianificare.",
+    target: "wardrobe-week",
+    title: "Ufficio o viaggio",
+    body: "Tocca un giorno per segnarlo «in ufficio» o «in viaggio»: il segno compare anche in Oggi, nei Pasti e nel Calendario.",
   },
   {
     target: "wardrobe-ideas",
     title: "Idee col meteo",
-    body: "Outfit proposti in base alle previsioni della tua città. Senza città impostata si segue la stagione.",
+    body: "Outfit proposti in base alle previsioni della tua città. «Pianifica» ne fissa uno per un giorno, e lo ritrovi in Oggi.",
   },
   {
     target: "wardrobe-stats",
-    title: "Numeri",
-    body: "Cosa metti di più e cosa resta nell'armadio da tempo.",
+    title: "Cosa resta nell'armadio",
+    body: "I capi mai indossati, quelli fermi da più di due mesi e quelli mai abbinati in un outfit.",
   },
 ];
 
 export const LOG_TOUR: TourStep[] = [
   {
     target: "log-views",
-    title: "Cronologia e categorie",
-    body: "Nella cronologia trovi tutto ciò che hai segnato; nelle categorie le organizzi, con un colore e le parole che le riconoscono.",
+    title: "Insegna le tue parole",
+    body: "In Categorie, dai a ognuna le parole che la riconoscono. Poi «unghie oggi» scritto nell'aggiunta diventa una registrazione, senza aprire il Log.",
   },
   {
     target: "log-last",
@@ -203,8 +210,8 @@ export const LOG_TOUR: TourStep[] = [
   },
   {
     target: "log-lock",
-    title: "Il blocco del Log",
-    body: "Le categorie sensibili restano nascoste finché non sblocchi con il PIN, o con Face ID su questo dispositivo. Il blocco protegge ciò che si vede sullo schermo, non cifra i dati.",
+    title: "Categorie riservate",
+    body: "Le categorie sensibili restano nascoste finché non sblocchi con il PIN, o con Face ID su questo dispositivo. Nelle notifiche compaiono con un titolo neutro.",
   },
 ];
 

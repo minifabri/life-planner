@@ -155,7 +155,7 @@ export default function MealsPage() {
         }
       />
 
-      <Segmented label="Vista" value={view} options={VIEWS} onChange={setView} tour="meals-views" />
+      <Segmented label="Vista" value={view} options={VIEWS} onChange={setView} />
 
       {view === "week" ? (
         <div className="flex min-h-6 items-center justify-between gap-3">
@@ -237,7 +237,7 @@ export default function MealsPage() {
         <MealIdeasView key={day} slots={ideaSlots} note={balanceNote(balance)} past={day < today} onAdd={addIdea} onLess={lessIdea} onHide={hideIdea} />
       ) : (
         <>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2" data-tour="meals-slots">
           {SLOTS.map((slot) => {
             const meal = mealAt(day, slot);
             return (

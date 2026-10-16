@@ -1004,17 +1004,19 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - **Seguito** (incremento 32): tour di sezione (Calendario, Liste, Log…), con un id ciascuno in `TOURS` e partenza alla prima apertura della sezione.
 
 **Incremento 32 — Tour di sezione** *(16 ottobre 2026, su richiesta di Bibi, D66)*
-- `lib/tour/tour.ts`: sei tour brevi in `TOURS`, con id `calendar`, `shopping`, `meals`, `wishlist`, `wardrobe`, `log` e nome in `TOUR_LABEL`. Ognuno ha da 2 a 4 passi, tutti su un elemento vero:
-  - **Calendario**: viste Giorno/Settimana/Mese; trascinare per spostare (desktop) o toccare un giorno e "+" (iPhone); i segni, cioè la legenda della barra laterale su desktop e l'elenco dei giorni su iPhone;
-  - **Spesa**: scrivere come si parla, *Compri spesso*, spunta e tre puntini;
-  - **Pasti**: viste, Settimana con l'equilibrio dei nutrienti, Idee, *In casa*;
-  - **Wishlist**: Aggiungi, Incolla da testo (import da ChatGPT), stato e categorie;
-  - **Guardaroba**: la settimana, Capi e Outfit, Idee col meteo, Numeri;
-  - **Log**: Cronologia e Categorie, *Ultima volta*, blocco del Log sensibile.
+- `lib/tour/tour.ts`: sei tour brevi in `TOURS`, con id `calendar`, `shopping`, `meals`, `wishlist`, `wardrobe`, `log` e nome in `TOUR_LABEL`. Ognuno ha da 2 a 4 passi, tutti su un elemento vero, e ogni passo racconta una funzione poco visibile (su richiesta di Bibi, niente "Settimana mostra la settimana"):
+  - **Calendario**: trascinare per spostare, con annulla, e doppio clic per creare (desktop); la fascia Periodo da trascinare su un giorno (desktop); il "+" accanto a ogni giorno (iPhone); i segni discreti (rombo oro, ufficio, viaggio, 📦, compleanni);
+  - **Spesa**: il reparto imparato dalle correzioni; l'articolo urgente che diventa «Comprare …» in Oggi; ciò che si spunta finisce «In casa» nei Pasti; *Di stagione*;
+  - **Pasti**: «Da preparare» crea l'attività del giorno prima, e «mangiato fuori»; Idee vegane e «Meno»; equilibrio della settimana e micronutrienti; «Finito» rimette l'ingrediente nella Spesa;
+  - **Wishlist**: dati recuperati dal link; import da ChatGPT; articolo segnato come capo e confrontato con il Guardaroba, che ci entra quando lo si compra;
+  - **Guardaroba**: proposte dalla foto e «Indossato oggi»; segni ufficio e viaggio; Idee col meteo e «Pianifica»; Numeri;
+  - **Log**: parole delle categorie che il Quick Capture riconosce; *Ultima volta*; categorie riservate, con un titolo neutro nelle notifiche.
+- Anche il tour iniziale è riscritto sui trucchi: frasi del Quick Capture (ripetizioni, «ricordami», compleanni, link), prefissi «spesa:» e «log:», tasto N, scorrere tra i giorni, ⌘K, template. Il passo che diceva che l'area si riconosce da sola è stato tolto, perché il parser non la riconosce.
+- Il fumetto ha una **X** («Chiudi la guida», 44 px) al posto di "Salta": chiude in ogni momento e conta come visto, come Esc.
 - Quando un passo ha una versione per desktop e una per iPhone, i due passi stanno uno dopo l'altro con elementi diversi e `visibleSteps` tiene quello sullo schermo.
 - `autoTour(seen, pathname, pages)` (puro, con test) decide cosa parte da solo. Finché il tour iniziale non è visto o saltato parte solo quello, su Oggi. Dopo parte il tour della sezione aperta, se il suo id non è in `profiles.tours_seen`, così i due tour non si sovrappongono mai. Il Calendario ha il tour su Settimana.
 - `TourProvider`: `TOUR_PAGE` ha la pagina di ogni tour. `waitForTargets` aspetta tutti gli elementi, oppure il primo più 800 ms per i dati che arrivano dopo (al massimo 2 s). Se nessun passo è visibile (sezione vuota) il tour non parte e aspetta la prossima apertura. "Inizia" resta solo sul passo di benvenuto senza elemento.
-- `data-tour` passa per `Button` (`tour`), `Segmented` (`tour` sul gruppo e sulle singole opzioni), `SegmentedNav` e `UpcomingDays`.
+- `data-tour` passa per `Button` (`tour`), `Segmented` (`tour` sul gruppo e sulle singole opzioni) e `UpcomingDays`. La fascia Periodo aggancia il passo al suggerimento "Trascina su un giorno", che su iPhone è nascosto: lì il passo si salta.
 - Impostazioni › Guida: "Rivedi il tour iniziale" e un pulsante per ogni sezione, che apre la sezione e riavvia il suo tour.
 - Criteri: lint, typecheck, test e build; su iPhone e desktop ogni tour parte alla prima apertura della sezione e solo dopo il tour iniziale, non ricompare una volta visto o saltato, e si rivede dalle Impostazioni.
 

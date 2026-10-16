@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/form";
+import { Icon } from "@/components/ui/icon";
 import { useProfile } from "@/lib/data/hooks";
 import { flushPendingTours, markTourSeen, pendingTours } from "@/lib/data/tour";
 import { TOURS, autoTour, padRect, placeCard, unionRect, visibleSteps, type CardPlacement, type Rect, type TourId, type TourStep } from "@/lib/tour/tour";
@@ -209,11 +210,22 @@ function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: () => v
             <span className="label-mono">
               Guida · {index + 1} di {steps.length}
             </span>
-            <ol aria-hidden className="flex items-center gap-1">
-              {steps.map((s, i) => (
-                <li key={i} className={`h-1.5 rounded-full transition-all motion-reduce:transition-none ${i === index ? "w-4 bg-accent" : "w-1.5 bg-line-2"}`} />
-              ))}
-            </ol>
+            <span className="flex items-center gap-2">
+              <ol aria-hidden className="flex items-center gap-1">
+                {steps.map((s, i) => (
+                  <li key={i} className={`h-1.5 rounded-full transition-all motion-reduce:transition-none ${i === index ? "w-4 bg-accent" : "w-1.5 bg-line-2"}`} />
+                ))}
+              </ol>
+              {/* La X chiude la guida in qualsiasi momento: conta come vista, come Esc. */}
+              <button
+                type="button"
+                onClick={onFinish}
+                aria-label="Chiudi la guida"
+                className="-my-2.5 -mr-2.5 flex size-11 items-center justify-center rounded-xl text-text-3 hover:bg-surface-2 hover:text-text"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </span>
           </div>
           <h2 id="tour-title" className="text-[17px] font-medium leading-snug">
             {step.title}
@@ -223,11 +235,6 @@ function TourOverlay({ steps, onFinish }: { steps: TourStep[]; onFinish: () => v
           </p>
         </div>
         <div className="-mx-1 -mb-1 flex items-center gap-1">
-          {!last ? (
-            <Button variant="quiet" onClick={onFinish} className="px-3">
-              Salta
-            </Button>
-          ) : null}
           <span className="flex-1" />
           {index > 0 ? (
             <Button variant="quiet" onClick={() => setIndex((i) => i - 1)} className="px-3">
