@@ -206,6 +206,12 @@ describe("preparazione dei pasti", () => {
     expect(out.map((r) => [r.fireAt, r.title, r.body])).toEqual([[at("2026-10-12", "20:00"), "Preparare il pranzo di domani", "Pasta al ragù"]]);
   });
 
+  it("un pasto di oggi avvisa all'orario della sua attività, non a quello dei pasti", () => {
+    const today = { ...meal, title: "Preparare il pranzo di oggi", notes: "Riso e lenticchie", time: "12:00:00", created_at: "2026-10-12T07:00:00Z", updated_at: "2026-10-12T07:00:00Z" };
+    const out = planDay({ tasks: [today] }, "2026-10-12");
+    expect(out.map((r) => [r.fireAt, r.title, r.key])).toEqual([[at("2026-10-12", "12:00"), "Preparare il pranzo di oggi", "task:t1:meal:2026-10-12T12:00"]]);
+  });
+
   it("non avvisa se è già spuntata o se l'avviso è spento", () => {
     expect(planDay({ tasks: [{ ...meal, status: "done" }] }, "2026-10-12")).toEqual([]);
     expect(planDay({ tasks: [meal], settings: { ...settings, notify_meal_prep: false } }, "2026-10-12")).toEqual([]);

@@ -27,8 +27,8 @@ const SLOT_WITH_ARTICLE: Record<MealSlot, string> = {
   extra: "gli extra",
 };
 
-export function reminderTitle(slot: MealSlot): string {
-  return `Preparare ${SLOT_WITH_ARTICLE[slot]} di domani`;
+export function reminderTitle(slot: MealSlot, sameDay = false): string {
+  return `Preparare ${SLOT_WITH_ARTICLE[slot]} di ${sameDay ? "oggi" : "domani"}`;
 }
 
 /** Nome senza maiuscole, accenti e spazi doppi: "Pasta  al Ragù" e "pasta al ragu" sono lo stesso pasto. */
@@ -42,25 +42,75 @@ export function normalizeMealName(name: string): string {
 }
 
 /**
- * Il giorno in cui preparare: quello prima del pasto. Nessuno se è già passato
- * (pasti di oggi o di giorni passati non generano attività).
+ * Il giorno in cui preparare: quello prima del pasto; per un pasto di oggi, oggi stesso.
+ * Nessuno per i pasti di giorni passati.
  */
 export function reminderDate(mealDate: LocalDate, today: LocalDate): LocalDate | null {
-  const day = addDays(mealDate, -1);
-  return day >= today ? day : null;
+  if (mealDate < today) return null;
+  return mealDate === today ? today : addDays(mealDate, -1);
+}
+
+/**
+ * Per un pasto di oggi il giorno prima è già passato: il promemoria si mette oggi, a quest'ora.
+ * Un'ora circa prima del pasto (la colazione mezz'ora, perché la mattina presto è in silenzio).
+ */
+export const SAME_DAY_PREP_TIME: Record<MealSlot, string> = {
+  breakfast: "07:30",
+  lunch: "12:00",
+  snack: "15:30",
+  dinner: "19:00",
+  extra: "12:00",
+};
+
+/** Il prossimo quarto d'ora dopo `time` ("HH:mm"), mai lo stesso minuto; al massimo "23:59". */
+function nextQuarter(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const next = (Math.floor((h * 60 + m) / 15) + 1) * 15;
+  if (next >= 24 * 60) return "23:59";
+  return `${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`;
+}
+
+export type ReminderSchedule = { date: LocalDate; time: string | null };
+
+/** Il momento di adesso, nel fuso della persona: il giorno e l'ora "HH:mm". */
+export type Clock = { today: LocalDate; time: string };
+
+/**
+ * Quando ricordare di preparare un pasto.
+ * - Pasto da domani in poi: il giorno prima, senza orario (avvisa all'orario dei pasti scelto nelle Impostazioni).
+ * - Pasto di oggi: oggi, all'orario di `SAME_DAY_PREP_TIME`. Se quell'orario è già passato, perché il pasto
+ *   è vicino o è già passato anche lui, al prossimo quarto d'ora: il promemoria non cade mai nel passato
+ *   e un pasto da preparare non resta senza.
+ * - Pasto di un giorno passato: nessun promemoria.
+ */
+export function reminderSchedule(mealDate: LocalDate, slot: MealSlot, clock: Clock): ReminderSchedule | null {
+  const date = reminderDate(mealDate, clock.today);
+  if (!date) return null;
+  if (mealDate !== clock.today) return { date, time: null };
+  const planned = SAME_DAY_PREP_TIME[slot];
+  return { date, time: planned > clock.time ? planned : nextQuarter(clock.time) };
 }
 
 type MealKey = Pick<MealPlan, "id" | "date" | "slot" | "name">;
 
-/** Crea l'attività del giorno prima e la collega al pasto (se il giorno prima non è già passato). */
-function reminderOps(meal: MealKey, taskId: string, today: LocalDate): Op[] {
-  const date = reminderDate(meal.date, today);
-  if (!date) return [];
+/** Crea l'attività di preparazione e la collega al pasto (se il pasto non è già passato). */
+function reminderOps(meal: MealKey, taskId: string, clock: Clock): Op[] {
+  const when = reminderSchedule(meal.date, meal.slot, clock);
+  if (!when) return [];
+  const sameDay = meal.date === clock.today;
   return [
     {
       kind: "insert",
       table: "tasks",
-      row: { id: taskId, title: reminderTitle(meal.slot), notes: meal.name, date, source: "meal", meal_plan_id: meal.id },
+      row: {
+        id: taskId,
+        title: reminderTitle(meal.slot, sameDay),
+        notes: meal.name,
+        date: when.date,
+        ...(when.time ? { time: when.time } : {}),
+        source: "meal",
+        meal_plan_id: meal.id,
+      },
     },
     { kind: "update", table: "meal_plans", patch: { reminder_task_id: taskId }, where: byId(meal.id) },
   ];
@@ -72,7 +122,7 @@ function removeReminderOps(meal: Pick<MealPlan, "reminder_task_id">, now: string
 }
 
 /** Nuovo pasto. `taskId` è l'id da dare all'eventuale attività di preparazione. */
-export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: boolean; condiments?: string }, taskId: string, today: LocalDate): Op[] {
+export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: boolean; condiments?: string }, taskId: string, clock: Clock): Op[] {
   const row = {
     id: meal.id,
     date: meal.date,
@@ -82,11 +132,11 @@ export function addMealOps(meal: MealKey & { prep_mode: PrepMode; eaten_out?: bo
     ...(meal.eaten_out ? { eaten_out: true } : {}),
     ...(meal.condiments ? { condiments: meal.condiments } : {}),
   };
-  return [{ kind: "insert", table: "meal_plans", row }, ...(meal.prep_mode === "to_prep" ? reminderOps(meal, taskId, today) : [])];
+  return [{ kind: "insert", table: "meal_plans", row }, ...(meal.prep_mode === "to_prep" ? reminderOps(meal, taskId, clock) : [])];
 }
 
 /** Pronto ↔ Da preparare. Passando a Pronto l'attività collegata si elimina; tornando a Da preparare se ne crea una nuova. */
-export function setModeOps(meal: MealPlan, mode: PrepMode, taskId: string, today: LocalDate, now: string): Op[] {
+export function setModeOps(meal: MealPlan, mode: PrepMode, taskId: string, clock: Clock, now: string): Op[] {
   if (mode === meal.prep_mode) return [];
   if (mode === "ready") {
     return [
@@ -94,7 +144,7 @@ export function setModeOps(meal: MealPlan, mode: PrepMode, taskId: string, today
       { kind: "update", table: "meal_plans", patch: { prep_mode: "ready", prepared: false, prepared_at: null, reminder_task_id: null }, where: byId(meal.id) },
     ];
   }
-  return [{ kind: "update", table: "meal_plans", patch: { prep_mode: "to_prep" }, where: byId(meal.id) }, ...reminderOps(meal, taskId, today)];
+  return [{ kind: "update", table: "meal_plans", patch: { prep_mode: "to_prep" }, where: byId(meal.id) }, ...reminderOps(meal, taskId, clock)];
 }
 
 /** Casella "Preparato" del planner: l'attività collegata, se c'è ancora, segue il pasto. */

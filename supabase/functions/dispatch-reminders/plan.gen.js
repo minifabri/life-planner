@@ -282,9 +282,10 @@ function planReminders(input, from, to) {
     if (t.deleted_at || t.status !== "open") continue;
     if (t.source === "meal") {
       if (!s.notify_meal_prep || !t.date) continue;
+      const time2 = t.time ? trimTime(t.time) : null;
       add(
-        { key: `task:${t.id}:meal:${t.date}`, targetType: "task", targetId: t.id, title: t.title, url: "/today" },
-        atLocalTime(t.date, trimTime(s.meal_prep_reminder_time), tz),
+        { key: `task:${t.id}:meal:${t.date}${time2 ? `T${time2}` : ""}`, targetType: "task", targetId: t.id, title: t.title, url: "/today" },
+        atLocalTime(t.date, time2 ?? trimTime(s.meal_prep_reminder_time), tz),
         false,
         t.updated_at,
         t.date,
