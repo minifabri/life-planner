@@ -213,20 +213,20 @@ export default function TodayPage() {
             </h1>
           </div>
           <div className="-mr-2.5 flex">
-            <button type="button" onClick={() => go(-1)} aria-label="Giorno precedente" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text">
+            <button type="button" onClick={() => go(-1)} aria-label="Giorno precedente" data-tour="day" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text">
               <Icon name="chevronLeft" />
             </button>
-            <button type="button" onClick={() => go(1)} aria-label="Giorno successivo" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text">
+            <button type="button" onClick={() => go(1)} aria-label="Giorno successivo" data-tour="day" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text">
               <Icon name="chevronRight" />
             </button>
-            <Link href="/settings" aria-label="Impostazioni" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text md:hidden">
+            <Link href="/settings" aria-label="Impostazioni" data-tour="settings" className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text md:hidden">
               <Icon name="settings" />
             </Link>
           </div>
         </div>
         <DayMarksLine key={day} day={day} today={today} marks={dayMarks} className="-my-2.5" />
         <QuietEvents occurrences={quiet} onOpen={(occurrence) => setEditor({ kind: "event", occurrence })} className="-my-2.5" />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-tour="load">
           <div className="flex min-h-6 items-baseline justify-between gap-3">
             <span className="text-[13px] text-text-2">{loadText}</span>
             <span className="flex items-baseline gap-1">

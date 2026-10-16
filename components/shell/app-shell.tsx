@@ -11,23 +11,23 @@ import { useGcalAutoSync } from "@/lib/gcal/hooks";
 import { useIcloudAutoSync } from "@/lib/icloud/hooks";
 import { useImayogaAutoSync } from "@/lib/imayoga/hooks";
 
-type NavItem = { href: string; label: string; icon: IconName; match: string[] };
+type NavItem = { href: string; label: string; icon: IconName; match: string[]; /** Elemento del tour guidato. */ tour?: string };
 
 const MOBILE_NAV: NavItem[] = [
   { href: "/today", label: "Oggi", icon: "sun", match: ["/today", "/workouts"] },
-  { href: "/calendar/week", label: "Calendario", icon: "calendar", match: ["/calendar"] },
-  { href: "/lists/shopping", label: "Liste", icon: "list", match: ["/lists"] },
-  { href: "/log", label: "Log", icon: "journal", match: ["/log"] },
+  { href: "/calendar/week", label: "Calendario", tour: "calendar", icon: "calendar", match: ["/calendar"] },
+  { href: "/lists/shopping", label: "Liste", tour: "lists", icon: "list", match: ["/lists"] },
+  { href: "/log", label: "Log", tour: "log", icon: "journal", match: ["/log"] },
 ];
 
 const DESKTOP_NAV: NavItem[] = [
   { href: "/today", label: "Oggi", icon: "sun", match: ["/today", "/workouts"] },
-  { href: "/calendar/week", label: "Calendario", icon: "calendar", match: ["/calendar"] },
-  { href: "/lists/shopping", label: "Spesa", icon: "list", match: ["/lists/shopping"] },
-  { href: "/lists/meals", label: "Pasti", icon: "meal", match: ["/lists/meals"] },
-  { href: "/lists/wishlist", label: "Wishlist", icon: "heart", match: ["/lists/wishlist"] },
-  { href: "/lists/wardrobe", label: "Guardaroba", icon: "hanger", match: ["/lists/wardrobe"] },
-  { href: "/log", label: "Log", icon: "journal", match: ["/log"] },
+  { href: "/calendar/week", label: "Calendario", tour: "calendar", icon: "calendar", match: ["/calendar"] },
+  { href: "/lists/shopping", label: "Spesa", tour: "lists", icon: "list", match: ["/lists/shopping"] },
+  { href: "/lists/meals", label: "Pasti", tour: "lists", icon: "meal", match: ["/lists/meals"] },
+  { href: "/lists/wishlist", label: "Wishlist", tour: "lists", icon: "heart", match: ["/lists/wishlist"] },
+  { href: "/lists/wardrobe", label: "Guardaroba", tour: "lists", icon: "hanger", match: ["/lists/wardrobe"] },
+  { href: "/log", label: "Log", tour: "log", icon: "journal", match: ["/log"] },
 ];
 
 function isActive(pathname: string, item: NavItem) {
@@ -54,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           type="button"
           onClick={() => capture()}
           aria-keyshortcuts="N"
+          data-tour="add"
           className="flex min-h-11 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 text-left text-[13px] text-text-3 hover:text-text"
         >
           <Icon name="plus" size={15} />
@@ -64,6 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           type="button"
           onClick={search}
           aria-keyshortcuts="Meta+K Control+K"
+          data-tour="search"
           className="-mt-4 flex min-h-11 items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 text-left text-[13px] text-text-3 hover:text-text"
         >
           <Icon name="search" size={15} />
@@ -78,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                data-tour={item.tour}
                 className={`flex min-h-[38px] items-center gap-3 rounded-[9px] px-2.5 text-sm transition-colors ${
                   active ? "bg-surface-2 text-text" : "text-text-2 hover:bg-surface-2 hover:text-text"
                 }`}
@@ -115,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex-1" />
         <Link
           href="/settings"
+          data-tour="settings"
           aria-current={pathname.startsWith("/settings") ? "page" : undefined}
           className="flex min-h-[38px] items-center gap-3 rounded-[9px] px-2.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text"
         >
@@ -132,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               type="button"
               onClick={search}
               aria-label="Cerca"
+              data-tour="search"
               className="flex size-11 items-center justify-center rounded-xl text-text-2 hover:bg-surface-2 hover:text-text"
             >
               <Icon name="search" size={20} />
@@ -152,6 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => capture()}
             aria-label="Aggiungi"
+            data-tour="add"
             className="mx-auto flex size-[54px] items-center justify-center rounded-[18px] bg-accent-fill text-on-accent"
           >
             <Icon name="plus" size={24} strokeWidth={1.8} />
@@ -170,6 +176,7 @@ function MobileNavLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
+      data-tour={item.tour}
       className={`flex min-h-[52px] flex-col items-center justify-center gap-1 text-[10.5px] tracking-[0.02em] ${
         active ? "text-text" : "text-text-3"
       }`}

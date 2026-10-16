@@ -32,6 +32,7 @@ export function QuickAdd({ day, today, onDetails }: { day: LocalDate; today: Loc
 
   return (
     <form
+      data-tour="quick-add"
       className="flex items-center gap-1"
       onSubmit={(e) => {
         e.preventDefault();

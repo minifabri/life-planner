@@ -10,6 +10,7 @@ import { forgetCachedData, forgetEverything } from "@/lib/sync/persister";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
+import { useStartTour } from "@/components/tour/tour-provider";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
 import { searchPlaces, useWeatherPlace } from "@/lib/data/weather";
@@ -47,6 +48,7 @@ export default function SettingsPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-5 py-5 md:px-10 md:py-7">
       <PageHeader eyebrow="Impostazioni" title="Preferenze" />
       <ThemeSection />
+      <GuideSection />
       <DaySection />
       <WeatherSection />
       <NotificationsSection />
@@ -104,6 +106,18 @@ function Status({ text, tone = "neutral" }: { text: string | null; tone?: "neutr
     <p role="status" aria-live="polite" className={`text-sm ${color}`}>
       {text}
     </p>
+  );
+}
+
+/* ---------------- Guida ---------------- */
+function GuideSection() {
+  const startTour = useStartTour();
+  return (
+    <Section title="Guida" note="Il tour mostra su Oggi, passo per passo, le cose principali del planner.">
+      <div className="self-start">
+        <Button onClick={() => startTour("intro")}>Rivedi il tour</Button>
+      </div>
+    </Section>
   );
 }
 

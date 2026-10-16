@@ -995,6 +995,14 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Settimana desktop: la zona senza orario riempie lo spazio sopra l'agenda (le griglie orarie dei sette giorni restano allineate), bordo più marcato ed etichetta "senza orario" a sinistra; giorni passati all'80%; dettagli a 12 px in `text-2`. Legenda della barra laterale aggiornata.
 - Criteri: lint, typecheck, test e build; su desktop e iPhone, nei due temi, una settimana con eventi di aree diverse, un allenamento fatto, uno in programma e uno saltato.
 
+**Incremento 31 — Tour guidato** *(16 ottobre 2026, su richiesta di Bibi, D65)*
+- Migrazione `tours_seen`: colonna `profiles.tours_seen text[]` con gli id dei tour visti o saltati (`intro`; poi uno per sezione). Resta sotto la RLS del profilo.
+- `lib/tour/tour.ts` (puro, con test): passi del tour iniziale, `withSeen`/`hasSeen`, `visibleSteps` (salta i passi il cui elemento non è visibile: lo stesso elenco vale per iPhone e desktop), `unionRect` (più elementi in un solo riflettore, es. le quattro liste della barra laterale) e `placeCard` (fumetto a destra della barra laterale, altrimenti sotto o sopra l'elemento, sempre dentro lo schermo).
+- `lib/data/tour.ts`: `markTourSeen` aggiorna subito la cache del profilo e poi Supabase; se il salvataggio non riesce (offline) il tour resta segnato sul dispositivo (`tours-seen-pending` in localStorage) e si riprova al prossimo avvio con `flushPendingTours`.
+- `components/tour/tour-provider.tsx`: `TourProvider` nel layout dell'app, `useStartTour()`. Gli elementi da evidenziare hanno `data-tour="…"` (barra mobile e laterale, frecce del giorno, barra del carico, aggiunta veloce, Cerca, Impostazioni). Il riflettore è un riquadro con un'ombra `--scrim` attorno; il fumetto è un `dialog` modale: fuoco sul pulsante principale, Tab resta nel fumetto, Esc salta, frecce avanti e indietro, animazioni spente con `prefers-reduced-motion`. Impostazioni › Guida › "Rivedi il tour" porta su Oggi e lo riavvia.
+- Criteri: lint, typecheck, test e build; su iPhone e desktop il tour parte al primo accesso, Salta e Ho capito non lo fanno ricomparire (nemmeno sull'altro dispositivo), "Rivedi il tour" funziona.
+- **Prossimo**: tour di sezione (Calendario, Liste, Log…), con un id ciascuno in `TOURS` e partenza alla prima apertura della sezione.
+
 ## 14. Decisioni approvate
 
 Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e riassunte qui sono state approvate. Restano [DA VERIFICARE] solo i fatti da confermare con gli spike S1–S4.
