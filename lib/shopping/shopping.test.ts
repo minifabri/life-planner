@@ -236,6 +236,17 @@ describe("in casa", () => {
     expect(pantryCount(groups)).toBe(4);
   });
 
+  it("lascia fuori le cose che non si mangiano", () => {
+    const groups = pantryGroups([
+      bought("Pellicola"),
+      bought("Umido del gatto"),
+      bought("Shampoo"),
+      bought("Tofu", { department: "Cura della persona" }),
+      bought("Ceci"),
+    ]);
+    expect(groups.flatMap((g) => g.entries.map((e) => e.name))).toEqual(["Ceci"]);
+  });
+
   it("due acquisti dello stesso prodotto sono una voce sola, con i dati del più recente", () => {
     const old = bought("latte", { quantity: "1" });
     const recent = bought("Latte ", { quantity: "2", checked_at: "2026-10-11T09:00:00Z" });
