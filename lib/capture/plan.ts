@@ -149,6 +149,8 @@ export function planCapture(draft: CaptureDraft, today: LocalDate, tz: string): 
       window_start: due ? today : null,
       attention: draft.attention,
       area_id: null,
+      // Senza giorno non c'è un momento in cui avvisare: come nel modulo completo, il flag si azzera.
+      remind: draft.remind && (!!date || !!due),
     },
     repeat: draft.repeat ? { kind: "fixed", rrule: ruleFrom(draft.repeat, date ?? today) } : { kind: "none" },
   };
@@ -174,6 +176,18 @@ export function destinationLabel(draft: Pick<CaptureDraft, "kind" | "date" | "wi
   return day === today ? `Oggi · ${where}` : where;
 }
 
+/** Un'attività con un giorno (o una scadenza): l'unica a cui un promemoria può arrivare. */
+export function hasDay(draft: Pick<CaptureDraft, "date" | "windowEnd" | "time" | "repeat">): boolean {
+  return !!(draft.date || draft.windowEnd || draft.time || draft.repeat);
+}
+
+/** Quando arriva la notifica del promemoria, come nel modulo completo. */
+export function remindHint(draft: Pick<CaptureDraft, "date" | "windowEnd" | "time" | "repeat">): string {
+  if (!hasDay(draft)) return "Per il promemoria serve un giorno: scegli quando.";
+  if (!draft.date && !draft.time && !draft.repeat) return "Una notifica al mattino dell’ultimo giorno.";
+  return draft.time ? `Una notifica alle ${draft.time}.` : "Una notifica al mattino. Con un’ora, arriva a quell’ora.";
+}
+
 /** Riassunto letto dagli screen reader e mostrato nel toast di conferma. */
 export function describeDraft(draft: CaptureDraft, today: LocalDate): string {
   if (draft.kind === "shopping") return "Aggiunto alla spesa";
@@ -184,6 +198,7 @@ export function describeDraft(draft: CaptureDraft, today: LocalDate): string {
     draft.time,
     draft.durationMin ? formatDuration(draft.durationMin) : null,
     draft.repeat && draft.kind !== "workout" ? describeRule(draft.repeat).toLowerCase() : null,
+    draft.kind === "task" && draft.remind && hasDay(draft) ? "promemoria" : null,
   ].filter(Boolean);
   if (isBirthday(draft)) return `Compleanno aggiunto · ${whenLabel(draft, today)} · ogni anno`;
   const head = draft.kind === "event" ? "Evento aggiunto" : draft.kind === "workout" ? "Allenamento aggiunto" : "Attività aggiunta";

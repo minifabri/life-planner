@@ -2,9 +2,19 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { PushOffer } from "@/components/pwa/push-offer";
 import { Button, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
-import { KIND_LABEL, destinationLabel, isBirthday, quickDays, whenLabel, type CaptureDraft } from "@/lib/capture/plan";
+import {
+  KIND_LABEL,
+  destinationLabel,
+  hasDay,
+  isBirthday,
+  quickDays,
+  remindHint,
+  whenLabel,
+  type CaptureDraft,
+} from "@/lib/capture/plan";
 import { formatDuration, type LocalDate } from "@/lib/dates/local";
 import { parseCapture, type CaptureKind } from "@/lib/parser/parse";
 import { describeRule } from "@/lib/recurrence/rule";
@@ -12,7 +22,7 @@ import type { Attention, LogCategory } from "@/lib/supabase/types";
 
 /** Campi che un chip può correggere: vincono su ciò che legge il parser. */
 type Overrides = Partial<
-  Pick<CaptureDraft, "kind" | "date" | "windowEnd" | "time" | "durationMin" | "attention" | "repeat" | "categoryId">
+  Pick<CaptureDraft, "kind" | "date" | "windowEnd" | "time" | "durationMin" | "attention" | "remind" | "repeat" | "categoryId">
 >;
 
 type Panel = "kind" | "when" | "time" | "duration" | "category";
@@ -300,6 +310,17 @@ export function CaptureSheet({
                     </Chip>
                   ) : null}
 
+                  {kind === "task" ? (
+                    <Chip
+                      onPress={() => set({ remind: !draft.remind }, false)}
+                      tone={draft.remind ? "set" : "empty"}
+                      label={draft.remind ? "Promemoria attivo. Tocca per toglierlo" : "Aggiungi un promemoria"}
+                    >
+                      <Icon name="bell" size={14} />
+                      {draft.remind ? "promemoria" : "+ promemoria"}
+                    </Chip>
+                  ) : null}
+
                   {kind === "log" ? (
                     <Chip
                       caption="Categoria"
@@ -415,7 +436,11 @@ export function CaptureSheet({
                     {missingDay ? "Scrivi anche il giorno, per esempio “compleanno Marta 12 ottobre”." : "Tutto il giorno, ogni anno."}
                   </p>
                 ) : null}
-                {kind === "task" && !draft.date && !draft.windowEnd && !draft.time && !draft.repeat ? (
+                {kind === "task" && draft.remind ? (
+                  <p className={`text-xs ${hasDay(draft) ? "text-text-3" : "text-text-2"}`}>{remindHint(draft)}</p>
+                ) : null}
+                {kind === "task" ? <PushOffer active={draft.remind && hasDay(draft)} /> : null}
+                {kind === "task" && !draft.remind && !hasDay(draft) ? (
                   <p className="text-xs text-text-3">Senza data non compare in Oggi: la ritroverai nella ricerca.</p>
                 ) : null}
                 {kind === "task" && !draft.date && draft.windowEnd ? (

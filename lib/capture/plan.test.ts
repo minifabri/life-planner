@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCapture } from "../parser/parse";
-import { describeDraft, destinationLabel, planCapture, quickDays, whenLabel, type CaptureDraft } from "./plan";
+import { describeDraft, destinationLabel, planCapture, quickDays, remindHint, whenLabel, type CaptureDraft } from "./plan";
 
 const TODAY = "2026-10-10";
 const TZ = "Europe/Rome";
@@ -24,9 +24,25 @@ describe("planCapture", () => {
         window_start: null,
         attention: "low",
         area_id: null,
+        remind: false,
       },
       repeat: { kind: "none" },
     });
+  });
+
+  it("promemoria: resta con un giorno o una scadenza, si azzera senza data", () => {
+    expect(planCapture(draft("ricordami di chiamare Luca domani alle 15"), TODAY, TZ)).toMatchObject({
+      input: { date: "2026-10-11", time: "15:00", attention: "low", remind: true },
+    });
+    expect(planCapture(draft("pagare la bolletta entro domenica", { remind: true }), TODAY, TZ)).toMatchObject({
+      input: { due_date: "2026-10-11", remind: true },
+    });
+    expect(planCapture(draft("ricordami di chiamare Luca"), TODAY, TZ)).toMatchObject({ input: { date: null, remind: false } });
+  });
+
+  it("promemoria su un'attività ricorrente: passa alla serie", () => {
+    const plan = planCapture(draft("prendere la vitamina D ogni giorno", { remind: true }), TODAY, TZ);
+    expect(plan).toMatchObject({ input: { date: TODAY, remind: true }, repeat: { kind: "fixed" } });
   });
 
   it("attività nel periodo: la finestra parte da oggi", () => {
@@ -136,6 +152,14 @@ describe("destinationLabel", () => {
 });
 
 describe("etichette", () => {
+  it("dice quando arriva il promemoria", () => {
+    expect(remindHint(draft("ricordami di chiamare Luca domani alle 15"))).toBe("Una notifica alle 15:00.");
+    expect(remindHint(draft("ricordami di chiamare Luca domani"))).toBe("Una notifica al mattino. Con un’ora, arriva a quell’ora.");
+    expect(remindHint(draft("pagare la bolletta entro domenica"))).toBe("Una notifica al mattino dell’ultimo giorno.");
+    expect(remindHint(draft("ricordami di chiamare Luca"))).toBe("Per il promemoria serve un giorno: scegli quando.");
+    expect(describeDraft(draft("ricordami di chiamare Luca domani alle 15"), TODAY)).toBe("Attività aggiunta · domani · 15:00 · promemoria");
+  });
+
   it("descrive il quando", () => {
     expect(whenLabel(draft("yoga domani"), TODAY)).toBe("domani");
     expect(whenLabel(draft("pagare entro fine mese"), TODAY)).toBe("entro fine mese");

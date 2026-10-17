@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LockSheet } from "@/components/log/lock-sheet";
+import { PushOffer } from "@/components/pwa/push-offer";
 import { Button, Field, Segmented, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
 import { LessonSheet } from "@/components/today/lesson-sheet";
@@ -38,7 +39,6 @@ import {
 import { localDateString } from "@/lib/dates/today";
 import type { Occurrence } from "@/lib/events/day";
 import { birthdayRule, displayTitle } from "@/lib/events/kind";
-import { checkPushSupport, currentSubscription, subscribeToPush } from "@/lib/push/subscribe";
 import {
   DAY_FULL,
   DAY_SHORT,
@@ -155,22 +155,6 @@ function initialState(target: EditorTarget, today: LocalDate) {
 
 /** Promemoria di un'attività con una data; se il dispositivo non riceve notifiche, propone di attivarle. */
 function RemindField({ checked, onChange, hint }: { checked: boolean; onChange: (value: boolean) => void; hint: string }) {
-  // null: non ancora noto, o già a posto.
-  const [push, setPush] = useState<"off" | "unavailable" | "failed" | null>(null);
-
-  useEffect(() => {
-    if (!checked) return;
-    let stale = false;
-    currentSubscription()
-      .then((s) => {
-        if (!stale) setPush(s ? null : checkPushSupport().ok ? "off" : "unavailable");
-      })
-      .catch(() => {});
-    return () => {
-      stale = true;
-    };
-  }, [checked]);
-
   return (
     <div className="flex flex-col gap-1">
       <label className="flex min-h-11 items-center gap-3 text-[15px]">
@@ -178,26 +162,7 @@ function RemindField({ checked, onChange, hint }: { checked: boolean; onChange: 
         Promemoria
       </label>
       {checked ? <p className="text-xs text-text-3">{hint}</p> : null}
-      {checked && push === "off" ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <p className="text-xs text-text-2">Su questo dispositivo le notifiche non sono attive.</p>
-          <Button
-            onClick={() =>
-              subscribeToPush().then(
-                () => setPush(null),
-                () => setPush("failed"),
-              )
-            }
-          >
-            Attiva notifiche
-          </Button>
-        </div>
-      ) : null}
-      {checked && (push === "unavailable" || push === "failed") ? (
-        <p className="text-xs text-text-2">
-          Su questo dispositivo le notifiche non sono attive: guarda Impostazioni → Notifiche. Il promemoria arriva comunque sugli altri dispositivi dove sono attive.
-        </p>
-      ) : null}
+      <PushOffer active={checked} />
     </div>
   );
 }
