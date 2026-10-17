@@ -7,7 +7,7 @@ export type CaptureKind = "task" | "event" | "workout" | "shopping" | "wishlist"
 /** Parte del testo (indici sul testo originale) che ha generato un campo. */
 export type Span = { start: number; end: number };
 
-export type SpanField = "kind" | "date" | "time" | "duration" | "window" | "repeat" | "attention" | "category" | "url";
+export type SpanField = "kind" | "date" | "time" | "duration" | "window" | "repeat" | "attention" | "remind" | "category" | "url";
 
 /** Categoria del Log con le parole che la fanno riconoscere (da `log_categories`). */
 export type CategoryHint = { id: string; name: string; keywords: string[]; is_sensitive: boolean };
@@ -35,6 +35,8 @@ export type ParsedCapture = {
   windowEnd: LocalDate | null;
   repeat: SimpleRule | null;
   attention: Attention;
+  /** "Ricordami di…": un'attività con promemoria (notifica all'orario). Sugli eventi, che non hanno promemoria, diventa attenzione media. */
+  remind: boolean;
   categoryId: string | null;
   sensitive: boolean;
   url: string | null;
@@ -337,7 +339,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
 
   if ((m = REMIND.exec(ctx.low))) {
     reminded = true;
-    consume(ctx, m, "attention");
+    consume(ctx, m, "remind");
   }
 
   // "dalle 17 alle 18": orario e durata insieme.
@@ -552,7 +554,8 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     durationMin,
     windowEnd,
     repeat,
-    attention: reminded ? "medium" : "low",
+    attention: reminded && kind !== "task" ? "medium" : "low",
+    remind: reminded && kind === "task",
     categoryId: category?.id ?? null,
     sensitive: category?.is_sensitive ?? false,
     url,

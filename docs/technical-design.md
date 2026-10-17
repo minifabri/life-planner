@@ -971,6 +971,7 @@ Ogni incremento si chiude solo dopo la verifica dei criteri su iPhone (PWA insta
 - La Edge Function `dispatch-reminders` legge la colonna: va ripubblicata dopo la migrazione.
 - Non incluso: anticipo scelto ("10 minuti prima"), promemoria sugli eventi (restano per livello di attenzione), casella nel Quick Capture e nei template ("ricordami" continua a dare attenzione media), campanella nella griglia della settimana.
 - Criteri: test di `lib/reminders`; dal telefono: attività ad attenzione bassa con promemoria e orario tra pochi minuti → notifica con app chiusa; la stessa completata prima → nessuna notifica; senza promemoria → nessuna notifica.
+- **Quick Capture** *(aggiunto il 17 ottobre 2026, su richiesta di Bibi)*: chip "+ promemoria" (campanella) sulle attività; tocca per accenderlo o spegnerlo. "Ricordami di…" lo accende al posto dell'attenzione media (sugli eventi, che non hanno promemoria, resta attenzione media). Sotto i chip una riga dice quando arriva la notifica, con "Attiva notifiche" se il dispositivo non le riceve (`components/pwa/push-offer.tsx`, lo stesso dell'editor). Senza giorno la riga chiede di sceglierne uno e il flag si azzera al salvataggio (`planCapture`). "Altri dettagli" porta il flag nel modulo completo.
 
 **Incremento 28 — Guardaroba, meteo** *(12 ottobre 2026)*
 - Migrazione `20261013150000_weather_place.sql`: solo colonne sul profilo (`weather_city`, `weather_lat`, `weather_lon`, tutte o nessuna), nessuna tabella nuova.

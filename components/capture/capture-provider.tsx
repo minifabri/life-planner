@@ -63,6 +63,7 @@ function editorDraft(draft: CaptureDraft, today: LocalDate): EditorDraft {
   const common = {
     title: draftTitle(draft),
     attention: draft.attention,
+    remind: draft.kind === "task" && draft.remind,
     date,
     repeat,
     weekDays: draft.repeat?.byDay ?? [isoWeekday(date)],
