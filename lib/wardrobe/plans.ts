@@ -1,5 +1,5 @@
-import type { LocalDate } from "../dates/local";
-import type { Outfit, OutfitPlan, WardrobeItem } from "../supabase/types";
+import { addDays, type LocalDate } from "../dates/local";
+import type { Outfit, OutfitPlan, WardrobeItem, WardrobeWear } from "../supabase/types";
 import { bandOf, type DayForecast } from "../weather/forecast";
 import { resolveItems, toWashCount } from "./outfits";
 import { thermalMismatch, type Band } from "./suggest";
@@ -55,4 +55,31 @@ export function weatherIssue(items: WardrobeItem[], forecast: DayForecast | null
 /** Come chiamare una pianificazione: l'occasione, poi il nome dell'outfit, poi un nome generico. */
 export function planTitle(resolved: Pick<ResolvedPlan, "plan" | "outfit">): string {
   return resolved.plan.label?.trim() || resolved.outfit?.name || "Outfit";
+}
+
+/**
+ * Una pianificazione risulta indossata se il suo giorno c'è un utilizzo dello stesso outfit salvato,
+ * oppure con almeno metà dei suoi capi.
+ */
+export function isPlanWorn(resolved: Pick<ResolvedPlan, "plan" | "outfit" | "itemIds">, wears: WardrobeWear[]): boolean {
+  return wears.some((w) => {
+    if (w.worn_on !== resolved.plan.date) return false;
+    if (resolved.outfit && w.outfit_id === resolved.outfit.id) return true;
+    if (resolved.itemIds.length === 0) return false;
+    const shared = resolved.itemIds.filter((id) => w.item_ids.includes(id)).length;
+    return shared * 2 >= resolved.itemIds.length;
+  });
+}
+
+/**
+ * Gli outfit di ieri su cui chiedere "Lo hai indossato?": pianificati, con dei capi, non ancora registrati
+ * come indossati e senza una risposta "No" (`dismissed`, id delle pianificazioni). L'app chiede, non decide.
+ */
+export function plansToConfirm(plans: OutfitPlan[], outfits: Outfit[], items: WardrobeItem[], wears: WardrobeWear[], today: LocalDate, dismissed: string[]): ResolvedPlan[] {
+  const yesterday = addDays(today, -1);
+  return plans
+    .filter((p) => p.date === yesterday && !dismissed.includes(p.id))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map((p) => resolvePlan(p, outfits, items))
+    .filter((r) => r.items.length > 0 && !isPlanWorn(r, wears));
 }
