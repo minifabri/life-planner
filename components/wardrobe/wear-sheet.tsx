@@ -12,7 +12,18 @@ import type { WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
 const AFTER_LABEL: Record<WardrobeStatus, string> = { clean: "Pulito", worn: "Riutilizzabile", to_wash: "Da lavare" };
 
 /** "Indossato oggi": per ogni capo si sceglie se è ancora riutilizzabile o da lavare. Niente diventa sporco da solo. */
-export function WearSheet({ items, onConfirm, onClose }: { items: WardrobeItem[]; onConfirm: (choices: WearChoice[]) => Promise<boolean>; onClose: () => void }) {
+export function WearSheet({
+  items,
+  onConfirm,
+  onClose,
+  when = "oggi",
+}: {
+  items: WardrobeItem[];
+  onConfirm: (choices: WearChoice[]) => Promise<boolean>;
+  onClose: () => void;
+  /** Il giorno dell'utilizzo, in parole: "oggi" o "ieri". */
+  when?: "oggi" | "ieri";
+}) {
   const [statuses, setStatuses] = useState<Record<string, WardrobeStatus>>(() => Object.fromEntries(items.map((i) => [i.id, statusAfterWear(i)])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +38,9 @@ export function WearSheet({ items, onConfirm, onClose }: { items: WardrobeItem[]
   }
 
   return (
-    <Sheet title="Indossato oggi" isOpen onClose={onClose}>
+    <Sheet title={`Indossato ${when}`} isOpen onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-text-2">Come restano i capi dopo oggi?</p>
+        <p className="text-sm text-text-2">Come restano i capi dopo {when}?</p>
         <ul className="flex flex-col gap-3">
           {items.map((item) => {
             const label = item.name ?? CATEGORY_LABEL[item.category];

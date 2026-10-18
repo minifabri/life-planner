@@ -406,7 +406,7 @@ export default function TodayPage() {
             </section>
           ) : null}
 
-          <DayOutfits day={day} />
+          <DayOutfits day={day} today={today} />
 
           {isToday ? <LaundryPanel today={today} mode="today" /> : null}
         </>
