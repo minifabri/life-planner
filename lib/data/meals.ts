@@ -15,6 +15,7 @@ import {
   snoozeIdeaOp,
   type Clock,
 } from "../meals/rules";
+import { skipPrepOps, unskipPrepOps } from "../meals/followup";
 import { getSupabase } from "../supabase/client";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { commit, currentOwner, withPendingMealMemory, withPendingMeals } from "../sync/engine";
@@ -131,4 +132,15 @@ export async function snoozeMealIdea(slot: MealSlot, name: string, mode: PrepMod
 
 export async function removeMeal(meal: MealPlan): Promise<void> {
   await commit(removeMealOps(meal, new Date().toISOString()));
+}
+
+/** "No, non l'ho preparato" (domanda in Oggi): l'attività di preparazione di un pasto passato si chiude. */
+export async function skipMealPrep(meal: MealPlan): Promise<void> {
+  const ops = skipPrepOps(meal);
+  if (ops.length > 0) await commit(ops);
+}
+
+export async function unskipMealPrep(meal: MealPlan): Promise<void> {
+  const ops = unskipPrepOps(meal);
+  if (ops.length > 0) await commit(ops);
 }
