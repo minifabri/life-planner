@@ -179,7 +179,7 @@ status text check in ('open','done','dismissed') default 'open',
 completed_at timestamptz null,
 original_date date null,                                  -- per "Rimaste indietro"
 recurrence_id uuid null,
-source text check in ('manual','recurrence','template','meal','lesson') default 'manual',
+source text check in ('manual','recurrence','template','meal','lesson','shopping','laundry') default 'manual',
 meal_plan_id uuid null references meal_plans on delete set null,
 event_id uuid null references events on delete set null, -- lezione di imayoga da preparare
 deleted_at
@@ -295,6 +295,19 @@ outfit_plans:   id, owner_id, date date, event_id null → events (on delete set
 - `outfit_plans` non ha eliminazione reversibile: la riga sparisce e "Annulla" la reinserisce con lo stesso id. `label` è il titolo dell'evento al momento della scelta (non segue le modifiche successive al titolo) o un testo libero. I capi mostrati sono quelli di `outfit_id` finché l'outfit esiste, altrimenti `item_ids`.
 - `wardrobe_items.wishlist_item_id` (null, → `wishlist_items` on delete set null) lega il capo all'articolo da cui nasce. `wishlist_items` ha in più `garment` (stessi valori di `wardrobe_items.category`, null se non è abbigliamento), `colors text[]` e `styles text[]`.
 - Le foto dei capi eliminati da più di 7 giorni vengono tolte dallo Storage all'apertura del Guardaroba, con la rete (`purgeDeletedWardrobePhotos`).
+
+**Lavatrici** (D69, migrazione `20261018100000_laundry.sql`)
+```
+wardrobe_items.wash_group text null check in ('dark','light','colored','delicate')   -- null = automatico
+tasks.laundry_group       text null check in ('dark','light','colored','delicate')   -- con source = 'laundry'
+laundry_loads: id, owner_id, wash_group null, washed_on date, item_ids uuid[],
+               task_id null → tasks (on delete set null), created_at
+```
+- Le regole sono in `lib/wardrobe/laundry.ts` (pure, con test): gruppo automatico da colori e materiale, riconoscimento delle lavatrici scritte a mano dal titolo, proposte, dimensione del carico (mediana delle ultime 5 lavatrici del gruppo, da 2 in su, tra 3 e 15), nota per stendere.
+- Nessun trigger: completare la lavatrice non cambia i capi da solo. `useTaskActions().complete` chiede il foglio "Lavatrice fatta" (`lib/nav/laundry-handoff.ts`, un solo foglio nella shell) e i capi tornano puliti solo con la conferma, in un'unica scrittura nella outbox insieme alla riga di `laundry_loads`. Annulla cancella la riga e rimette gli stati di prima.
+- Le lavatrici aperte si leggono con la chiave `["tasks", "laundry"]` (`source = 'laundry'` o titolo con lavatrice/bucato/lavaggio): stando sotto "tasks" la cache segue da sola le modifiche alle attività, e chi legge filtra con `plannedLaundry`.
+- "Non ora" è salvato solo sul dispositivo (`localStorage`, `planner-laundry-snoozed`): numero di capi del gruppo al momento in cui è stato messo da parte.
+- `laundry_loads` non è nell'export, come le altre tabelle del guardaroba.
 
 **meal_plans** — planner pasti [APPROVATO, MVP]
 ```

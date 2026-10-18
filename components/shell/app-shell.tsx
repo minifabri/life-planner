@@ -1,5 +1,6 @@
 "use client";
 
+import { LaundryDoneHost } from "@/components/wardrobe/laundry-done-sheet";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -144,6 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           {children}
         </main>
+        <LaundryDoneHost />
 
         {/* Bottom navigation mobile */}
         <nav

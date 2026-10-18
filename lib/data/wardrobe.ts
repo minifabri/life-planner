@@ -13,7 +13,7 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 }
 
 const COLUMNS =
-  "id, name, image_path, thumb_path, image_url, category, subcategory, colors, seasons, styles, occasions, material, brand, warmth, layerable, status, favorite, notes, wishlist_item_id, deleted_at, created_at, updated_at";
+  "id, name, image_path, thumb_path, image_url, category, subcategory, colors, seasons, styles, occasions, material, brand, warmth, layerable, status, wash_group, favorite, notes, wishlist_item_id, deleted_at, created_at, updated_at";
 
 export const WARDROBE_KEY = ["wardrobe-items"];
 
@@ -38,6 +38,7 @@ export type WardrobeInput = Pick<
   | "warmth"
   | "layerable"
   | "status"
+  | "wash_group"
   | "favorite"
   | "notes"
   | "image_url"
@@ -77,6 +78,7 @@ export async function duplicateWardrobeItem(item: WardrobeItem): Promise<string>
     warmth: item.warmth,
     layerable: item.layerable,
     status: item.status,
+    wash_group: item.wash_group,
     favorite: false,
     notes: item.notes,
     image_url: item.image_url,

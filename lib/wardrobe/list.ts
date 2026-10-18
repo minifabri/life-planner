@@ -1,4 +1,5 @@
 import type { WardrobeItem } from "../supabase/types";
+import { washGroupOf } from "./laundry";
 
 export type WardrobeFilters = {
   categories?: string[];
@@ -7,6 +8,8 @@ export type WardrobeFilters = {
   styles?: string[];
   occasions?: string[];
   statuses?: string[];
+  /** Gruppi di lavaggio (D69); "none" = senza gruppo. */
+  washGroups?: string[];
   favoriteOnly?: boolean;
   text?: string;
 };
@@ -27,6 +30,7 @@ export function filterWardrobe(items: WardrobeItem[], filters: WardrobeFilters):
     .filter((i) => matchesAny(i.styles, filters.styles))
     .filter((i) => matchesAny(i.occasions, filters.occasions))
     .filter((i) => !filters.statuses?.length || filters.statuses.includes(i.status))
+    .filter((i) => !filters.washGroups?.length || filters.washGroups.includes(washGroupOf(i) ?? "none"))
     .filter((i) => !filters.favoriteOnly || i.favorite)
     .filter((i) => !text || [i.name, i.brand, i.subcategory].some((v) => v?.toLowerCase().includes(text)))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));

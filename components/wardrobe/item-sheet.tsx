@@ -14,9 +14,10 @@ import { detectColors } from "@/lib/wardrobe/image";
 import { colorsFromText, guessGarment } from "@/lib/wardrobe/wishlist";
 import { failureMessage } from "@/lib/wishlist/metadata";
 import { CATEGORIES, CATEGORY_LABEL, COLOR_OPTIONS, OCCASION_OPTIONS, SEASONS, SEASON_LABEL, STATUSES, STATUS_LABEL, STYLE_OPTIONS } from "@/lib/wardrobe/categories";
-import type { WardrobeCategory, WardrobeItem, WardrobeStatus } from "@/lib/supabase/types";
+import type { WardrobeCategory, WardrobeItem, WardrobeStatus, WashGroup } from "@/lib/supabase/types";
 import type { WardrobeInput } from "@/lib/data/wardrobe";
 import type { Recognition } from "@/lib/wardrobe/vision";
+import { WASH_GROUPS, WASH_GROUP_LABEL, autoWashGroup } from "@/lib/wardrobe/laundry";
 
 export type ItemSave = WardrobeInput & { photo: File | null };
 
@@ -77,6 +78,8 @@ export function ItemSheet({
   const [layerable, setLayerable] = useState(item?.layerable ?? true);
   const [favorite, setFavorite] = useState(item?.favorite ?? false);
   const [status, setStatus] = useState<WardrobeStatus>(item?.status ?? "clean");
+  // Vuoto = automatico: segue colori e materiale finché non scegli tu (D69).
+  const [washGroup, setWashGroup] = useState<WashGroup | null>(item?.wash_group ?? null);
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [showMore, setShowMore] = useState(!!item);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -252,6 +255,7 @@ export function ItemSheet({
       warmth,
       layerable,
       status,
+      wash_group: washGroup,
       favorite,
       notes: notes.trim() || null,
       image_url: image || null,
@@ -452,6 +456,26 @@ export function ItemSheet({
               <span className="text-xs text-text-2">Stato</span>
               <Segmented label="Stato" value={status} options={STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} onChange={setStatus} />
             </div>
+
+            {category !== "shoes" && category !== "bag" ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-text-2">Lavaggio</span>
+                <Segmented
+                  label="Lavaggio"
+                  value={washGroup ?? "auto"}
+                  options={[{ value: "auto" as const, label: "Auto" }, ...WASH_GROUPS.map((g) => ({ value: g, label: WASH_GROUP_LABEL[g] }))]}
+                  onChange={(v) => setWashGroup(v === "auto" ? null : v)}
+                />
+                {washGroup === null ? (
+                  <p className="text-xs text-text-3">
+                    {(() => {
+                      const auto = autoWashGroup({ colors, material: material.trim() || null, name: name.trim() || null, subcategory: subcategory.trim() || null });
+                      return auto ? `Dai colori e dal materiale: ${WASH_GROUP_LABEL[auto].toLowerCase()}.` : "Scegli i colori, o il gruppo qui sopra.";
+                    })()}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <Field label="Note" htmlFor="wardrobe-notes">
               <textarea id="wardrobe-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputClass} py-2.5`} />

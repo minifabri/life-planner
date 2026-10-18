@@ -36,6 +36,7 @@ export function taskFromStub(stub: TaskStub): Task {
     meal_plan_id: null,
     event_id: null,
     shopping_item_id: null,
+    laundry_group: null,
     is_private: true,
     deleted_at: null,
   };

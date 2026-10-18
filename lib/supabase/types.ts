@@ -60,12 +60,14 @@ export type Task = {
   completed_at: string | null;
   original_date: string | null;
   recurrence_id: string | null;
-  source: "manual" | "recurrence" | "template" | "meal" | "lesson" | "shopping";
+  source: "manual" | "recurrence" | "template" | "meal" | "lesson" | "shopping" | "laundry";
   meal_plan_id: string | null;
   /** Lezione di imayoga da preparare (`source = 'lesson'`). */
   event_id: string | null;
   /** Articolo urgente della Spesa da comprare (`source = 'shopping'`). */
   shopping_item_id: string | null;
+  /** Lavatrice di un gruppo del guardaroba (`source = 'laundry'`, D69). */
+  laundry_group: WashGroup | null;
   /** Riservata: il contenuto si vede solo a Log sbloccato e non resta sul dispositivo (lib/private/items.ts). */
   is_private: boolean;
   deleted_at: string | null;
@@ -338,6 +340,19 @@ export type WishlistItem = {
 export type WardrobeCategory = "top" | "bottom" | "dress" | "outerwear" | "shoes" | "accessory" | "bag" | "other";
 export type WardrobeStatus = "clean" | "worn" | "to_wash";
 
+/** Gruppo di lavaggio (D69): scuri, chiari, colorati, delicati. */
+export type WashGroup = "dark" | "light" | "colored" | "delicate";
+
+/** Una lavatrice fatta: quali capi sono tornati puliti, e da quale attività (se c'era). */
+export type LaundryLoad = {
+  id: string;
+  wash_group: WashGroup | null;
+  washed_on: string;
+  item_ids: string[];
+  task_id: string | null;
+  created_at: string;
+};
+
 export type WardrobeItem = {
   id: string;
   name: string | null;
@@ -357,6 +372,8 @@ export type WardrobeItem = {
   warmth: 1 | 2 | 3 | 4 | 5 | null;
   layerable: boolean;
   status: WardrobeStatus;
+  /** Gruppo di lavaggio scelto a mano; vuoto = ricavato da colori e materiale (lib/wardrobe/laundry.ts). */
+  wash_group: WashGroup | null;
   favorite: boolean;
   notes: string | null;
   /** L'articolo della wishlist da cui nasce il capo, se c'è. */

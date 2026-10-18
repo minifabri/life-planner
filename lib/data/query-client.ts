@@ -22,4 +22,4 @@ export const queryClient = new QueryClient({
  * Le query salvate sul dispositivo. Del Log ci sono solo le registrazioni non riservate ("log-entries"):
  * quelle riservate ("log-private") restano in memoria e solo a Log sbloccato (technical-design.md, 6.2).
  */
-export const PERSISTED_QUERIES = ["profile", "areas", "log-categories", "lists", "recurrences", "tasks", "events", "shopping-items", "pantry-items", "product-memory", "meals", "meal-memory", "log-entries", "wishlist-items", "workouts", "day-marks", "templates", "wardrobe-items", "outfits", "wardrobe-wears", "outfit-feedback", "wardrobe-style", "outfit-plans", "weather"];
+export const PERSISTED_QUERIES = ["profile", "areas", "log-categories", "lists", "recurrences", "tasks", "events", "shopping-items", "pantry-items", "product-memory", "meals", "meal-memory", "log-entries", "wishlist-items", "workouts", "day-marks", "templates", "wardrobe-items", "outfits", "wardrobe-wears", "outfit-feedback", "wardrobe-style", "outfit-plans", "laundry-loads", "weather"];

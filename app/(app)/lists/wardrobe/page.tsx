@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IdeasView } from "@/components/wardrobe/ideas-view";
 import { UpcomingDays } from "@/components/days/day-signs";
 import { ItemSheet, type ItemSave } from "@/components/wardrobe/item-sheet";
+import { LaundryPanel } from "@/components/wardrobe/laundry-panel";
 import { OffSeasonToggle } from "@/components/wardrobe/off-season";
 import { OutfitCard } from "@/components/wardrobe/outfit-card";
 import { OutfitSheet } from "@/components/wardrobe/outfit-sheet";
@@ -24,13 +25,14 @@ import { attachWardrobePhoto, createWardrobeItem, duplicateWardrobeItem, purgeDe
 import { useForecast } from "@/lib/data/weather";
 import { useOutfitFeedback, useOutfitPlans, useOutfits, useWardrobeItems, useWardrobeStyle, useWears } from "@/lib/data/wardrobe-hooks";
 import { CATEGORY_LABEL, SEASON_LABEL, STATUS_LABEL } from "@/lib/wardrobe/categories";
+import { WASH_GROUP_LABEL, washGroupOf } from "@/lib/wardrobe/laundry";
 import { distinctValues, filterWardrobe, type WardrobeFilters } from "@/lib/wardrobe/list";
 import { filterOutfits, resolveItems } from "@/lib/wardrobe/outfits";
 import { resolvePlan, upcomingPlans, type ResolvedPlan } from "@/lib/wardrobe/plans";
 import { splitBySeason } from "@/lib/wardrobe/season";
 import { itemUsage, timesLabel } from "@/lib/wardrobe/stats";
 import { DEFAULT_STYLE, type Suggestion } from "@/lib/wardrobe/suggest";
-import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle } from "@/lib/supabase/types";
+import type { Outfit, OutfitFeedback, OutfitPlan, WardrobeItem, WardrobeStyle, WashGroup } from "@/lib/supabase/types";
 import { cityName, forecastFor } from "@/lib/weather/forecast";
 
 type View = "items" | "outfits" | "ideas" | "stats";
@@ -145,6 +147,9 @@ export default function WardrobePage() {
   const seasons = distinctValues(items, (i) => i.seasons);
   const styles = distinctValues(items, (i) => i.styles);
   const occasions = distinctValues(items, (i) => i.occasions);
+  const washGroups = distinctValues(items, (i) => [washGroupOf(i) ?? "none"]);
+  // Il gruppo scelto da "Da lavare": filtra i capi da lavare di quel gruppo.
+  const laundryGroup = filters.washGroups?.length === 1 && filters.statuses?.length === 1 && filters.statuses[0] === "to_wash" ? (filters.washGroups[0] as WashGroup | "none") : null;
 
   async function attempt(write: () => Promise<unknown>): Promise<boolean> {
     try {
@@ -391,11 +396,18 @@ export default function WardrobePage() {
 
       {view === "items" ? (
         <>
+          <LaundryPanel
+            today={today}
+            activeGroup={laundryGroup}
+            onGroup={(g) => setFilters((f) => ({ ...f, washGroups: g ? [g] : undefined, statuses: g ? ["to_wash"] : undefined }))}
+          />
+
           <FilterRow title="Categoria" options={categories} labels={CATEGORY_LABEL} value={filters.categories ?? []} onToggle={(v) => setFilters((f) => ({ ...f, categories: toggleIn(f.categories, v) }))} />
 
           {showFilters ? (
             <div className="flex flex-col gap-3 rounded-[14px] border border-line p-3">
               <FilterRow title="Stato" options={statuses} labels={STATUS_LABEL} value={filters.statuses ?? []} onToggle={(v) => setFilters((f) => ({ ...f, statuses: toggleIn(f.statuses, v) }))} />
+              <FilterRow title="Lavaggio" options={washGroups} labels={{ ...WASH_GROUP_LABEL, none: "Senza gruppo" }} value={filters.washGroups ?? []} onToggle={(v) => setFilters((f) => ({ ...f, washGroups: toggleIn(f.washGroups, v) }))} />
               <FilterRow title="Colore" options={colors} value={filters.colors ?? []} onToggle={(v) => setFilters((f) => ({ ...f, colors: toggleIn(f.colors, v) }))} />
               <FilterRow title="Stagione" options={seasons} labels={SEASON_LABEL} value={filters.seasons ?? []} onToggle={(v) => setFilters((f) => ({ ...f, seasons: toggleIn(f.seasons, v) }))} />
               <FilterRow title="Stile" options={styles} value={filters.styles ?? []} onToggle={(v) => setFilters((f) => ({ ...f, styles: toggleIn(f.styles, v) }))} />

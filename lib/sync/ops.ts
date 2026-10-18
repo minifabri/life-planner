@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { DayMark, EventException, EventRow, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LaundryLoad, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -22,7 +22,8 @@ export type Table =
   | "outfits"
   | "wardrobe_wears"
   | "outfit_feedback"
-  | "outfit_plans";
+  | "outfit_plans"
+  | "laundry_loads";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -106,6 +107,7 @@ function completeTask(at: string) {
     meal_plan_id: null,
     event_id: null,
     shopping_item_id: null,
+    laundry_group: null,
     is_private: false,
     deleted_at: null,
     created_at: at,
@@ -325,6 +327,16 @@ export function applyToPlans(plans: OutfitPlan[], op: Op, at: string): OutfitPla
   ).sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at));
 }
 
+/** Lo storico delle lavatrici dopo una modifica in attesa, dalla più recente. */
+export function applyToLoads(loads: LaundryLoad[], op: Op, at: string): LaundryLoad[] {
+  if (op.table !== "laundry_loads") return loads;
+  return applyToRows(
+    loads,
+    op,
+    (row) => ({ wash_group: null, item_ids: [], task_id: null, created_at: at, ...(row as Partial<LaundryLoad> & { id: string; washed_on: string }) }) as LaundryLoad,
+  ).sort((a, b) => b.washed_on.localeCompare(a.washed_on) || b.created_at.localeCompare(a.created_at));
+}
+
 /** I giudizi sulle combinazioni dopo una modifica in attesa. */
 export function applyToFeedback(feedback: OutfitFeedback[], op: Op, at: string): OutfitFeedback[] {
   if (op.table !== "outfit_feedback") return feedback;
@@ -355,6 +367,7 @@ export function applyToWardrobe(items: WardrobeItem[], op: Op, at: string): Ward
         status: "clean",
         favorite: false,
         notes: null,
+        wash_group: null,
         wishlist_item_id: null,
         deleted_at: null,
         created_at: at,
