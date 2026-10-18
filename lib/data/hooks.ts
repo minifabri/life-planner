@@ -9,6 +9,8 @@ import { mergeById } from "../private/items";
 import { getSyncState, subscribeSyncState, type SyncState } from "../sync/engine";
 import type { DayEvents } from "../sync/ops";
 import { dismissPatch, movePatch, type TaskPatch } from "../tasks/actions";
+import { requestLaundryDone } from "../nav/laundry-handoff";
+import { laundryGroupOfTask } from "../wardrobe/laundry";
 import type { Task } from "../supabase/types";
 import {
   completeTask,
@@ -168,7 +170,11 @@ export function useTaskActions(today: LocalDate, tz: string) {
 
   async function complete(task: Task) {
     const ok = await apply(() => completeTask(task, new Date(), tz));
-    if (ok) toast({ message: "Completata", actionLabel: "Annulla", onAction: () => reopen(task) });
+    if (!ok) return;
+    toast({ message: "Completata", actionLabel: "Annulla", onAction: () => reopen(task) });
+    // Una lavatrice completata chiede quali capi tornano puliti (D69). Una riservata no: il titolo non si vede.
+    const group = task.is_private ? undefined : laundryGroupOfTask(task);
+    if (group !== undefined) requestLaundryDone({ group, taskId: task.id });
   }
 
   return {

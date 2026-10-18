@@ -22,6 +22,7 @@ function item(patch: Partial<WardrobeItem>): WardrobeItem {
     status: "clean",
     favorite: false,
     notes: null,
+    wash_group: null,
     wishlist_item_id: null,
     deleted_at: null,
     created_at: "2026-10-12T08:00:00Z",
