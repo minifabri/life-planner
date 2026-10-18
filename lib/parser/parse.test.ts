@@ -308,3 +308,15 @@ describe("allenamenti", () => {
     expect(parse("Dentista martedì alle 15", { kind: "workout" })).toMatchObject({ kind: "workout", title: "Dentista", date: "2026-10-13", time: "15:00" });
   });
 });
+
+describe("lavatrici", () => {
+  it("con un orario resta un'attività, così completandola si scelgono i capi puliti", () => {
+    expect(parse("lavatrice oggi alle 18")).toMatchObject({ kind: "task", title: "Lavatrice", date: TODAY, time: "18:00" });
+    expect(parse("Bucato scuri domani alle 9")).toMatchObject({ kind: "task", title: "Bucato scuri", date: "2026-10-11", time: "09:00" });
+  });
+
+  it("senza orario è un'attività come prima, e il tipo scelto a mano vince", () => {
+    expect(parse("Lavatrice chiari domani")).toMatchObject({ kind: "task", title: "Lavatrice chiari", date: "2026-10-11", time: null });
+    expect(parse("lavatrice oggi alle 18", { kind: "event" }).kind).toBe("event");
+  });
+});

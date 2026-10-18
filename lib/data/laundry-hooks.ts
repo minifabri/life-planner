@@ -89,6 +89,21 @@ export function useLaundry(today: LocalDate) {
 
   const planned = useMemo(() => Object.fromEntries(WASH_GROUPS.map((g) => [g, plannedLaundry(tasks ?? [], g)])) as Record<WashGroup, Task | null>, [tasks]);
 
+  /**
+   * La lavatrice di un gruppo scelta a mano, anche senza una proposta (o con la proposta messa da parte):
+   * la proposta se c'è, altrimenti i capi da lavare del gruppo senza un perché.
+   */
+  const groupState = useCallback(
+    (group: WashGroup): LaundryGroupState | null => {
+      const proposal = (overview?.proposals ?? []).find((p) => p.group === group);
+      if (proposal) return { ...proposal, planned: plannedLaundry(tasks ?? [], group) };
+      const entry = overview?.counts.find((c) => c.group === group);
+      if (!entry) return null;
+      return { group, items: entry.items, reasons: [], deadline: null, urgent: false, planned: plannedLaundry(tasks ?? [], group) };
+    },
+    [overview, tasks],
+  );
+
   const snooze = useCallback((p: LaundryProposal) => writeSnoozed({ ...readSnoozed(), [p.group]: p.items.length }), []);
   const unsnooze = useCallback((group: WashGroup) => {
     const next = { ...readSnoozed() };
@@ -102,6 +117,7 @@ export function useLaundry(today: LocalDate) {
     ungrouped: overview?.ungrouped ?? [],
     proposals,
     planned,
+    groupState,
     drying: dryingNote(weather.days, today),
     weather,
     snooze,
