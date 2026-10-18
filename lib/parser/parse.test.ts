@@ -35,7 +35,7 @@ const SUITE: [string, Expected][] = [
   ["Inizio ciclo oggi", { kind: "log", title: "Inizio ciclo", date: TODAY, categoryId: "ciclo", sensitive: true }],
   [
     "Tra tre mesi ricordami di controllare una scadenza",
-    { kind: "task", title: "Controllare una scadenza", date: "2027-01-10", attention: "medium" },
+    { kind: "task", title: "Controllare una scadenza", date: "2027-01-10", remind: true },
   ],
   ["wish: siero vitamina C", { kind: "wishlist", title: "Siero vitamina C" }],
   [
@@ -153,8 +153,8 @@ const SUITE: [string, Expected][] = [
   ["Carla domani alle 9", { kind: "event", title: "Carla", date: "2026-10-11", time: "09:00" }],
   ["corriere lunedì alle 11", { kind: "event", title: "Corriere", date: "2026-10-12", time: "11:00" }],
   ["palestra domani", { kind: "task", title: "Palestra", date: "2026-10-11", confidence: "low" }],
-  ["ricordami di chiamare Luca domani alle 15", { kind: "task", title: "Chiamare Luca", date: "2026-10-11", time: "15:00", attention: "medium" }],
-  ["ricordami che martedì c'è il mercato", { kind: "task", title: "C'è il mercato", date: "2026-10-13", attention: "medium" }],
+  ["ricordami di chiamare Luca domani alle 15", { kind: "task", title: "Chiamare Luca", date: "2026-10-11", time: "15:00", remind: true }],
+  ["ricordami che martedì c'è il mercato", { kind: "task", title: "C'è il mercato", date: "2026-10-13", remind: true }],
   ["idea per il blog", { kind: "task", title: "Idea per il blog" }],
 
   // Ripetizioni
@@ -180,6 +180,7 @@ const EMPTY: Omit<ParsedCapture, "spans" | "kind" | "title"> = {
   windowEnd: null,
   repeat: null,
   attention: "low",
+  remind: false,
   categoryId: null,
   sensitive: false,
   url: null,
@@ -196,6 +197,10 @@ describe("parser del Quick Capture", () => {
 });
 
 describe("tipo scelto a mano", () => {
+  it("su un evento \"ricordami\" diventa attenzione media: gli eventi non hanno promemoria", () => {
+    expect(parse("ricordami il dentista martedì alle 15", { kind: "event" })).toMatchObject({ kind: "event", attention: "medium", remind: false });
+  });
+
   it("sposta un articolo dalla spesa alla wishlist senza cambiare il nome", () => {
     expect(parse("Comprare mascara", { kind: "wishlist" })).toMatchObject({ kind: "wishlist", title: "Mascara", confidence: "high" });
   });
