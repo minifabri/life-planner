@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { DayMarksLine, DaySigns } from "@/components/days/day-signs";
 import { BalanceCard } from "@/components/meals/balance-card";
 import { DayNutrients } from "@/components/meals/day-nutrients";
@@ -20,6 +20,7 @@ import { useMealMemory, useMeals, useUpcomingMeals } from "@/lib/data/meals-hook
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, localTimeString, shortDate, weekStart, weekdayName, type LocalDate } from "@/lib/dates/local";
 import { localDateString } from "@/lib/dates/today";
+import { onMealsDayRequested, takeMealsDay } from "@/lib/nav/meals-day-handoff";
 import { daySigns, signsText } from "@/lib/days/marks";
 import { ingredientsIn, mealsUsing } from "@/lib/meals/ingredients";
 import { daySummary, microTips } from "@/lib/meals/micros";
@@ -80,6 +81,24 @@ export default function MealsPage() {
   const [selected, setSelected] = useState<LocalDate | null>(null);
   const day = selected ?? today;
   const from = weekStart(day);
+
+  // Arrivando da Oggi ("Cambiato" sui pasti di ieri) si apre quel giorno. La pagina resta montata tra una
+  // navigazione e l'altra: la richiesta si legge al ritorno e, a pagina aperta, quando arriva.
+  useLayoutEffect(() => {
+    const requested = takeMealsDay();
+    if (requested) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelected(requested);
+      setView("day");
+    }
+    return onMealsDayRequested(() => {
+      const next = takeMealsDay();
+      if (next) {
+        setSelected(next);
+        setView("day");
+      }
+    });
+  }, []);
   const days = Array.from({ length: 7 }, (_, i) => addDays(from, i));
 
   const mealsQuery = useMeals(from);

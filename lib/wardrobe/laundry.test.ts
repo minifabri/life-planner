@@ -149,9 +149,9 @@ describe("laundryOverview", () => {
     const other = { category: "other" as const };
     const items = [dirty("a", ["nero"], other), dirty("b", ["blu"], other), dirty("c", ["bianco"], other), dirty("d", [], other), dirty("s", ["nero"], { category: "shoes" }), item("e", { colors: ["nero"] })];
     const view = laundryOverview({ items, plans: [], outfits: [], loads: [], today: TODAY });
-    expect(view.counts).toEqual([
-      { group: "dark", count: 2 },
-      { group: "light", count: 1 },
+    expect(view.counts.map(({ group, count, items }) => ({ group, count, ids: items.map((i) => i.id) }))).toEqual([
+      { group: "dark", count: 2, ids: ["a", "b"] },
+      { group: "light", count: 1, ids: ["c"] },
     ]);
     expect(view.ungrouped.map((i) => i.id)).toEqual(["d"]);
     expect(view.proposals).toEqual([]);

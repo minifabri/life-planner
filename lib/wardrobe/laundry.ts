@@ -51,6 +51,11 @@ export function washGroupOf(item: Pick<WardrobeItem, "wash_group" | "colors" | "
 }
 
 const LAUNDRY_WORD = /lavatric|bucato|lavaggio/i;
+
+/** Un titolo che parla di lavatrice ("Lavatrice scuri", "bucato", "lavaggio a mano"). */
+export function isLaundryTitle(title: string): boolean {
+  return LAUNDRY_WORD.test(title);
+}
 const GROUP_WORDS: [RegExp, WashGroup][] = [
   [/scur|\bner[io]\b/i, "dark"],
   [/chiar|bianc/i, "light"],
@@ -64,7 +69,7 @@ const GROUP_WORDS: [RegExp, WashGroup][] = [
  */
 export function laundryGroupOfTask(task: Pick<Task, "source" | "laundry_group" | "title">): WashGroup | null | undefined {
   if (task.source === "laundry") return task.laundry_group;
-  if (!LAUNDRY_WORD.test(task.title)) return undefined;
+  if (!isLaundryTitle(task.title)) return undefined;
   return GROUP_WORDS.find(([re]) => re.test(task.title))?.[1] ?? null;
 }
 
@@ -125,7 +130,7 @@ export type LaundryProposal = {
 
 export type LaundryOverview = {
   /** Capi da lavare per gruppo, solo i gruppi che ne hanno. */
-  counts: { group: WashGroup; count: number }[];
+  counts: { group: WashGroup; count: number; items: WardrobeItem[] }[];
   /** Capi da lavare senza gruppo: né scelto né ricavabile. */
   ungrouped: WardrobeItem[];
   proposals: LaundryProposal[];
@@ -195,7 +200,7 @@ export function laundryOverview(input: {
   });
 
   return {
-    counts: WASH_GROUPS.filter((g) => byGroup.has(g)).map((group) => ({ group, count: byGroup.get(group)!.length })),
+    counts: WASH_GROUPS.filter((g) => byGroup.has(g)).map((group) => ({ group, count: byGroup.get(group)!.length, items: byGroup.get(group)! })),
     ungrouped,
     proposals,
   };

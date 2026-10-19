@@ -15,7 +15,7 @@ import {
   snoozeIdeaOp,
   type Clock,
 } from "../meals/rules";
-import { skipPrepOps, unskipPrepOps } from "../meals/followup";
+import { confirmEatenOps, restoreMealOps, skipPrepOps, unconfirmEatenOps, unskipPrepOps } from "../meals/followup";
 import { getSupabase } from "../supabase/client";
 import type { MealMemory, MealPlan, MealSlot, Nutrient, PrepMode } from "../supabase/types";
 import { commit, currentOwner, withPendingMealMemory, withPendingMeals } from "../sync/engine";
@@ -143,4 +143,21 @@ export async function skipMealPrep(meal: MealPlan): Promise<void> {
 export async function unskipMealPrep(meal: MealPlan): Promise<void> {
   const ops = unskipPrepOps(meal);
   if (ops.length > 0) await commit(ops);
+}
+
+/** "Ieri hai mangiato come previsto? Sì": i pasti da preparare risultano preparati. */
+export async function confirmMealsEaten(meals: MealPlan[]): Promise<void> {
+  const ops = confirmEatenOps(meals, new Date().toISOString());
+  if (ops.length > 0) await commit(ops);
+}
+
+/** Annulla di `confirmMealsEaten`, con i pasti com'erano prima. */
+export async function unconfirmMealsEaten(meals: MealPlan[]): Promise<void> {
+  const ops = unconfirmEatenOps(meals, new Date().toISOString());
+  if (ops.length > 0) await commit(ops);
+}
+
+/** Annulla di un pasto saltato (eliminato): torna com'era. */
+export async function restoreMeal(meal: MealPlan): Promise<void> {
+  await commit(restoreMealOps(meal));
 }
