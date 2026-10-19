@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/form";
 import { ProductIcon, departmentStyle } from "@/components/shopping/product-icon";
 import { useToast } from "@/components/ui/toast";
 import { useTimezone } from "@/lib/data/hooks";
-import { setMealPrepared, skipMealPrep, unskipMealPrep } from "@/lib/data/meals";
+import { confirmMealsEaten, removeMeal, restoreMeal, setMealPrepared, skipMealPrep, unconfirmMealsEaten, unskipMealPrep } from "@/lib/data/meals";
 import { useMeals } from "@/lib/data/meals-hooks";
 import { usePantryItems, useShoppingActions } from "@/lib/data/shopping-hooks";
 import { addDays, startOfLocalDay, weekStart, type LocalDate } from "@/lib/dates/local";
-import { prepKey, prepQuestions, usedIngredients, usedKey } from "@/lib/meals/followup";
+import { eatenKey, eatenQuestion, prepKey, prepQuestions, usedIngredients, usedKey } from "@/lib/meals/followup";
+import { openMealsDay } from "@/lib/nav/meals-day-handoff";
 import { SLOT_LABEL } from "@/lib/meals/rules";
 import { pantryGroups } from "@/lib/shopping/pantry";
 import type { MealPlan } from "@/lib/supabase/types";
@@ -39,8 +41,8 @@ function writeAsked(keys: string[]) {
 const dish = (meal: MealPlan) => `«${meal.name}»`;
 
 /**
- * Domande sui pasti di ieri, in Oggi (D70): l'app non sa se un pasto da preparare è stato preparato, né se
- * gli ingredienti usati sono finiti, e lo chiede. Senza domande non mostra nulla.
+ * Domande sui pasti di ieri, in Oggi (D70): l'app non sa se i pasti sono andati come previsto, se un pasto da
+ * preparare è stato preparato, né se gli ingredienti usati sono finiti, e lo chiede. Senza domande non mostra nulla.
  */
 export function MealFollowUp({ today }: { today: LocalDate }) {
   const tz = useTimezone();
@@ -49,13 +51,19 @@ export function MealFollowUp({ today }: { today: LocalDate }) {
   const meals = useMeals(weekStart(yesterday)).data;
   const pantryItems = usePantryItems().data;
   const shopping = useShoppingActions();
+  const router = useRouter();
   const [asked, setAsked] = useState<string[]>(readAsked);
+  // "Non tutto": i pasti uno per uno; `answered` sono quelli già sistemati.
+  const [detail, setDetail] = useState(false);
+  const [answered, setAnswered] = useState<string[]>([]);
 
   if (!meals) return null;
-  const prep = prepQuestions(meals, yesterday, asked);
+  const eaten = eatenQuestion(meals, yesterday, asked);
+  // Finché c'è la domanda sui pasti, quella sulla preparazione è compresa: "Mangiato" vuol dire anche preparato.
+  const prep = eaten.length > 0 ? [] : prepQuestions(meals, yesterday, asked);
   const pantry = pantryGroups(pantryItems ?? []).flatMap((g) => g.entries);
   const used = usedIngredients(meals, pantry, yesterday, startOfLocalDay(today, tz).toISOString(), asked);
-  if (prep.length === 0 && used.length === 0) return null;
+  if (eaten.length === 0 && prep.length === 0 && used.length === 0) return null;
 
   function remember(key: string) {
     const next = [...asked, key];
@@ -67,6 +75,57 @@ export function MealFollowUp({ today }: { today: LocalDate }) {
     const next = readAsked().filter((k) => k !== key);
     setAsked(next);
     writeAsked(next);
+  }
+
+  async function attempt(write: () => Promise<void>): Promise<boolean> {
+    try {
+      await write();
+      return true;
+    } catch {
+      toast({ message: "Modifica non salvata. Riprova.", tone: "warn" });
+      return false;
+    }
+  }
+
+  function allEaten() {
+    const before = eaten;
+    remember(eatenKey(yesterday));
+    void attempt(() => confirmMealsEaten(before));
+    toast({
+      message: "Pasti di ieri confermati",
+      actionLabel: "Annulla",
+      onAction: () => {
+        forget(eatenKey(yesterday));
+        void unconfirmMealsEaten(before).catch(() => {});
+      },
+    });
+  }
+
+  /** Un pasto sistemato; quando lo sono tutti, la domanda si chiude. */
+  function settle(meal: MealPlan) {
+    const next = [...answered, meal.id];
+    setAnswered(next);
+    if (eaten.every((m) => next.includes(m.id))) {
+      remember(eatenKey(yesterday));
+      setDetail(false);
+    }
+  }
+
+  function rowEaten(meal: MealPlan) {
+    settle(meal);
+    if (meal.prep_mode === "to_prep" && !meal.prepared) void attempt(() => setMealPrepared(meal, true));
+  }
+
+  async function rowSkipped(meal: MealPlan) {
+    if (!(await attempt(() => removeMeal(meal)))) return;
+    settle(meal);
+    toast({ message: `${meal.name}: tolto, non conta nei nutrienti`, actionLabel: "Annulla", onAction: () => void restoreMeal(meal).catch(() => {}) });
+  }
+
+  function rowChanged(meal: MealPlan) {
+    settle(meal);
+    openMealsDay(yesterday);
+    router.push("/lists/meals");
   }
 
   async function prepared(meal: MealPlan) {
@@ -100,6 +159,53 @@ export function MealFollowUp({ today }: { today: LocalDate }) {
     <section aria-label="Pasti di ieri" className="flex flex-col gap-2">
       <h2 className="label-mono">Pasti di ieri</h2>
       <ul className="flex flex-col gap-2">
+        {eaten.length > 0 ? (
+          <li className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-3">
+            <p className="text-sm">Ieri hai mangiato come previsto?</p>
+            {detail ? (
+              <ul aria-label="Pasti di ieri, uno per uno" className="flex flex-col gap-2">
+                {eaten
+                  .filter((m) => !answered.includes(m.id))
+                  .map((meal) => (
+                    <li key={meal.id} className="flex flex-col gap-1">
+                      <p className="text-sm">
+                        <span className="text-text-2">{SLOT_LABEL[meal.slot]} · </span>
+                        {meal.name}
+                      </p>
+                      <div className="-ml-1 flex flex-wrap gap-1">
+                        <Button variant="quiet" onClick={() => rowEaten(meal)}>
+                          Mangiato
+                        </Button>
+                        <Button variant="quiet" onClick={() => void rowSkipped(meal)}>
+                          Saltato
+                        </Button>
+                        <Button variant="quiet" onClick={() => rowChanged(meal)}>
+                          Cambiato
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <>
+                <ul className="flex flex-col gap-0.5 text-xs text-text-2">
+                  {eaten.map((meal) => (
+                    <li key={meal.id}>
+                      {SLOT_LABEL[meal.slot]} · <span className="text-text">{meal.name}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={allEaten}>Sì</Button>
+                  <Button variant="quiet" onClick={() => setDetail(true)}>
+                    Non tutto
+                  </Button>
+                </div>
+              </>
+            )}
+          </li>
+        ) : null}
+
         {prep.map((meal) => (
           <li key={meal.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-3">
             <p className="text-sm">

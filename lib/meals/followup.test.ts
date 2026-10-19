@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PantryEntry } from "../shopping/pantry";
 import type { MealPlan, MealSlot, ShoppingItem } from "../supabase/types";
-import { prepKey, prepQuestions, skipPrepOps, unskipPrepOps, usedIngredients, usedKey } from "./followup";
+import { confirmEatenOps, eatenKey, eatenQuestion, prepKey, prepQuestions, restoreMealOps, skipPrepOps, unconfirmEatenOps, unskipPrepOps, usedIngredients, usedKey } from "./followup";
 
 const YESTERDAY = "2026-10-17";
 const TODAY_START = "2026-10-17T22:00:00.000Z";
@@ -73,5 +73,27 @@ describe("skipPrepOps", () => {
       { kind: "update", table: "tasks", patch: { status: "dismissed" }, where: [["id", "eq", "t"], ["status", "eq", "open"]] },
     ]);
     expect(unskipPrepOps({ reminder_task_id: "t" })[0]).toMatchObject({ patch: { status: "open" }, where: [["id", "eq", "t"], ["status", "eq", "dismissed"]] });
+  });
+});
+
+describe("eatenQuestion", () => {
+  it("elenca i pasti di ieri scritti in casa, nell'ordine della giornata", () => {
+    const meals = [meal("Pasta e ceci", "dinner"), meal("Porridge", "breakfast"), meal("Pizza", "lunch", { eaten_out: true }), meal("Mela", "snack", { date: "2026-10-16" })];
+    expect(eatenQuestion(meals, YESTERDAY, []).map((m) => m.name)).toEqual(["Porridge", "Pasta e ceci"]);
+    expect(eatenQuestion(meals, YESTERDAY, [eatenKey(YESTERDAY)])).toEqual([]);
+  });
+
+  it("confermare segna preparati i pasti da preparare, e si annulla", () => {
+    const meals = [meal("Lenticchie", "dinner", { prep_mode: "to_prep", reminder_task_id: "t" }), meal("Porridge", "breakfast")];
+    const ops = confirmEatenOps(meals, "2026-10-18T08:00:00.000Z");
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ table: "meal_plans", patch: { prepared: true } });
+    expect(ops[1]).toMatchObject({ table: "tasks", patch: { status: "done" } });
+    expect(unconfirmEatenOps(meals, "2026-10-18T08:00:00.000Z")[0]).toMatchObject({ patch: { prepared: false } });
+  });
+
+  it("un pasto saltato torna com'era, senza attività", () => {
+    const m = meal("Lenticchie", "dinner", { prep_mode: "to_prep", reminder_task_id: "t" });
+    expect(restoreMealOps(m)).toEqual([{ kind: "insert", table: "meal_plans", row: { ...m, reminder_task_id: null } }]);
   });
 });
