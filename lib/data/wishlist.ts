@@ -5,6 +5,7 @@ import { commit, withPendingWishlist } from "../sync/engine";
 import { byId, type Op } from "../sync/ops";
 import type { ImportRow } from "../wishlist/chatgpt";
 import { metadataPatch } from "../wishlist/list";
+import { renameOps } from "../wishlist/shipments";
 import type { LinkPreviewReply } from "../wishlist/metadata";
 import { listId } from "./api";
 
@@ -57,7 +58,15 @@ export async function importRows(rows: ImportRow[]): Promise<void> {
 }
 
 export async function updateWishlistItem(item: WishlistItem, patch: Partial<WishlistItem>): Promise<void> {
-  await commit([{ kind: "update", table: "wishlist_items", patch, where: byId(item.id), snapshot: { ...item, ...patch } }]);
+  const { name, ...rest } = patch;
+  const ops: Op[] = [];
+  // Un nome nuovo aggiorna anche il titolo dell'attività di restituzione, se c'è.
+  if (name !== undefined && name !== item.name) ops.push(...renameOps(item, name));
+  if (Object.keys(rest).length > 0) {
+    const base = name !== undefined ? { ...item, name } : item;
+    ops.push({ kind: "update", table: "wishlist_items", patch: rest, where: byId(item.id), snapshot: { ...base, ...rest } });
+  }
+  if (ops.length > 0) await commit(ops);
 }
 
 /** Chiede al server dell'app di leggere la pagina del link. Serve la rete; l'indirizzo viaggia nel corpo della richiesta. */

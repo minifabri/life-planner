@@ -169,8 +169,12 @@ export function arrivalOps(target: ArrivalTarget, answer: ShipmentAnswer, ctx: A
 
   if (target.item) {
     const item = target.item;
-    ops.push({ kind: "update", table: "wishlist_items", patch: fields, where: byId(item.id), snapshot: { ...item, ...fields } });
+    // Il nome scelto nella risposta (es. solo l'articolo da restituire) diventa quello dell'articolo.
+    const renamed = target.name.trim() && target.name !== item.name ? { name: target.name } : {};
+    const patch = { ...fields, ...renamed };
+    ops.push({ kind: "update", table: "wishlist_items", patch, where: byId(item.id), snapshot: { ...item, ...patch } });
     const before = {
+      ...("name" in renamed ? { name: item.name } : {}),
       status: item.status,
       shipment_event_id: item.shipment_event_id,
       arrived_on: item.arrived_on,
@@ -193,6 +197,23 @@ export function arrivalOps(target: ArrivalTarget, answer: ShipmentAnswer, ctx: A
     undo.push(...answered.undo);
   }
   return { ops, undo };
+}
+
+/**
+ * Rinomina un articolo. Se ha un'attività di restituzione con il titolo scritto dall'app, il titolo segue il nome
+ * ("Restituire …"); un titolo cambiato a mano resta com'è.
+ */
+export function renameOps(item: WishlistItem, name: string): Op[] {
+  const ops: Op[] = [{ kind: "update", table: "wishlist_items", patch: { name }, where: byId(item.id), snapshot: { ...item, name } }];
+  if (item.return_task_id && name !== item.name) {
+    ops.push({
+      kind: "update",
+      table: "tasks",
+      patch: { title: returnTaskTitle(name) },
+      where: [...byId(item.return_task_id), ["title", "eq", returnTaskTitle(item.name)]],
+    });
+  }
+  return ops;
 }
 
 /** "Restituito": l'articolo passa tra i restituiti e la sua attività si chiude. */

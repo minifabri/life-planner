@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Occurrence } from "../events/day";
 import type { EventRow, WishlistItem } from "../supabase/types";
 import { applyToWishlist } from "../sync/ops";
-import { answeredKey, arrivalOps, askDays, awaitingDecision, matchWanted, returnItems, returnedOps, shipmentKey, shipmentQuestions, waitKey } from "./shipments";
+import { answeredKey, arrivalOps, renameOps, askDays, awaitingDecision, matchWanted, returnItems, returnedOps, shipmentKey, shipmentQuestions, waitKey } from "./shipments";
 
 const AT = "2026-10-10T08:00:00.000Z";
 const item = (over: Partial<WishlistItem> & { id: string }): WishlistItem =>
@@ -104,6 +104,28 @@ describe("pacchi arrivati: risposte", () => {
     expect(ops[1]).toMatchObject({ kind: "update", table: "wishlist_items", patch: { status: "returning", return_by: "2026-11-02", return_task_id: "t", shipment_event_id: "z" } });
     expect(undo[0]).toMatchObject({ patch: { status: "wanted", shipment_event_id: null, return_task_id: null } });
     expect(undo[1]).toEqual({ kind: "delete", table: "tasks", where: [["id", "eq", "t"]] });
+  });
+
+  it("«Da restituire» con un nome scelto (un solo articolo del pacco): articolo e attività lo usano", () => {
+    const { ops } = arrivalOps({ item: null, name: "maglietta", eventId: "z", day: "2026-10-18" }, "return", ctx);
+    expect(ops[0]).toMatchObject({ table: "tasks", row: { title: "Restituire maglietta" } });
+    expect(ops[1]).toMatchObject({ table: "wishlist_items", row: { name: "maglietta", status: "returning" } });
+    // Articolo della wishlist proposto, nome accorciato: si rinomina, e Annulla rimette il nome di prima.
+    const wish = item({ id: "s", name: "Stivaletti e maglietta" });
+    const linked = arrivalOps({ item: wish, name: "maglietta", eventId: "z", day: "2026-10-18" }, "return", ctx);
+    expect(linked.ops[1]).toMatchObject({ table: "wishlist_items", patch: { name: "maglietta" } });
+    expect(linked.undo[0]).toMatchObject({ patch: { name: "Stivaletti e maglietta" } });
+  });
+
+  it("rinominare un articolo da restituire aggiorna il titolo dell'attività, se non è stato cambiato a mano", () => {
+    const it = item({ id: "r", name: "Zalando – stivaletti e maglietta", status: "returning", return_task_id: "t" });
+    expect(renameOps(it, "Zalando – maglietta")[1]).toEqual({
+      kind: "update",
+      table: "tasks",
+      patch: { title: "Restituire Zalando – maglietta" },
+      where: [["id", "eq", "t"], ["title", "eq", "Restituire Zalando – stivaletti e maglietta"]],
+    });
+    expect(renameOps(item({ id: "w", name: "Crema" }), "Crema viso")).toHaveLength(1);
   });
 
   it("«Ci penso più tardi» lo lascia tra quelli da decidere", () => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/form";
+import { Button, Field, inputClass } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { KindIcon } from "@/components/today/quiet-events";
 import { useRangeEvents, useTimezone } from "@/lib/data/hooks";
@@ -32,6 +32,8 @@ export function ShipmentFollowUp({ today }: { today: LocalDate }) {
   // Proposte della wishlist scartate con "Non è questo", per questa apertura.
   const [unlinked, setUnlinked] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  // "Da restituire" aperto: si sceglie cosa si restituisce (il nome è già scritto, si può accorciare).
+  const [returning, setReturning] = useState<{ eventId: string; name: string } | null>(null);
 
   useEffect(() => {
     void importDeviceAnswers(DEVICE_ANSWERS_KEY, "not_arrived").catch(() => {});
@@ -46,18 +48,20 @@ export function ShipmentFollowUp({ today }: { today: LocalDate }) {
   );
   if (questions.length === 0) return null;
 
-  async function answer(q: ShipmentQuestion, choice: ShipmentAnswer) {
+  async function answer(q: ShipmentQuestion, choice: ShipmentAnswer, chosenName?: string) {
     const match = q.match && !unlinked.includes(q.event.id) ? q.match : null;
+    const name = chosenName?.trim() || match?.name || q.name;
     setBusy(q.event.id);
     let undo: () => Promise<void>;
     try {
-      undo = await answerArrival({ item: match, name: match?.name ?? q.name, eventId: q.event.id, day: q.day }, choice, today);
+      undo = await answerArrival({ item: match, name, eventId: q.event.id, day: q.day }, choice, today);
     } catch {
       toast({ message: "Risposta non salvata. Riprova.", tone: "warn" });
       return;
     } finally {
       setBusy(null);
     }
+    setReturning(null);
     const message =
       choice === "keep"
         ? "Spostato in Acquistati"
@@ -113,20 +117,48 @@ export function ShipmentFollowUp({ today }: { today: LocalDate }) {
                   </button>
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void answer(q, "keep")} disabled={disabled}>
-                  Sì, lo tengo
-                </Button>
-                <Button onClick={() => void answer(q, "return")} disabled={disabled}>
-                  Da restituire
-                </Button>
-                <Button onClick={() => void answer(q, "later")} disabled={disabled}>
-                  Ci penso più tardi
-                </Button>
-                <Button variant="quiet" onClick={() => void notArrived(q)} disabled={disabled}>
-                  {q.today ? "Non ancora" : "Non è arrivato"}
-                </Button>
-              </div>
+              {returning?.eventId === q.event.id ? (
+                <form
+                  className="flex flex-col gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (returning.name.trim()) void answer(q, "return", returning.name);
+                  }}
+                >
+                  <Field label="Cosa restituisci? Se tieni il resto, lascia solo quello" htmlFor={`return-${q.event.id}`}>
+                    <input
+                      id={`return-${q.event.id}`}
+                      className={inputClass}
+                      value={returning.name}
+                      onChange={(e) => setReturning({ eventId: q.event.id, name: e.target.value })}
+                      autoFocus
+                    />
+                  </Field>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" variant="primary" disabled={disabled || !returning.name.trim()}>
+                      Da restituire
+                    </Button>
+                    <Button variant="quiet" onClick={() => setReturning(null)} disabled={disabled}>
+                      Indietro
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void answer(q, "keep")} disabled={disabled}>
+                    Sì, lo tengo
+                  </Button>
+                  <Button onClick={() => setReturning({ eventId: q.event.id, name: match?.name ?? q.name })} disabled={disabled}>
+                    Da restituire
+                  </Button>
+                  <Button onClick={() => void answer(q, "later")} disabled={disabled}>
+                    Ci penso più tardi
+                  </Button>
+                  <Button variant="quiet" onClick={() => void notArrived(q)} disabled={disabled}>
+                    {q.today ? "Non ancora" : "Non è arrivato"}
+                  </Button>
+                </div>
+              )}
             </li>
           );
         })}
