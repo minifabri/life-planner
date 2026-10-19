@@ -72,7 +72,7 @@ export const INTRO_TOUR: TourStep[] = [
   },
   {
     title: "Ogni sezione ha i suoi trucchi",
-    body: "La prima volta che apri Calendario, Spesa, Pasti, Wishlist, Guardaroba o Log, un mini tour ti mostra quelli di quella sezione.",
+    body: "La prima volta che apri Calendario, Spesa, Pasti, Acquisti, Guardaroba o Log, un mini tour ti mostra quelli di quella sezione.",
   },
 ];
 
@@ -231,7 +231,7 @@ export const TOUR_LABEL: Record<TourId, string> = {
   calendar: "Calendario",
   shopping: "Spesa",
   meals: "Pasti",
-  wishlist: "Wishlist",
+  wishlist: "Acquisti",
   wardrobe: "Guardaroba",
   log: "Log",
 };

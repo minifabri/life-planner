@@ -1053,6 +1053,13 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Non incluso: ripetizioni per le attività riservate; "Riservato" nel Quick Capture; previsioni in Oggi e Settimana; promemoria del ciclo.
 - Criteri: lint, typecheck, test e build; dal telefono: crea un evento riservato, blocca il Log e verifica «Evento riservato» con l'orario giusto in Oggi, Settimana e Mese, e la notifica neutra; aprilo (chiede il PIN) e modificalo; senza rete il salvataggio dice che serve la connessione; cerca il titolo a Log bloccato (non c'è) e sbloccato (c'è). Con almeno due cicli registrati nel Log, sblocca e apri il Mese: anelli e giorni fertili, poi "Nascondi riservati" li toglie.
 
+**Incremento 35 — Pacchi arrivati e Acquisti** *(19 ottobre 2026, su richiesta di Bibi, D71)*
+- Migrazione `20261019100000_shipment_followup.sql`: `wishlist_items.status` accetta anche `arrived`, `returning`, `returned`; colonne `shipment_event_id` (→ `events`, on delete set null), `arrived_on`, `return_by`, `return_task_id` (→ `tasks`, on delete set null); `tasks.source` accetta `return`. Trigger `tasks_sync_return`: l'attività di restituzione completata porta l'articolo a `returned`, riaperta a `returning`.
+- Logica pura con test in `lib/wishlist/shipments.ts`: `shipmentQuestions` (spedizioni dei 7 giorni prima di oggi non collegate a un articolo né con risposta «Non è arrivato», chiave `ship:<evento>:<giorno>` salvata sul dispositivo), `matchWanted` (articolo desiderato con più parole in comune con il titolo, solo se unico), `arrivalOps`/`returnedOps` (modifiche e annullamento, dalla outbox).
+- Interfaccia: `ShipmentFollowUp` in Oggi, sotto i pasti di ieri; pagina `/lists/wishlist` rinominata Acquisti (stessa rotta), con la sezione «Arrivati, da decidere» e la scheda Resi.
+- Non incluso: domanda nel giorno stesso della consegna; articolo nato dal pacco con prezzo o immagine; «Alla fine lo tengo» su un reso (si cambia lo stato dalla scheda).
+- Criteri: lint, typecheck, test e build; dal telefono: con un evento 📦 di ieri, rispondi alle tre scelte e usa Annulla; completa l'attività di restituzione e ritrova l'articolo tra i restituiti.
+
 ## 14. Decisioni approvate
 
 Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e riassunte qui sono state approvate. Restano [DA VERIFICARE] solo i fatti da confermare con gli spike S1–S4.

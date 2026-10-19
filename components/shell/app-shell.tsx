@@ -26,7 +26,7 @@ const DESKTOP_NAV: NavItem[] = [
   { href: "/calendar/week", label: "Calendario", tour: "calendar", icon: "calendar", match: ["/calendar"] },
   { href: "/lists/shopping", label: "Spesa", tour: "lists", icon: "list", match: ["/lists/shopping"] },
   { href: "/lists/meals", label: "Pasti", tour: "lists", icon: "meal", match: ["/lists/meals"] },
-  { href: "/lists/wishlist", label: "Wishlist", tour: "lists", icon: "heart", match: ["/lists/wishlist"] },
+  { href: "/lists/wishlist", label: "Acquisti", tour: "lists", icon: "heart", match: ["/lists/wishlist"] },
   { href: "/lists/wardrobe", label: "Guardaroba", tour: "lists", icon: "hanger", match: ["/lists/wardrobe"] },
   { href: "/log", label: "Log", tour: "log", icon: "journal", match: ["/log"] },
 ];

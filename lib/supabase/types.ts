@@ -60,7 +60,7 @@ export type Task = {
   completed_at: string | null;
   original_date: string | null;
   recurrence_id: string | null;
-  source: "manual" | "recurrence" | "template" | "meal" | "lesson" | "shopping" | "laundry";
+  source: "manual" | "recurrence" | "template" | "meal" | "lesson" | "shopping" | "laundry" | "return";
   meal_plan_id: string | null;
   /** Lezione di imayoga da preparare (`source = 'lesson'`). */
   event_id: string | null;
@@ -311,7 +311,8 @@ export type LogEntry = {
 /** Ciò che si vede di una registrazione riservata a Log bloccato: solo che esiste, e in che giorno. */
 export type LogStub = { id: string; date: string };
 
-export type WishlistStatus = "wanted" | "bought" | "discarded";
+/** `arrived`, `returning`, `returned`: pacchi arrivati (D71), vedi lib/wishlist/shipments.ts. */
+export type WishlistStatus = "wanted" | "bought" | "discarded" | "arrived" | "returning" | "returned";
 
 export type WishlistItem = {
   id: string;
@@ -332,6 +333,12 @@ export type WishlistItem = {
   garment: WardrobeCategory | null;
   colors: string[];
   styles: string[];
+  /** Spedizione (evento 📦) da cui l'articolo è arrivato, e in che giorno. */
+  shipment_event_id: string | null;
+  arrived_on: string | null;
+  /** Da restituire: entro quando, e l'attività che lo ricorda. */
+  return_by: string | null;
+  return_task_id: string | null;
   metadata_fetched_at: string | null;
   deleted_at: string | null;
   created_at: string;
