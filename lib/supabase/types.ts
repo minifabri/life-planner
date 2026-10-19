@@ -351,6 +351,14 @@ export type WardrobeStatus = "clean" | "worn" | "to_wash";
 export type WashGroup = "dark" | "light" | "colored" | "delicate";
 
 /** Una lavatrice fatta: quali capi sono tornati puliti, e da quale attività (se c'era). */
+/** Risposta a una domanda dell'app (D70), salvata sul server: vale su tutti i dispositivi. */
+export type QuestionAnswer = {
+  id: string;
+  key: string;
+  answer: string;
+  created_at: string;
+};
+
 export type LaundryLoad = {
   id: string;
   wash_group: WashGroup | null;

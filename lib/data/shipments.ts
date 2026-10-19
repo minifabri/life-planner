@@ -15,7 +15,7 @@ function shoppingArea(): string | null {
 /** Salva la risposta su un pacco arrivato. Restituisce la funzione che la annulla. */
 export async function answerArrival(target: ArrivalTarget, answer: ShipmentAnswer, today: LocalDate): Promise<() => Promise<void>> {
   const list = target.item ? target.item.list_id : await listId("wishlist");
-  const { ops, undo } = arrivalOps(target, answer, { today, itemId: uuidv7(), taskId: uuidv7(), listId: list, areaId: shoppingArea() });
+  const { ops, undo } = arrivalOps(target, answer, { today, itemId: uuidv7(), taskId: uuidv7(), answerId: uuidv7(), listId: list, areaId: shoppingArea() });
   await commit(ops);
   return () => commit(undo);
 }

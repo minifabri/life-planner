@@ -29,6 +29,7 @@ export const EXPORT_TABLES = [
   { name: "product_memory", key: "id" },
   { name: "wishlist_items", key: "id" },
   { name: "templates", key: "id" },
+  { name: "question_answers", key: "id" },
   { name: "icloud_calendars", key: "id" },
 ] as const;
 

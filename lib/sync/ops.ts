@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { DayMark, EventException, EventRow, LaundryLoad, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LaundryLoad, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, QuestionAnswer, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -23,7 +23,8 @@ export type Table =
   | "wardrobe_wears"
   | "outfit_feedback"
   | "outfit_plans"
-  | "laundry_loads";
+  | "laundry_loads"
+  | "question_answers";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -339,6 +340,12 @@ export function applyToLoads(loads: LaundryLoad[], op: Op, at: string): LaundryL
     op,
     (row) => ({ wash_group: null, item_ids: [], task_id: null, created_at: at, ...(row as Partial<LaundryLoad> & { id: string; washed_on: string }) }) as LaundryLoad,
   ).sort((a, b) => b.washed_on.localeCompare(a.washed_on) || b.created_at.localeCompare(a.created_at));
+}
+
+/** Le risposte alle domande dopo una modifica in attesa. */
+export function applyToAnswers(answers: QuestionAnswer[], op: Op, at: string): QuestionAnswer[] {
+  if (op.table !== "question_answers") return answers;
+  return applyToRows(answers, op, (row) => ({ created_at: at, ...(row as Omit<QuestionAnswer, "created_at">) }));
 }
 
 /** I giudizi sulle combinazioni dopo una modifica in attesa. */
