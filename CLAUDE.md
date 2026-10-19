@@ -15,5 +15,6 @@
 - Cibo: tutto ciò che l'app propone di suo (piatti, esempi, testi) è vegano, per chiunque la usi. Niente carne, pesce, uova, latticini o miele.
 - Design: usa i token di `app/globals.css` (design system v0.1). Viola pieno solo per l'azione principale, oro solo per attenzione alta. Aree come punto da 6 px, tranne i blocchi degli eventi (sfumatura e striscia dell'area, `.area-tint`, D64). Arancio `--workout` solo per gli allenamenti.
 - Accessibilità: target ≥ 44 px, elementi interattivi reali (`button`, `a`, `input` con `label`), rispetto di `prefers-reduced-motion`.
+- Chiedere, non decidere: quando l'app può dedurre qualcosa ma non esserne certa (un outfit pianificato è stato indossato? la lavatrice è stata fatta?), fa una domanda breve con risposta a un tocco (Sì / No, o una scelta già preparata) invece di cambiare i dati da sola. La risposta "No" non torna a chiedere la stessa cosa; ogni modifica che segue una risposta ha Annulla. È una regola generale di Bibi per tutta l'app (D70): applicala anche alle sezioni nuove.
 - Logica complessa (parser, date, ricorrenze, regole pasti) in moduli puri in `lib/` con test Vitest.
 - Prima di dichiarare finito: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` verdi, e verifica su iPhone (PWA installata) e desktop.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { planIssues, planTitle, plansForDay, resolvePlan, upcomingPlans, weatherIssue } from "./plans";
-import type { Outfit, OutfitPlan, WardrobeItem } from "../supabase/types";
+import { isPlanWorn, planIssues, planTitle, plansForDay, plansToConfirm, resolvePlan, upcomingPlans, weatherIssue } from "./plans";
+import type { Outfit, OutfitPlan, WardrobeItem, WardrobeWear } from "../supabase/types";
 
 function item(id: string, patch: Partial<WardrobeItem> = {}): WardrobeItem {
   return {
@@ -117,5 +117,29 @@ describe("weatherIssue", () => {
     expect(weatherIssue([item("a"), item("b", { category: "bottom" })], forecast(4))).toBeNull();
     // Scarpe e accessori non dicono quanto tiene caldo l'outfit.
     expect(weatherIssue([item("s", { category: "shoes", warmth: 1 })], forecast(4))).toBeNull();
+  });
+});
+
+describe("outfit di ieri da confermare", () => {
+  const items = [item("a"), item("b"), item("c")];
+  const wear = (patch: Partial<WardrobeWear>): WardrobeWear => ({ id: "w", worn_on: "2026-10-17", outfit_id: null, item_ids: [], created_at: "2026-10-17T20:00:00Z", ...patch });
+
+  it("chiede degli outfit pianificati ieri, non di oggi né di prima", () => {
+    const plans = [plan("p1", { date: "2026-10-17", item_ids: ["a", "b"] }), plan("p2", { date: "2026-10-18", item_ids: ["a"] }), plan("p3", { date: "2026-10-15", item_ids: ["a"] })];
+    expect(plansToConfirm(plans, [], items, [], "2026-10-18", []).map((r) => r.plan.id)).toEqual(["p1"]);
+  });
+
+  it("non chiede se è già stato indossato, se la risposta è stata No o se non ha capi", () => {
+    const p = plan("p1", { date: "2026-10-17", item_ids: ["a", "b"] });
+    expect(plansToConfirm([p], [], items, [wear({ item_ids: ["a"] })], "2026-10-18", [])).toEqual([]);
+    expect(plansToConfirm([p], [], items, [], "2026-10-18", ["p1"])).toEqual([]);
+    expect(plansToConfirm([plan("p2", { date: "2026-10-17", item_ids: ["zz"] })], [], items, [], "2026-10-18", [])).toEqual([]);
+  });
+
+  it("riconosce l'utilizzo dello stesso outfit salvato, anche con capi cambiati", () => {
+    const resolved = resolvePlan(plan("p1", { date: "2026-10-17", outfit_id: "o1" }), [outfit], items);
+    expect(isPlanWorn(resolved, [wear({ outfit_id: "o1", item_ids: ["c"] })])).toBe(true);
+    expect(isPlanWorn(resolved, [wear({ worn_on: "2026-10-16", outfit_id: "o1" })])).toBe(false);
+    expect(isPlanWorn(resolved, [wear({ item_ids: ["c"] })])).toBe(false);
   });
 });
