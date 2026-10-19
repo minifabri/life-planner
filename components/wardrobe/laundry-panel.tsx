@@ -67,6 +67,10 @@ export function LaundryPanel({
   const proposals = mode === "today" ? laundry.proposals.filter((p) => pressing(p, today)) : laundry.proposals;
   const total = laundry.counts.reduce((n, c) => n + c.count, 0) + laundry.ungrouped.length;
   if (mode === "today" ? proposals.length === 0 : total === 0) return null;
+  // Il gruppo toccato in "Da lavare" si può lavare o pianificare anche senza una proposta dell'app.
+  const chosen =
+    mode === "wardrobe" && activeGroup && activeGroup !== "none" && !proposals.some((p) => p.group === activeGroup) ? laundry.groupState(activeGroup) : null;
+  const cards = chosen ? [...proposals, chosen] : proposals;
 
   function done(p: LaundryGroupState) {
     // Con una lavatrice in programma si completa quella: il foglio dei capi si apre da lì.
@@ -121,9 +125,13 @@ export function LaundryPanel({
         </div>
       ) : null}
 
-      {proposals.length > 0 ? (
+      {mode === "wardrobe" && !activeGroup && laundry.counts.length > 0 ? (
+        <p className="text-xs text-text-3">Tocca un gruppo per vedere i capi e pianificare una lavatrice quando vuoi.</p>
+      ) : null}
+
+      {cards.length > 0 ? (
         <ul className="flex flex-col gap-2">
-          {proposals.map((p) => {
+          {cards.map((p) => {
             const planned = plannedText(p, today);
             return (
               <li key={p.group} className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-3">
@@ -138,7 +146,7 @@ export function LaundryPanel({
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => done(p)}>Fatta</Button>
                   {!planned || planned.late ? <Button onClick={() => setPlanning(p)}>Pianifica</Button> : null}
-                  {!p.urgent && !p.planned && mode === "wardrobe" ? (
+                  {!p.urgent && !p.planned && mode === "wardrobe" && p !== chosen ? (
                     <Button variant="quiet" onClick={() => snooze(p)}>
                       Non ora
                     </Button>
@@ -150,7 +158,7 @@ export function LaundryPanel({
         </ul>
       ) : null}
 
-      {proposals.length > 0 && laundry.drying ? <p className="text-xs text-text-3">{laundry.drying}.</p> : null}
+      {cards.length > 0 && laundry.drying ? <p className="text-xs text-text-3">{laundry.drying}.</p> : null}
 
       {planning ? (
         <LaundryPlanSheet

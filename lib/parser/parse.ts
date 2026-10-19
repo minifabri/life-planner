@@ -1,6 +1,7 @@
 import { addDays, addMonths, endOfMonth, endOfWeek, isoWeekday, nextWeekday, type LocalDate } from "../dates/local";
 import type { SimpleRule } from "../recurrence/rule";
 import type { Attention } from "../supabase/types";
+import { isLaundryTitle } from "../wardrobe/laundry";
 
 export type CaptureKind = "task" | "event" | "workout" | "shopping" | "wishlist" | "log";
 
@@ -495,6 +496,8 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
   // A fine frase ("Torta compleanno") vale solo con una data.
   const looksLikeBirthday =
     !!birthdayOf && (birthdayOf.groups!.who2 === undefined || !!date) && minutes === null && !repeat && !windowEnd && !reminded && !prefixKind && !url;
+  // "Lavatrice oggi alle 18" resta un'attività con l'orario: completandola si scelgono i capi tornati puliti (D69).
+  const looksLikeLaundry = isLaundryTitle(rest);
   const looksLikeLog = !!category && !verb && !reminded && !windowEnd && !repeat && !relativeDate && (!date || date.date <= today);
 
   let kind: CaptureKind;
@@ -512,7 +515,7 @@ export function parseCapture(input: string, options: ParseOptions): ParsedCaptur
     kind = "log";
     if (!date) confidence = "low";
   } else if (reminded) kind = "task";
-  else if (minutes !== null && !verb && !windowEnd) kind = "event";
+  else if (minutes !== null && !verb && !windowEnd && !looksLikeLaundry) kind = "event";
   else {
     kind = "task";
     if (date && !verb && !windowEnd) confidence = "low";
