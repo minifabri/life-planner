@@ -3,16 +3,17 @@ import type { PantryEntry } from "../shopping/pantry";
 import type { MealPlan } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
 import { ingredientsIn } from "./ingredients";
-import { SLOTS, mealFoods } from "./rules";
+import { SLOTS, mealFoods, setPreparedOps } from "./rules";
 
 /**
  * Domande sui pasti di ieri, in Oggi (D70: chiedere, non decidere). L'app non sa se un pasto da preparare
  * è stato preparato, né se un ingrediente usato è finito: lo chiede, una volta, con risposta a un tocco.
- * `dismissed` sono le chiavi delle domande a cui è già stato risposto "No" (`prepKey`, `usedKey`).
+ * `dismissed` sono le chiavi delle domande a cui è già stato risposto "No" (`prepKey`, `usedKey`, `eatenKey`).
  */
 
 export const prepKey = (meal: Pick<MealPlan, "id">) => `prep:${meal.id}`;
 export const usedKey = (date: LocalDate) => `used:${date}`;
+export const eatenKey = (date: LocalDate) => `eaten:${date}`;
 
 const bySlot = (a: MealPlan, b: MealPlan) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot);
 
@@ -47,4 +48,29 @@ export function skipPrepOps(meal: Pick<MealPlan, "reminder_task_id">): Op[] {
 export function unskipPrepOps(meal: Pick<MealPlan, "reminder_task_id">): Op[] {
   if (!meal.reminder_task_id) return [];
   return [{ kind: "update", table: "tasks", patch: { status: "open" }, where: [...byId(meal.reminder_task_id), ["status", "eq", "dismissed"]] }];
+}
+
+/**
+ * "Ieri hai mangiato come previsto?": i pasti di `day` scritti in casa (quelli mangiati fuori raccontano già
+ * com'è andata), nell'ordine della giornata. Vuoto se non ce ne sono o se la domanda ha già avuto risposta.
+ * I nutrienti contano i pasti pianificati come mangiati: la domanda serve a correggerli.
+ */
+export function eatenQuestion(meals: MealPlan[], day: LocalDate, dismissed: string[]): MealPlan[] {
+  if (dismissed.includes(eatenKey(day))) return [];
+  return meals.filter((m) => m.date === day && !m.eaten_out && m.name.trim()).sort(bySlot);
+}
+
+/** Mangiato come previsto: un pasto da preparare è stato anche preparato (la sua attività si completa). */
+export function confirmEatenOps(meals: MealPlan[], now: string): Op[] {
+  return meals.filter((m) => m.prep_mode === "to_prep" && !m.prepared).flatMap((m) => setPreparedOps(m, true, now));
+}
+
+/** Annulla di `confirmEatenOps` (`meals` sono i pasti com'erano prima). */
+export function unconfirmEatenOps(meals: MealPlan[], now: string): Op[] {
+  return meals.filter((m) => m.prep_mode === "to_prep" && !m.prepared).flatMap((m) => setPreparedOps(m, false, now));
+}
+
+/** Annulla di "Saltato" (il pasto eliminato): torna com'era, senza l'attività di preparazione di un giorno passato. */
+export function restoreMealOps(meal: MealPlan): Op[] {
+  return [{ kind: "insert", table: "meal_plans", row: { ...meal, reminder_task_id: null } }];
 }
