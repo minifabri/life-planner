@@ -5,9 +5,11 @@ import type { EventRow, WishlistItem, WishlistStatus } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
 
 /**
- * Pacchi arrivati (D71, con D70: chiedere, non decidere). Dal giorno dopo una spedizione (evento 📦)
- * l'app chiede in Oggi com'è andata: va bene (l'articolo entra in Acquistati), da restituire (un'attività
- * entro due settimane) o "ci penso più tardi" (l'articolo aspetta in Acquisti › Da decidere).
+ * Pacchi arrivati (D71, con D70: chiedere, non decidere). Dal giorno della consegna (evento 📦) l'app chiede
+ * in Oggi com'è andata: va bene (l'articolo entra in Acquistati), da restituire (un'attività entro due
+ * settimane) o "ci penso più tardi" (l'articolo aspetta in Acquisti › Da decidere). Già dal giorno stesso,
+ * perché un pacco può arrivare prima del previsto. Le risposte si salvano sul server (`question_answers`):
+ * una domanda a cui si è risposto non torna, né su un altro dispositivo né cancellando l'articolo.
  */
 
 /** Per quanti giorni dopo la spedizione si chiede. */
@@ -21,13 +23,21 @@ export type ShipmentQuestion = {
   event: EventRow;
   /** Giorno della spedizione (l'ultimo, se l'evento dura più giorni). */
   day: LocalDate;
+  /** La consegna è prevista oggi: si può rispondere "Non ancora". */
+  today: boolean;
   name: string;
   /** Articolo della wishlist che sembra lo stesso: proposto, si può scollegare. */
   match: WishlistItem | null;
 };
 
+/** Chiave di un pacco già deciso (tenuto, da restituire, da decidere): non si chiede più. */
+export const answeredKey = (eventId: string) => `ship:${eventId}`;
+
 /** Chiave della risposta "Non è arrivato": con il giorno, così una consegna spostata torna a chiedere. */
 export const shipmentKey = (eventId: string, day: LocalDate) => `ship:${eventId}:${day}`;
+
+/** Chiave del "Non ancora" del giorno della consegna: vale solo per oggi, da domani si chiede di nuovo. */
+export const waitKey = (eventId: string, today: LocalDate) => `ship:${eventId}:wait:${today}`;
 
 const STOPWORDS = new Set(["del", "della", "dei", "delle", "con", "per", "the", "and", "ordine", "pacco", "spedizione", "consegna", "reso"]);
 
@@ -64,29 +74,51 @@ export function matchWanted(title: string, items: WishlistItem[], taken: Set<str
 }
 
 /**
- * Le spedizioni di cui chiedere, dalla più recente. `days` sono i giorni prima di oggi con le loro occorrenze.
- * Si salta una spedizione già collegata a un articolo o a cui è stato risposto "Non è arrivato" (`dismissed`).
+ * Le spedizioni di cui chiedere, dalla più recente. `days` sono i giorni da guardare (fino a oggi) con le loro occorrenze.
+ * Si salta una spedizione già collegata a un articolo, già decisa, con risposta "Non è arrivato" per quel giorno
+ * o "Non ancora" oggi (`answered`: le chiavi delle risposte salvate).
  */
-export function shipmentQuestions(days: { day: LocalDate; occurrences: Occurrence[] }[], items: WishlistItem[], dismissed: string[]): ShipmentQuestion[] {
+export function shipmentQuestions(
+  days: { day: LocalDate; occurrences: Occurrence[] }[],
+  items: WishlistItem[],
+  answered: Iterable<string>,
+  today: LocalDate,
+): ShipmentQuestion[] {
+  const done = new Set(answered);
   const last = new Map<string, { event: EventRow; day: LocalDate }>();
   for (const { day, occurrences } of days) {
+    if (day > today) continue;
     for (const o of occurrences) {
       if (o.event.kind !== "shipment" || o.event.deleted_at) continue;
       const seen = last.get(o.event.id);
       if (!seen || seen.day < day) last.set(o.event.id, { event: o.event, day });
     }
   }
-  const linked = new Set(items.filter((i) => !i.deleted_at && i.shipment_event_id).map((i) => i.shipment_event_id));
+  const linked = new Set(items.filter((i) => i.shipment_event_id).map((i) => i.shipment_event_id));
   const taken = new Set<string>();
   return [...last.values()]
-    .filter(({ event, day }) => !linked.has(event.id) && !dismissed.includes(shipmentKey(event.id, day)))
+    .filter(
+      ({ event, day }) =>
+        !linked.has(event.id) &&
+        !done.has(answeredKey(event.id)) &&
+        !done.has(shipmentKey(event.id, day)) &&
+        !(day === today && done.has(waitKey(event.id, today))),
+    )
     .sort((a, b) => b.day.localeCompare(a.day) || displayTitle(a.event).localeCompare(displayTitle(b.event), "it"))
     .map(({ event, day }) => {
       const name = displayTitle(event);
       const match = matchWanted(name, items, taken);
       if (match) taken.add(match.id);
-      return { event, day, name, match };
+      return { event, day, today: day === today, name, match };
     });
+}
+
+/** Salva una risposta a una domanda: rifarla non duplica. Restituisce anche la modifica che la toglie. */
+export function answerOps(id: string, key: string, answer: string): { ops: Op[]; undo: Op[] } {
+  return {
+    ops: [{ kind: "insert", table: "question_answers", row: { id, key, answer }, onConflict: "owner_id,key" }],
+    undo: [{ kind: "delete", table: "question_answers", where: [["key", "eq", key]] }],
+  };
 }
 
 export const STATUS_OF: Record<ShipmentAnswer, WishlistStatus> = { keep: "bought", return: "returning", later: "arrived" };
@@ -101,9 +133,10 @@ export type ArrivalTarget = {
 
 export type ArrivalContext = {
   today: LocalDate;
-  /** Id da usare per un articolo nuovo e per l'attività di restituzione. */
+  /** Id da usare per un articolo nuovo, per l'attività di restituzione e per la risposta salvata. */
   itemId: string;
   taskId: string;
+  answerId: string;
   listId: string;
   /** Area "Acquisti", se c'è. */
   areaId: string | null;
@@ -152,6 +185,13 @@ export function arrivalOps(target: ArrivalTarget, answer: ShipmentAnswer, ctx: A
 
   // L'articolo prima, l'attività dopo: l'articolo la nomina.
   if (returning) undo.push({ kind: "delete", table: "tasks", where: byId(ctx.taskId) });
+
+  // La prima risposta su un pacco resta salvata: anche cancellando l'articolo, la domanda non torna.
+  if (target.eventId && target.item?.shipment_event_id !== target.eventId) {
+    const answered = answerOps(ctx.answerId, answeredKey(target.eventId), answer);
+    ops.push(...answered.ops);
+    undo.push(...answered.undo);
+  }
   return { ops, undo };
 }
 
@@ -182,7 +222,7 @@ export function returnItems(items: WishlistItem[]): { returning: WishlistItem[];
   };
 }
 
-/** I giorni da guardare per le domande: da `ASK_DAYS` giorni fa a ieri. */
+/** I giorni da guardare per le domande: da `ASK_DAYS` giorni fa a oggi. */
 export function askDays(today: LocalDate): LocalDate[] {
-  return Array.from({ length: ASK_DAYS }, (_, i) => addDays(today, -ASK_DAYS + i));
+  return Array.from({ length: ASK_DAYS + 1 }, (_, i) => addDays(today, -ASK_DAYS + i));
 }
