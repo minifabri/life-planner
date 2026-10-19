@@ -13,7 +13,13 @@ import { guessGarment } from "@/lib/wardrobe/wishlist";
 import type { WardrobeCategory, WishlistItem, WishlistStatus } from "@/lib/supabase/types";
 
 const INTERESTS = ([1, 2, 3] as const).map((value) => ({ value: String(value) as "1" | "2" | "3", label: INTEREST_LABEL[value] }));
-const STATUSES = (["wanted", "bought", "discarded"] as const).map((value) => ({ value, label: STATUS_LABEL[value] }));
+const BASE_STATUSES: WishlistStatus[] = ["wanted", "bought", "discarded"];
+
+/** Gli stati da scegliere a mano; quello di un pacco arrivato (da decidere, reso) si vede solo se è l'attuale. */
+function statusOptions(current: WishlistStatus) {
+  const values = BASE_STATUSES.includes(current) ? BASE_STATUSES : [...BASE_STATUSES, current];
+  return values.map((value) => ({ value, label: STATUS_LABEL[value] }));
+}
 
 const chip = (active: boolean) =>
   `flex min-h-9 shrink-0 items-center rounded-lg border px-2.5 text-[13px] transition-colors ${
@@ -260,7 +266,7 @@ export function ItemSheet({
         {item ? (
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-text-2">Stato</span>
-            <Segmented label="Stato" value={status} options={STATUSES} onChange={setStatus} />
+            <Segmented label="Stato" value={status} options={statusOptions(item.status)} onChange={setStatus} />
           </div>
         ) : null}
         {item && status === "bought" ? (

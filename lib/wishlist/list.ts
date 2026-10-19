@@ -1,7 +1,14 @@
 import type { WishlistItem, WishlistStatus } from "../supabase/types";
 import type { LinkMetadata } from "./metadata";
 
-export const STATUS_LABEL: Record<WishlistStatus, string> = { wanted: "Desiderati", bought: "Acquistati", discarded: "Scartati" };
+export const STATUS_LABEL: Record<WishlistStatus, string> = {
+  wanted: "Desiderati",
+  bought: "Acquistati",
+  discarded: "Scartati",
+  arrived: "Da decidere",
+  returning: "Da restituire",
+  returned: "Restituiti",
+};
 export const INTEREST_LABEL: Record<1 | 2 | 3, string> = { 1: "Basso", 2: "Medio", 3: "Alto" };
 
 /** Gli articoli di uno stato (ed eventualmente di una categoria), dal più desiderato; a parità il più recente. */

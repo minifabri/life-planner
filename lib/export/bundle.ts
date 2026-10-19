@@ -40,7 +40,7 @@ const SECRET_COLUMNS: Partial<Record<ExportTable, string[]>> = { profiles: ["log
 
 const SLOT: Record<string, string> = { breakfast: "Colazione", lunch: "Pranzo", snack: "Merenda", dinner: "Cena", extra: "Extra" };
 const SLOT_ORDER = ["breakfast", "lunch", "snack", "dinner", "extra"];
-const WISH_STATUS: Record<string, string> = { wanted: "Desiderato", bought: "Comprato", discarded: "Scartato" };
+const WISH_STATUS: Record<string, string> = { wanted: "Desiderato", bought: "Comprato", discarded: "Scartato", arrived: "Arrivato, da decidere", returning: "Da restituire", returned: "Restituito" };
 
 const text = (v: unknown) => (typeof v === "string" ? v : v === null || v === undefined ? "" : String(v));
 const alive = (rows: Row[]) => rows.filter((r) => !r.deleted_at);
