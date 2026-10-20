@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PantryEntry } from "../shopping/pantry";
 import type { MealPlan, MealSlot, ShoppingItem } from "../supabase/types";
-import { confirmEatenOps, eatenKey, eatenQuestion, prepKey, prepQuestions, restoreMealOps, skipPrepOps, unconfirmEatenOps, unskipPrepOps, usedIngredients, usedKey } from "./followup";
+import { ateKey, confirmEatenOps, eatenKey, eatenQuestion, prepKey, prepQuestions, restoreMealOps, skipPrepOps, unconfirmEatenOps, unskipPrepOps, usedIngredients, usedKey } from "./followup";
 
 const YESTERDAY = "2026-10-17";
 const TODAY_START = "2026-10-17T22:00:00.000Z";
@@ -81,6 +81,12 @@ describe("eatenQuestion", () => {
     const meals = [meal("Pasta e ceci", "dinner"), meal("Porridge", "breakfast"), meal("Pizza", "lunch", { eaten_out: true }), meal("Mela", "snack", { date: "2026-10-16" })];
     expect(eatenQuestion(meals, YESTERDAY, []).map((m) => m.name)).toEqual(["Porridge", "Pasta e ceci"]);
     expect(eatenQuestion(meals, YESTERDAY, [eatenKey(YESTERDAY)])).toEqual([]);
+  });
+
+  it("i pasti già sistemati uno per uno non tornano, neanche su un altro dispositivo", () => {
+    const meals = [meal("Pasta e ceci", "dinner"), meal("Porridge", "breakfast")];
+    expect(eatenQuestion(meals, YESTERDAY, [ateKey(meals[1])]).map((m) => m.name)).toEqual(["Pasta e ceci"]);
+    expect(eatenQuestion(meals, YESTERDAY, meals.map(ateKey))).toEqual([]);
   });
 
   it("confermare segna preparati i pasti da preparare, e si annulla", () => {

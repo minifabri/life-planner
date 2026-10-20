@@ -1,29 +1,34 @@
 "use client";
 
-import { useState } from "react";
 import { RowAction } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { saveAnswer } from "@/lib/data/questions";
+import { useAnswerMap, useImportOnce } from "@/lib/data/questions-hooks";
 import { trimTime, type LocalDate } from "@/lib/dates/local";
 import type { Task } from "@/lib/supabase/types";
 
-/** Ricorda, su questo dispositivo, il giorno in cui una card è stata chiusa: non riappare fino al giorno dopo. */
+/**
+ * Ricorda il giorno in cui una card è stata chiusa: non riappare fino al giorno dopo, su nessun dispositivo.
+ * Finché non si sa (risposte non ancora lette), la card resta nascosta: meglio che vederla sparire.
+ */
 export function useDismissedToday(key: string, today: LocalDate): [boolean, () => void] {
-  const [day, setDay] = useState<string | null>(() => {
+  const answers = useAnswerMap();
+  const answerKey = `closed:${key}`;
+  useImportOnce(async () => {
+    // Le versioni precedenti salvavano sul dispositivo il giorno di chiusura, come testo.
+    let day: string | null = null;
     try {
-      return localStorage.getItem(key);
+      day = localStorage.getItem(key);
+      localStorage.removeItem(key);
     } catch {
-      return null; // storage non disponibile: la card vale per questa sessione
+      return;
     }
+    if (day === today) await saveAnswer(answerKey, today, true);
   });
   function dismiss() {
-    setDay(today);
-    try {
-      localStorage.setItem(key, today);
-    } catch {
-      // vedi sopra
-    }
+    void saveAnswer(answerKey, today, true).catch(() => {});
   }
-  return [day === today, dismiss];
+  return [!answers || answers.get(answerKey)?.answer === today, dismiss];
 }
 
 function CloseButton({ label, onClick }: { label: string; onClick: () => void }) {

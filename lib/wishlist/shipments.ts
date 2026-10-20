@@ -113,10 +113,13 @@ export function shipmentQuestions(
     });
 }
 
-/** Salva una risposta a una domanda: rifarla non duplica. Restituisce anche la modifica che la toglie. */
-export function answerOps(id: string, key: string, answer: string): { ops: Op[]; undo: Op[] } {
+/**
+ * Salva una risposta a una domanda: rifarla non duplica. Con `replace` una risposta già data si aggiorna,
+ * altrimenti resta com'era. Restituisce anche la modifica che la toglie.
+ */
+export function answerOps(id: string, key: string, answer: string, replace = false): { ops: Op[]; undo: Op[] } {
   return {
-    ops: [{ kind: "insert", table: "question_answers", row: { id, key, answer }, onConflict: "owner_id,key" }],
+    ops: [{ kind: "insert", table: "question_answers", row: { id, key, answer }, onConflict: "owner_id,key", ...(replace ? { merge: true } : {}) }],
     undo: [{ kind: "delete", table: "question_answers", where: [["key", "eq", key]] }],
   };
 }
