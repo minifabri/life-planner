@@ -8,12 +8,14 @@ import { SLOTS, mealFoods, setPreparedOps } from "./rules";
 /**
  * Domande sui pasti di ieri, in Oggi (D70: chiedere, non decidere). L'app non sa se un pasto da preparare
  * è stato preparato, né se un ingrediente usato è finito: lo chiede, una volta, con risposta a un tocco.
- * `dismissed` sono le chiavi delle domande a cui è già stato risposto "No" (`prepKey`, `usedKey`, `eatenKey`).
+ * `dismissed` sono le chiavi delle domande a cui è già stato risposto (`prepKey`, `usedKey`, `eatenKey`, `ateKey`).
  */
 
 export const prepKey = (meal: Pick<MealPlan, "id">) => `prep:${meal.id}`;
 export const usedKey = (date: LocalDate) => `used:${date}`;
 export const eatenKey = (date: LocalDate) => `eaten:${date}`;
+/** Un pasto sistemato uno per uno, con "Non tutto". */
+export const ateKey = (meal: Pick<MealPlan, "id">) => `ate:${meal.id}`;
 
 const bySlot = (a: MealPlan, b: MealPlan) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot);
 
@@ -57,7 +59,7 @@ export function unskipPrepOps(meal: Pick<MealPlan, "reminder_task_id">): Op[] {
  */
 export function eatenQuestion(meals: MealPlan[], day: LocalDate, dismissed: string[]): MealPlan[] {
   if (dismissed.includes(eatenKey(day))) return [];
-  return meals.filter((m) => m.date === day && !m.eaten_out && m.name.trim()).sort(bySlot);
+  return meals.filter((m) => m.date === day && !m.eaten_out && m.name.trim() && !dismissed.includes(ateKey(m))).sort(bySlot);
 }
 
 /** Mangiato come previsto: un pasto da preparare è stato anche preparato (la sua attività si completa). */

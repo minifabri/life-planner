@@ -7,32 +7,19 @@ import { useToast } from "@/components/ui/toast";
 import { WardrobePhoto } from "@/components/wardrobe/photo";
 import { WearSheet } from "@/components/wardrobe/wear-sheet";
 import { recordWear, undoWear, type WearChoice } from "@/lib/data/outfits";
+import { importDeviceAnswers, saveAnswer } from "@/lib/data/questions";
+import { useAnsweredKeys, useImportOnce } from "@/lib/data/questions-hooks";
 import { useOutfitPlans, useOutfits, useWardrobeItems, useWears } from "@/lib/data/wardrobe-hooks";
 import type { LocalDate } from "@/lib/dates/local";
 import type { WardrobeItem } from "@/lib/supabase/types";
 import { isPlanWorn, planIssues, planTitle, plansForDay, plansToConfirm, resolvePlan, type ResolvedPlan } from "@/lib/wardrobe/plans";
 
-/** Risposte "No" a "Hai indossato l'outfit di ieri?": una comodità del dispositivo. Se si perdono, la domanda torna e basta. */
-const ASKED_KEY = "planner-outfit-asked";
+/** Dove le versioni precedenti salvavano sul dispositivo le risposte "No" a "Hai indossato l'outfit di ieri?". */
+const DEVICE_ANSWERS_KEY = "planner-outfit-asked";
 
-function readAsked(): string[] {
-  try {
-    const raw = localStorage.getItem(ASKED_KEY);
-    const value = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeAsked(ids: string[]) {
-  try {
-    // Bastano le ultime risposte: le pianificazioni vecchie non vengono più chieste.
-    localStorage.setItem(ASKED_KEY, JSON.stringify(ids.slice(-30)));
-  } catch {
-    // Non salvato: la domanda tornerà alla prossima apertura.
-  }
-}
+/** La risposta "No" a "Hai indossato…?" per una pianificazione, sul server: vale su tutti i dispositivi. */
+const WORN = "worn:";
+const wornKey = (planId: string) => `${WORN}${planId}`;
 
 function Photos({ items, size = "size-11" }: { items: WardrobeItem[]; size?: string }) {
   return (
@@ -59,19 +46,26 @@ export function DayOutfits({ day, today }: { day: LocalDate; today: LocalDate })
   const outfits = useOutfits().data;
   const items = useWardrobeItems().data;
   const wears = useWears().data;
-  const [asked, setAsked] = useState<string[]>(readAsked);
+  const answered = useAnsweredKeys();
   const [wearing, setWearing] = useState<Wearing | null>(null);
+  useImportOnce(() => importDeviceAnswers(DEVICE_ANSWERS_KEY, "no", wornKey));
   if (!plans || !outfits || !items) return null;
 
   const isToday = day === today;
   const resolved = plansForDay(plans, day).map((p) => resolvePlan(p, outfits, items));
-  const questions = isToday && wears ? plansToConfirm(plans, outfits, items, wears, today, asked) : [];
+  const asked = answered?.filter((k) => k.startsWith(WORN)).map((k) => k.slice(WORN.length));
+  const questions = isToday && wears && asked ? plansToConfirm(plans, outfits, items, wears, today, asked) : [];
   if (resolved.length === 0 && questions.length === 0) return null;
 
-  function answerNo(r: ResolvedPlan) {
-    const next = [...asked, r.plan.id];
-    setAsked(next);
-    writeAsked(next);
+  async function answerNo(r: ResolvedPlan) {
+    let undo: () => Promise<void>;
+    try {
+      undo = await saveAnswer(wornKey(r.plan.id), "no");
+    } catch {
+      toast({ message: "Risposta non salvata. Riprova.", tone: "warn" });
+      return;
+    }
+    toast({ message: "Va bene", actionLabel: "Annulla", onAction: () => void undo().catch(() => {}) });
   }
 
   async function confirmWear(choices: WearChoice[]): Promise<boolean> {
@@ -104,7 +98,7 @@ export function DayOutfits({ day, today }: { day: LocalDate; today: LocalDate })
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => setWearing({ resolved: r, wornOn: r.plan.date })}>Sì</Button>
-                  <Button variant="quiet" onClick={() => answerNo(r)}>
+                  <Button variant="quiet" onClick={() => void answerNo(r)}>
                     No
                   </Button>
                 </div>

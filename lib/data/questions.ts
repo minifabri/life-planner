@@ -19,26 +19,47 @@ export async function fetchAnswers(): Promise<QuestionAnswer[]> {
   return withPendingAnswers(rows);
 }
 
-/** Salva una risposta. Restituisce la funzione che la annulla. */
-export async function saveAnswer(key: string, answer: string): Promise<() => Promise<void>> {
-  const { ops, undo } = answerOps(uuidv7(), key, answer);
+/** Salva una risposta (con `replace` aggiorna quella già data). Restituisce la funzione che la annulla. */
+export async function saveAnswer(key: string, answer: string, replace = false): Promise<() => Promise<void>> {
+  const { ops, undo } = answerOps(uuidv7(), key, answer, replace);
   await commit(ops);
   return () => commit(undo);
 }
 
-/** Porta sul server le risposte salvate sul dispositivo dalle versioni precedenti, poi le toglie dal dispositivo. */
-export async function importDeviceAnswers(storageKey: string, answer: string): Promise<void> {
-  let keys: string[] = [];
+/** Toglie una risposta: la domanda torna. */
+export async function forgetAnswer(key: string): Promise<void> {
+  await commit(answerOps(uuidv7(), key, "").undo);
+}
+
+/** Legge dal dispositivo un valore JSON lasciato dalle versioni precedenti; null se manca o non si legge. */
+function readDevice(storageKey: string): unknown {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
-    if (Array.isArray(value)) keys = value.filter((v): v is string => typeof v === "string");
+    const raw = localStorage.getItem(storageKey);
+    return raw === null ? null : (JSON.parse(raw) as unknown);
   } catch {
-    return;
+    return null;
   }
-  if (keys.length > 0) await commit(keys.flatMap((key) => answerOps(uuidv7(), key, answer).ops));
+}
+
+/**
+ * Porta sul server le risposte salvate sul dispositivo dalle versioni precedenti, poi le toglie dal dispositivo.
+ * `toAnswers` trasforma quello che c'era salvato nelle risposte da scrivere.
+ */
+export async function importDevice(storageKey: string, toAnswers: (value: unknown) => { key: string; answer: string }[]): Promise<void> {
+  const value = readDevice(storageKey);
+  if (value === null) return;
+  const answers = toAnswers(value);
+  if (answers.length > 0) await commit(answers.flatMap(({ key, answer }) => answerOps(uuidv7(), key, answer).ops));
   try {
     localStorage.removeItem(storageKey);
   } catch {
     // Resta sul dispositivo: alla prossima apertura si riprova, rifarlo non duplica.
   }
+}
+
+const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
+
+/** Come `importDevice`, per un elenco di chiavi: ognuna diventa `toKey(chiave)` con la risposta `answer`. */
+export function importDeviceAnswers(storageKey: string, answer: string, toKey: (key: string) => string = (k) => k): Promise<void> {
+  return importDevice(storageKey, (value) => strings(value).map((k) => ({ key: toKey(k), answer })));
 }
