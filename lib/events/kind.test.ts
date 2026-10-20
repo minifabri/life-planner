@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { occurrenceDates } from "../recurrence/expand";
 import type { EventRow } from "../supabase/types";
 import { eventsForDay } from "./day";
-import { birthdayRule, displayTitle, isQuiet, kindFromTitle, splitQuiet } from "./kind";
+import { birthdayRule, displayTitle, isQuiet, kindFromTitle, samePlace, splitQuiet, travelMode, travelRoute } from "./kind";
 
 function event(over: Partial<EventRow> = {}): EventRow {
   return {
@@ -51,7 +51,90 @@ describe("kindFromTitle", () => {
   });
 });
 
+describe("kindFromTitle: categorie (D72)", () => {
+  it("riconosce le emoji che scrive la schedulazione", () => {
+    expect(kindFromTitle("✈ CA940 · Roma Fiumicino (FCO) → Pechino (PEK)")).toBe("travel");
+    expect(kindFromTitle("✈️ Volo per Lisbona")).toBe("travel");
+    expect(kindFromTitle("🚆 Frecciarossa 9512")).toBe("travel");
+    expect(kindFromTitle("🏨 Hotel Centrale — camera doppia")).toBe("stay");
+    expect(kindFromTitle("🎟️ Concerto al Palazzo dello Sport")).toBe("ticket");
+    expect(kindFromTitle("🍽️ Trattoria da Gino")).toBe("reservation");
+    expect(kindFromTitle("💇‍♀️ Taglio e piega")).toBe("appointment");
+    expect(kindFromTitle("🩺 Dermatologa")).toBe("appointment");
+    expect(kindFromTitle("⏰ Rinnovo carta d'identità")).toBe("deadline");
+  });
+
+  it("riconosce le parole quando l'emoji manca", () => {
+    expect(kindFromTitle("Treno Italo 9927 · Roma Termini → Napoli Afragola")).toBe("travel");
+    expect(kindFromTitle("CA939 · Pechino → Roma Fiumicino")).toBe("travel");
+    expect(kindFromTitle("Flight to London")).toBe("travel");
+    expect(kindFromTitle("Traghetto per Olbia")).toBe("travel");
+    expect(kindFromTitle("Check-in Airbnb Trastevere")).toBe("stay");
+    expect(kindFromTitle("Stay at Hotel Lux")).toBe("stay");
+    expect(kindFromTitle("Cinema con Anna")).toBe("ticket");
+    expect(kindFromTitle("Mostra di Frida Kahlo")).toBe("ticket");
+    expect(kindFromTitle("Cena al ristorante Mare")).toBe("reservation");
+    expect(kindFromTitle("Degustazione in cantina")).toBe("reservation");
+    expect(kindFromTitle("visita ginecologica")).toBe("appointment");
+    expect(kindFromTitle("visita endocrinologa gemelli")).toBe("appointment");
+    expect(kindFromTitle("psichiatra ore 9")).toBe("appointment");
+    expect(kindFromTitle("Visita endocrinologica")).toBe("appointment");
+    expect(kindFromTitle("Visita nutrizionale")).toBe("appointment");
+    expect(kindFromTitle("Visita guidata ai Fori")).toBe("reservation");
+    expect(kindFromTitle("Parrucchiera")).toBe("appointment");
+    expect(kindFromTitle("Consulenza commercialista")).toBe("appointment");
+    expect(kindFromTitle("SCADENZA · Cancellazione gratuita hotel")).toBe("deadline");
+    expect(kindFromTitle("Pagamento bolletta luce")).toBe("deadline");
+    expect(kindFromTitle("Abbonamento palestra")).toBe("deadline");
+  });
+
+  it("le parole forti di una scadenza vincono", () => {
+    expect(kindFromTitle("Scadenza biglietto del treno")).toBe("deadline");
+  });
+
+  it("un'attività intorno al viaggio non è il viaggio", () => {
+    expect(kindFromTitle("PROPOSTA · Ricontrollare voli e preparare check-in")).toBe("event");
+    expect(kindFromTitle("Prenotare il ristorante")).toBe("event");
+  });
+
+  it("lascia stare i titoli che non dicono una categoria", () => {
+    expect(kindFromTitle("ceramica")).toBe("event");
+    expect(kindFromTitle("Partita IVA: chiamare la banca")).toBe("event");
+    expect(kindFromTitle("Volontariato al canile")).toBe("event");
+    expect(kindFromTitle("Riunione di progetto")).toBe("event");
+  });
+});
+
+describe("travelMode e travelRoute", () => {
+  it("sceglie il mezzo dal titolo", () => {
+    expect(travelMode("✈ CA940 · Roma → Pechino")).toBe("plane");
+    expect(travelMode("Treno Italo 9927 · Roma → Napoli")).toBe("train");
+    expect(travelMode("🚌 Flixbus per Firenze")).toBe("bus");
+    expect(travelMode("Traghetto per Olbia")).toBe("ship");
+    expect(travelMode("CA939 · Pechino → Roma")).toBe("plane");
+  });
+
+  it("legge da dove e per dove", () => {
+    expect(travelRoute("✈ CA940 · Roma Fiumicino (FCO) → Pechino (PEK)")).toEqual({ from: ["roma", "fiumicino", "fco"], to: ["pechino", "pek"] });
+    expect(travelRoute("Treno Italo 9927 · Roma Termini → Napoli Afragola")).toEqual({ from: ["roma", "termini"], to: ["napoli", "afragola"] });
+    expect(travelRoute("Volo da Roma a Milano")).toEqual({ from: ["roma"], to: ["milano"] });
+    expect(travelRoute("Treno Bologna - Firenze")).toEqual({ from: ["bologna"], to: ["firenze"] });
+    expect(travelRoute("Volo per Lisbona")).toBeNull();
+  });
+
+  it("riconosce lo stesso luogo scritto in modi diversi", () => {
+    expect(samePlace(["roma", "fiumicino", "fco"], ["roma", "termini"])).toBe(true);
+    expect(samePlace(["pechino", "pek"], ["manila", "mnl"])).toBe(false);
+  });
+});
+
 describe("displayTitle", () => {
+  it("toglie l'emoji che ha dato la categoria", () => {
+    expect(displayTitle({ title: "✈ CA940 · Roma → Pechino", kind: "travel" })).toBe("CA940 · Roma → Pechino");
+    expect(displayTitle({ title: "💇‍♀️ Taglio", kind: "appointment" })).toBe("Taglio");
+    expect(displayTitle({ title: "Treno Roma → Napoli", kind: "travel" })).toBe("Treno Roma → Napoli");
+  });
+
   it("toglie il pacchetto dalle spedizioni", () => {
     expect(displayTitle({ title: "📦 Amazon, scarpe", kind: "shipment" })).toBe("Amazon, scarpe");
   });

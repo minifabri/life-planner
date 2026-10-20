@@ -2,8 +2,10 @@
 
 import { areaTintStyle } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
+import { KindIcon } from "@/components/today/quiet-events";
 import { AttentionMark } from "@/components/ui/marks";
 import type { Occurrence } from "@/lib/events/day";
+import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
 import type { Area } from "@/lib/supabase/types";
 
 /** Un evento nell'agenda: un blocco, senza casella di spunta, con la sfumatura e la striscia della sua area. `past` lo attenua quando è già finito. */
@@ -19,7 +21,11 @@ export function EventBlock({ occurrence, area, past = false, onOpen }: { occurre
         className={`flex min-h-11 w-full flex-col justify-center gap-0.5 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-left hover:bg-surface-2 ${area ? "area-tint rounded-l-none" : ""}`}
       >
         <span className="flex items-center gap-2 text-[15px] font-medium leading-snug">
-          <span className="min-w-0 flex-1 break-words">{event.title}</span>
+          <span className="text-text-3">
+            <KindIcon kind={event.kind} title={event.title} size={14} />
+          </span>
+          {event.kind !== "event" ? <span className="sr-only">{KIND_LABEL[event.kind]}: </span> : null}
+          <span className="min-w-0 flex-1 break-words">{displayTitle(event)}</span>
           {event.is_private ? (
             <span className="shrink-0 text-text-3">
               <Icon name="lock" size={13} />

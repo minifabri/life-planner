@@ -1,7 +1,7 @@
 import type { EventInput, RepeatInput, TaskInput } from "../data/api";
 import { addDays, atLocalTime, dueLabel, formatDuration, isoWeekday, relativeDay, type LocalDate } from "../dates/local";
 import type { CaptureKind, ParsedCapture } from "../parser/parse";
-import { birthdayRule } from "../events/kind";
+import { birthdayRule, kindFromTitle } from "../events/kind";
 import { describeRule, toRRule, type SimpleRule } from "../recurrence/rule";
 import type { WorkoutInput } from "../workouts/convert";
 
@@ -130,6 +130,8 @@ export function planCapture(draft: CaptureDraft, today: LocalDate, tz: string): 
         rrule: draft.repeat ? ruleFrom(draft.repeat, date) : null,
         area_id: null,
         attention: draft.attention,
+        // Dal titolo: "Dentista alle 15" è un appuntamento, "Volo per Parigi" un viaggio (D72).
+        kind: kindFromTitle(title),
       },
     };
   }

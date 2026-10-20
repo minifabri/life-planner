@@ -138,7 +138,7 @@ export default function WeekPage() {
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-3">
                           {view.quiet.map((o) => (
                             <span key={o.key} className="flex min-w-0 items-center gap-1.5">
-                              <KindIcon kind={o.event.kind} size={12} />
+                              <KindIcon kind={o.event.kind} title={o.event.title} size={12} />
                               <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span>
                               <span className="min-w-0 truncate">{displayTitle(o.event)}</span>
                             </span>
@@ -162,6 +162,11 @@ export default function WeekPage() {
                             ) : (
                               <span aria-hidden className="size-2 shrink-0 rounded-full border-[1.3px] border-text-3" />
                             )}
+                            {item.event && item.event.kind !== "event" ? (
+                              <span className="-mr-1 text-text-3">
+                                <KindIcon kind={item.event.kind} title={item.event.title} size={12} />
+                              </span>
+                            ) : null}
                             <span className={`min-w-0 truncate ${item.done ? (item.kind === "workout" ? "text-text-2" : "text-text-3 line-through") : gold ? "text-gold" : item.kind === "event" ? "text-text" : "text-text-2"}`}>
                               {item.title}
                             </span>

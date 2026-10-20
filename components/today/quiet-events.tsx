@@ -1,14 +1,39 @@
 "use client";
 
-import { Gift, Package, type LucideIcon } from "lucide-react";
+import {
+  BedDouble,
+  Bus,
+  CalendarClock,
+  Car,
+  ConciergeBell,
+  Gift,
+  Hourglass,
+  Package,
+  Plane,
+  Ship,
+  Ticket,
+  TrainFront,
+  type LucideIcon,
+} from "lucide-react";
 import type { Occurrence } from "@/lib/events/day";
-import { displayTitle, KIND_LABEL } from "@/lib/events/kind";
+import { displayTitle, KIND_LABEL, travelMode, type TravelMode } from "@/lib/events/kind";
 import type { EventKind } from "@/lib/supabase/types";
 
-const KIND_ICON: Partial<Record<EventKind, LucideIcon>> = { birthday: Gift, shipment: Package };
+const KIND_ICON: Partial<Record<EventKind, LucideIcon>> = {
+  birthday: Gift,
+  shipment: Package,
+  appointment: CalendarClock,
+  stay: BedDouble,
+  ticket: Ticket,
+  reservation: ConciergeBell,
+  deadline: Hourglass,
+};
 
-export function KindIcon({ kind, size = 13 }: { kind: EventKind; size?: number }) {
-  const Glyph = KIND_ICON[kind];
+const TRAVEL_ICON: Record<TravelMode, LucideIcon> = { plane: Plane, train: TrainFront, bus: Bus, ship: Ship, car: Car };
+
+/** L'icona del tipo di evento; per un viaggio quella del mezzo, letto dal titolo (`title`). */
+export function KindIcon({ kind, title = "", size = 13 }: { kind: EventKind; title?: string; size?: number }) {
+  const Glyph = kind === "travel" ? TRAVEL_ICON[travelMode(title)] : KIND_ICON[kind];
   return Glyph ? <Glyph size={size} strokeWidth={1.6} aria-hidden focusable={false} className="shrink-0" /> : null;
 }
 
@@ -35,7 +60,7 @@ export function QuietEvents({
             onClick={() => onOpen(o)}
             className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] text-text-3 hover:bg-surface-2 hover:text-text-2"
           >
-            <KindIcon kind={o.event.kind} />
+            <KindIcon kind={o.event.kind} title={o.event.title} />
             <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span>
             <span className="min-w-0 break-words">{displayTitle(o.event)}</span>
           </button>

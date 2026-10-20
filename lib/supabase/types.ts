@@ -82,6 +82,11 @@ export type DayMark = {
   id: string;
   date: string;
   kind: DayMarkKind;
+  /**
+   * Solo nelle viste, mai salvato: il viaggio che il calendario dice per quel giorno (D72), con i titoli
+   * degli eventi da cui si ricava. Un segno con `auto` e id che inizia con "auto:" non è una riga di `day_marks`.
+   */
+  auto?: string[];
 };
 
 export type WorkoutStatus = "planned" | "done" | "skipped";
@@ -108,8 +113,11 @@ export type Workout = {
   updated_at: string;
 };
 
-/** Spedizioni (dal pacchetto nel titolo) e compleanni si mostrano in modo discreto. */
-export type EventKind = "event" | "shipment" | "birthday";
+/**
+ * Tipo di evento. Spedizioni (dal pacchetto nel titolo) e compleanni si mostrano in modo discreto;
+ * appuntamenti, viaggi, soggiorni, biglietti, prenotazioni e scadenze si riconoscono dal titolo (D72).
+ */
+export type EventKind = "event" | "shipment" | "birthday" | "appointment" | "travel" | "stay" | "ticket" | "reservation" | "deadline";
 
 export type EventRow = {
   id: string;

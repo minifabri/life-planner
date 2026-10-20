@@ -52,7 +52,7 @@ describe("feedEvents", () => {
     const events = feedEvents(ics, "Europe/Rome", "2026-10-15");
     expect(events.map((e) => [e.uid, e.kind])).toEqual([
       ["ship-1@google.com", "shipment"],
-      ["meet-1@google.com", "event"],
+      ["meet-1@google.com", "appointment"],
     ]);
     expect(events[0]).toMatchObject({ title: "📦 Amazon, scarpe", all_day: true, start_date: "2026-10-20" });
   });

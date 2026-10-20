@@ -113,7 +113,7 @@ describe("planCapture", () => {
   it("un orario scelto dal chip trasforma il compleanno in un evento normale", () => {
     const plan = planCapture(draft("compleanno Marta 12 ottobre", { time: "20:00" }), TODAY, TZ);
     expect(plan).toMatchObject({ kind: "event", input: { title: "Compleanno Marta", all_day: false, rrule: null } });
-    expect(plan.kind === "event" && plan.input.kind).toBeFalsy();
+    expect(plan.kind === "event" && plan.input.kind).toBe("event");
   });
 
   it("evento ricorrente: la settimana senza giorni usa quello della prima volta", () => {

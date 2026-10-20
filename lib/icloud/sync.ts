@@ -1,9 +1,10 @@
 import { addDays, startOfLocalDay } from "../dates/local";
 import { localDateString } from "../dates/today";
+import { kindFromTitle } from "../events/kind";
 import { deterministicId, uuidv7 } from "../ids";
 import { parseIcs, toEventInput, toExceptionInputs, type ExceptionInput } from "../import/ics";
 import { getSupabase } from "../supabase/client";
-import type { EventRow, IcloudAccount, IcloudCalendar } from "../supabase/types";
+import type { EventKind, EventRow, IcloudAccount, IcloudCalendar } from "../supabase/types";
 import {
   calendarsRequest,
   diffEtags,
@@ -159,7 +160,7 @@ export async function setIcloudCalendarSelected(id: string, selected: boolean): 
 
 type LocalEvent = Pick<
   EventRow,
-  "id" | "icloud_href" | "icloud_etag" | "rrule" | "all_day" | "start_date" | "end_date" | "start_at" | "end_at" | "tz"
+  "id" | "icloud_href" | "icloud_etag" | "rrule" | "all_day" | "start_date" | "end_date" | "start_at" | "end_at" | "tz" | "title" | "kind"
 >;
 
 async function localEvents(calendarId: string): Promise<LocalEvent[]> {
@@ -168,7 +169,7 @@ async function localEvents(calendarId: string): Promise<LocalEvent[]> {
     const page: LocalEvent[] = check(
       await getSupabase()
         .from("events")
-        .select("id, icloud_href, icloud_etag, rrule, all_day, start_date, end_date, start_at, end_at, tz")
+        .select("id, icloud_href, icloud_etag, rrule, all_day, start_date, end_date, start_at, end_at, tz, title, kind")
         .eq("icloud_calendar_id", calendarId)
         .is("deleted_at", null)
         .order("id")
@@ -235,6 +236,7 @@ async function syncCalendar({ calendar, remote }: CalendarState, tz: string, now
           end_date: e.end_date,
           tz: e.tz,
           rrule: e.rrule,
+          kind: e.kind,
           source: "icloud",
           icloud_calendar_id: calendar.id,
           icloud_href: resource.url,
@@ -267,6 +269,20 @@ async function syncCalendar({ calendar, remote }: CalendarState, tz: string, now
     return removedUrls.has(l.icloud_href ?? "") && !isPastWindow(l, windowStart);
   });
   await softDeleteEvents(stale.map((l) => l.id));
+
+  // Gli eventi non cambiati su iCloud ma riconosciuti in modo diverso (D72: nuove categorie dal titolo).
+  const staleIds = new Set(stale.map((l) => l.id));
+  const retype = new Map<EventKind, string[]>();
+  for (const l of local) {
+    if (rows.has(l.id) || staleIds.has(l.id)) continue;
+    const kind = kindFromTitle(l.title);
+    if (kind !== l.kind) retype.set(kind, [...(retype.get(kind) ?? []), l.id]);
+  }
+  for (const [kind, retyped] of retype) {
+    for (const part of chunks(retyped, WRITE_CHUNK)) {
+      check(await supabase.from("events").update({ kind }).in("id", part).select("id"));
+    }
+  }
 
   check(
     await supabase

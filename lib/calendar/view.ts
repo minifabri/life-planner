@@ -1,7 +1,7 @@
 import { addDays, atLocalTime, diffDays, localTimeString, weekStart, type LocalDate } from "../dates/local";
 import { DEFAULT_TZ, localDateString } from "../dates/today";
 import { eventsForDay, type Occurrence } from "../events/day";
-import { splitQuiet } from "../events/kind";
+import { displayTitle, splitQuiet } from "../events/kind";
 import type { EventException, EventRow, Task, Workout } from "../supabase/types";
 import { classifyTask } from "../tasks/classify";
 import { dayLoad, type LoadLevel } from "../tasks/load";
@@ -79,6 +79,8 @@ export type Highlight = {
   deadline: boolean;
   done: boolean;
   areaId: string | null;
+  /** Tipo e titolo originale dell'evento, per l'icona della categoria. */
+  event?: Pick<EventRow, "kind" | "title">;
 };
 
 function taskHighlight(t: Task, day: LocalDate): Highlight {
@@ -103,12 +105,13 @@ export function dayHighlights(view: DayView, max = 3): { items: Highlight[]; mor
     ...view.occurrences.map((o) => ({
       key: o.key,
       time: o.startTime,
-      title: o.event.title,
+      title: displayTitle(o.event),
       kind: "event" as const,
       important: o.event.attention === "high",
       deadline: false,
       done: false,
       areaId: o.event.area_id,
+      event: { kind: o.event.kind, title: o.event.title },
     })),
     ...view.timed.map((t) => taskHighlight(t, view.day)),
     ...view.workouts.filter((w) => w.time).map(workoutHighlight),
