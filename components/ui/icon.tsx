@@ -60,6 +60,18 @@ const PATHS = {
   ),
   chevronLeft: <path d="M15 6l-6 6 6 6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
+  pill: (
+    <>
+      <path d="M10.5 20.5 3.5 13.5a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7z" />
+      <path d="m8.5 8.5 7 7" />
+    </>
+  ),
+  leaf: (
+    <>
+      <path d="M5 20c0-9 5.5-15 15-15 0 9.5-6 15-15 15z" />
+      <path d="M5 20 13 12" />
+    </>
+  ),
   hanger: (
     <>
       <circle cx="12" cy="5" r="1.3" />

@@ -1,6 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { inPantry } from "../shopping/pantry";
-import type { DayMark, EventException, EventRow, LaundryLoad, LogEntry, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, QuestionAnswer, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
+import type { DayMark, EventException, EventRow, LaundryLoad, LogEntry, Medicine, MedicineDose, MealMemory, MealPlan, Outfit, OutfitFeedback, OutfitPlan, QuestionAnswer, Recurrence, ShoppingItem, Task, WardrobeItem, WardrobeWear, WishlistItem, Workout } from "../supabase/types";
 
 /**
  * Una modifica ai dati, descritta in modo che si possa sia inviare a Supabase
@@ -24,7 +24,9 @@ export type Table =
   | "outfit_feedback"
   | "outfit_plans"
   | "laundry_loads"
-  | "question_answers";
+  | "question_answers"
+  | "medicines"
+  | "medicine_doses";
 
 export type Row = Record<string, unknown>;
 export type Filter = [column: string, op: "eq" | "gt", value: string | number | boolean];
@@ -346,6 +348,39 @@ export function applyToLoads(loads: LaundryLoad[], op: Op, at: string): LaundryL
 export function applyToAnswers(answers: QuestionAnswer[], op: Op, at: string): QuestionAnswer[] {
   if (op.table !== "question_answers") return answers;
   return applyToRows(answers, op, (row) => ({ created_at: at, ...(row as Omit<QuestionAnswer, "created_at">) }));
+}
+
+/** Le medicine dopo una modifica in attesa, in ordine di nome. */
+export function applyToMedicines(medicines: Medicine[], op: Op, at: string): Medicine[] {
+  if (op.table !== "medicines") return medicines;
+  return applyToRows(
+    medicines,
+    op,
+    (row) =>
+      ({
+        kind: "medicine",
+        morning: true,
+        evening: false,
+        schedule: "daily",
+        weekdays: [],
+        cycle_on: null,
+        cycle_off: null,
+        end_date: null,
+        created_at: at,
+        updated_at: at,
+        ...(row as Partial<Medicine> & { id: string; name: string; start_date: string }),
+      }) as Medicine,
+  ).sort((a, b) => a.name.localeCompare(b.name, "it"));
+}
+
+/** Le risposte sulle medicine dopo una modifica in attesa. */
+export function applyToDoses(doses: MedicineDose[], op: Op, at: string): MedicineDose[] {
+  if (op.table !== "medicine_doses") return doses;
+  if (op.kind === "insert" && op.merge) {
+    // Una risposta cambiata (per esempio da "ricordamelo" a "presa") aggiorna anche l'orario della modifica.
+    return applyToRows(doses, { ...op, row: { ...op.row, updated_at: at } }, (row) => ({ remind_at: null, created_at: at, updated_at: at, ...(row as Omit<MedicineDose, "created_at" | "updated_at" | "remind_at">) }) as MedicineDose);
+  }
+  return applyToRows(doses, op, (row) => ({ remind_at: null, created_at: at, updated_at: at, ...(row as Omit<MedicineDose, "created_at" | "updated_at" | "remind_at">) }) as MedicineDose);
 }
 
 /** I giudizi sulle combinazioni dopo una modifica in attesa. */

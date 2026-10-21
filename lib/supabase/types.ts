@@ -32,6 +32,10 @@ export type NotificationPrefs = {
   notify_meal_prep: boolean;
   notify_morning: boolean;
   notify_evening: boolean;
+  /** Medicine (D73): orari fissi della mattina e della sera, e le notifiche. */
+  medicine_morning_time: string;
+  medicine_evening_time: string;
+  notify_medicines: boolean;
 };
 
 export type Area = {
@@ -365,6 +369,44 @@ export type QuestionAnswer = {
   key: string;
   answer: string;
   created_at: string;
+};
+
+export type MedicineKind = "medicine" | "supplement";
+export type MedicineSlot = "morning" | "evening";
+export type MedicineSchedule = "daily" | "weekdays" | "cycle";
+
+/** Una medicina o un integratore (D73). */
+export type Medicine = {
+  id: string;
+  name: string;
+  kind: MedicineKind;
+  morning: boolean;
+  evening: boolean;
+  schedule: MedicineSchedule;
+  /** Con `schedule = "weekdays"`: 1 = lunedì … 7 = domenica. */
+  weekdays: number[];
+  /** Con `schedule = "cycle"`: settimane sì e settimane no, dalla data di inizio. */
+  cycle_on: number | null;
+  cycle_off: number | null;
+  start_date: string;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MedicineDoseStatus = "taken" | "skipped" | "snoozed";
+
+/** La risposta per una medicina, un giorno e un momento. Senza riga: nessuna risposta. */
+export type MedicineDose = {
+  id: string;
+  medicine_id: string;
+  day: string;
+  slot: MedicineSlot;
+  status: MedicineDoseStatus;
+  /** Con "ricordamelo": quando chiedere di nuovo. */
+  remind_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type LaundryLoad = {

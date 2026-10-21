@@ -16,6 +16,7 @@ export const TOUR_PAGE: Record<TourId, string> = {
   meals: "/lists/meals",
   wishlist: "/lists/wishlist",
   wardrobe: "/lists/wardrobe",
+  medicines: "/lists/medicines",
   log: "/log",
 };
 

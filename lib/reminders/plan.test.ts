@@ -19,6 +19,9 @@ const settings: ReminderSettings = {
   notify_meal_prep: true,
   notify_morning: false,
   notify_evening: false,
+  medicine_morning_time: "08:00:00",
+  medicine_evening_time: "21:00:00",
+  notify_medicines: true,
 };
 
 function task(patch: Partial<PlanTask>): PlanTask {
@@ -319,5 +322,42 @@ describe("panoramica e revisione", () => {
     const out = planDay({ tasks, name: "Bibi", settings: on }, "2026-10-12");
     expect(out.map((r) => [r.fireAt, r.title, r.body])).toEqual([[at("2026-10-12", "20:30"), "Revisione della sera", "Buonasera, Bibi. Restano 2 attività aperte."]]);
     expect(planDay({ tasks: tasks.map((t) => ({ ...t, status: "done" as const })), settings: on }, "2026-10-12")).toEqual([]);
+  });
+});
+
+describe("medicine (D73)", () => {
+  const medicine = {
+    id: "m1",
+    name: "Vitamina D",
+    kind: "supplement" as const,
+    morning: true,
+    evening: true,
+    schedule: "daily" as const,
+    weekdays: [],
+    cycle_on: null,
+    cycle_off: null,
+    start_date: "2026-10-01",
+    end_date: null,
+    created_at: "2026-10-01T06:00:00.000Z",
+    updated_at: "2026-10-01T06:00:00.000Z",
+  };
+  const input: PlanInput = { settings, tasks: [], events: [], exceptions: [], medicines: [medicine], doses: [] };
+
+  it("alle 8 un promemoria neutro, senza il nome della medicina", () => {
+    const r = planReminders(input, at("2026-10-21", "07:59"), at("2026-10-21", "08:01"));
+    expect(r.map((x) => [x.key, x.title, x.body, x.targetType])).toEqual([["med:morning:2026-10-21", "Promemoria del mattino", "Tocca per segnare cosa hai preso.", "digest"]]);
+    expect(JSON.stringify(r)).not.toContain("Vitamina");
+  });
+
+  it("un ricordamelo nella fascia di silenzio arriva quando finisce", () => {
+    const doses = [
+      { id: "d", medicine_id: "m1", day: "2026-10-21", slot: "evening" as const, status: "snoozed" as const, remind_at: at("2026-10-22", "00:00").toISOString(), created_at: "", updated_at: at("2026-10-21", "21:05").toISOString() },
+    ];
+    const r = planReminders({ ...input, doses }, at("2026-10-22", "07:25"), at("2026-10-22", "07:35"));
+    expect(r.map((x) => [x.key, x.fireAt])).toEqual([[`med:snooze:${at("2026-10-22", "00:00").toISOString()}`, at("2026-10-22", "07:30")]]);
+  });
+
+  it("spente nelle impostazioni, niente notifiche", () => {
+    expect(planReminders({ ...input, settings: { ...settings, notify_medicines: false } }, at("2026-10-21", "07:59"), at("2026-10-21", "08:01"))).toEqual([]);
   });
 });

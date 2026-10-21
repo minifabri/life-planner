@@ -130,6 +130,7 @@ describe("partenza automatica", () => {
     meals: "/lists/meals",
     wishlist: "/lists/wishlist",
     wardrobe: "/lists/wardrobe",
+    medicines: "/lists/medicines",
     log: "/log",
   };
 

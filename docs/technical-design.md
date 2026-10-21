@@ -365,6 +365,18 @@ index on (fire_at) where sent_at is null
 ```
 Dall'incremento 9 è il registro degli invii e la coda dei tentativi, non un elenco pianificato in anticipo (sezione 7.4).
 
+**medicines** e **medicine_doses** (D73, incremento 37)
+```
+medicines:      id, owner_id, name, kind ('medicine','supplement'), morning bool, evening bool,
+                schedule ('daily','weekdays','cycle'), weekdays smallint[] (1 = lunedì … 7 = domenica),
+                cycle_on, cycle_off (settimane sì / no), start_date, end_date null, created_at, updated_at
+medicine_doses: id, owner_id, medicine_id → medicines (cascade), day, slot ('morning','evening'),
+                status ('taken','skipped','snoozed'), remind_at (solo con snoozed), created_at, updated_at
+                unique (owner_id, medicine_id, day, slot)
+profiles:       + medicine_morning_time ('08:00'), medicine_evening_time ('21:00'), notify_medicines (true)
+```
+Nessuna riga in `medicine_doses` = nessuna risposta: l'app non segna nulla da sola (D70).
+
 **push_subscriptions**
 ```
 id, owner_id, endpoint text unique, p256dh text, auth text, user_agent text,
@@ -1074,6 +1086,14 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - `lib/events/kind.ts` (riconoscimento, mezzo, tratta), `lib/days/travel.ts` (giorni in viaggio), `toggleMarkPlan` in `lib/days/marks.ts`, `useDayMarks` con i segni ricavati, `kind` nella sync iCloud, nel Quick Capture e nella modifica degli eventi.
 - Interfaccia: icona della categoria in Oggi, Settimana e nel dettaglio; nel foglio del giorno «Dal calendario: …» e il toast «Viaggio tolto» con Annulla.
 - Criteri: lint, typecheck, test e build; dal telefono: dopo «Aggiorna ora» in Google Calendar i voli hanno l'icona dell'aereo e l'hotel quella del letto; in Settimana dal 12 dicembre al 3 gennaio c'è l'aereo accanto alla data; togli il viaggio da un giorno e usa Annulla.
+
+**Incremento 37 — Medicine e integratori** *(21 ottobre 2026, su richiesta di Bibi, D73)*
+- Migrazione `20261021100000_medicines.sql`: tabelle `medicines` e `medicine_doses` con RLS e le quattro policy, orari e interruttore nel profilo. Applicata prima del codice; advisor di sicurezza senza avvisi nuovi.
+- `lib/medicines/schedule.ts` (puro, con test): `isDueOn` (inizio/fine, certi giorni, cicli di settimane contati dalla data di inizio), `todayMedicines` (momenti già arrivati, ieri senza risposta, «ricordamelo» in attesa), `snoozeOptions`, `history`, controlli della scheda. `lib/medicines/reminders.ts`: notifiche del momento e dei «ricordamelo», titolo neutro, una sola notifica per orario.
+- `planReminders` riceve `medicines` e `doses`; la Edge Function `dispatch-reminders` le legge (risposte degli ultimi tre giorni) ed è stata ripubblicata.
+- Dati: `lib/data/medicines.ts` passa dalla outbox (`applyToMedicines`, `applyToDoses`); una risposta è un upsert su `(owner_id, medicine_id, day, slot)` con annulla che torna allo stato di prima.
+- Interfaccia: `MedicineFollowUp` in Oggi, pagina `/lists/medicines` con `MedicineSheet`, orari e interruttore in Impostazioni › Notifiche, tour di sezione «medicines», tabelle nell'export. Il selettore di Liste scorre se le cinque voci non stanno nella larghezza.
+- Criteri: lint, typecheck, test e build; su iPhone: aggiungi una medicina per la mattina, all'orario arriva la notifica e la card in Oggi; «Ricordamelo › Tra 1 ora» la ripropone (con notifica) dopo un'ora; lasciata senza risposta, il giorno dopo compare «Ieri …» con Sì / No.
 
 ## 14. Decisioni approvate
 

@@ -1,6 +1,6 @@
 // Edge Function: calcola e invia le notifiche push dovute (technical-design.md, 7.2).
 // Invocata ogni minuto da pg_cron (vedi migrazione cron_dispatch). Autenticazione: header x-cron-secret.
-// A ogni giro: 1) dallo stato di attività ed eventi ricava le notifiche degli ultimi minuti e le registra
+// A ogni giro: 1) dallo stato di attività, eventi e medicine ricava le notifiche degli ultimi minuti e le registra
 // in `reminders` (una chiave per notifica, così nessuna parte due volte); 2) invia ciò che è in attesa.
 // Le regole stanno in lib/reminders/plan.ts, impacchettato in plan.gen.js da `pnpm build:functions`.
 // Con { "dryRun": true } nel corpo risponde con ciò che registrerebbe, senza scrivere né inviare.
@@ -19,7 +19,8 @@ const KEEP_DAYS = 30;
 const DAY_MS = 86_400_000;
 const PROFILE_COLUMNS =
   "display_name, timezone, morning_overview_time, evening_review_time, quiet_start, quiet_end, meal_prep_reminder_time, " +
-  "notify_medium, notify_high, quiet_allow_high, notify_meal_prep, notify_morning, notify_evening";
+  "notify_medium, notify_high, quiet_allow_high, notify_meal_prep, notify_morning, notify_evening, " +
+  "medicine_morning_time, medicine_evening_time, notify_medicines";
 const TASK_COLUMNS =
   "id, title, notes, date, time, due_date, window_start, attention, remind, status, completed_at, original_date, source, is_private, deleted_at, created_at, updated_at";
 
@@ -197,8 +198,29 @@ async function planFor(db: Db, owner: string, from: Date, to: Date): Promise<Pla
     exceptions = data ?? [];
   }
 
+  // Medicine (D73) e risposte degli ultimi giorni: servono per sapere cosa è ancora aperto e i "ricordamelo".
+  const { data: medicines, error: medicinesError } = await db
+    .from("medicines")
+    .select("id, morning, evening, schedule, weekdays, cycle_on, cycle_off, start_date, end_date, created_at")
+    .eq("owner_id", owner);
+  if (medicinesError) throw new Error(medicinesError.message);
+  let doses: unknown[] = [];
+  if (medicines?.length) {
+    const { data, error } = await db
+      .from("medicine_doses")
+      .select("id, medicine_id, day, slot, status, remind_at, updated_at")
+      .eq("owner_id", owner)
+      .gte("day", day(from.getTime() - 3 * DAY_MS));
+    if (error) throw new Error(error.message);
+    doses = data ?? [];
+  }
+
   const { display_name, ...settings } = profile as Record<string, unknown>;
-  return planReminders({ settings, name: display_name, tasks: tasks ?? [], events: events ?? [], exceptions }, from, to);
+  return planReminders(
+    { settings, name: display_name, tasks: tasks ?? [], events: events ?? [], exceptions, medicines: medicines ?? [], doses },
+    from,
+    to,
+  );
 }
 
 function json(body: unknown, status = 200) {

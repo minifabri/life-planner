@@ -28,6 +28,7 @@ const DESKTOP_NAV: NavItem[] = [
   { href: "/lists/meals", label: "Pasti", tour: "lists", icon: "meal", match: ["/lists/meals"] },
   { href: "/lists/wishlist", label: "Acquisti", tour: "lists", icon: "heart", match: ["/lists/wishlist"] },
   { href: "/lists/wardrobe", label: "Guardaroba", tour: "lists", icon: "hanger", match: ["/lists/wardrobe"] },
+  { href: "/lists/medicines", label: "Medicine", tour: "lists", icon: "pill", match: ["/lists/medicines"] },
   { href: "/log", label: "Log", tour: "log", icon: "journal", match: ["/log"] },
 ];
 
