@@ -1,6 +1,7 @@
 import { trimTime, type LocalDate } from "../dates/local";
 import type { DayMark, DayMarkKind, Workout } from "../supabase/types";
 import { byId, type Op } from "../sync/ops";
+import { isSavedMark } from "./travel";
 import { shownStatus, workoutsOfDay } from "../workouts/summary";
 
 /** I segni che si mettono a mano su un giorno, nell'ordine in cui si mostrano. */
@@ -35,7 +36,31 @@ export function workoutLabel(workout: Pick<Workout, "activity" | "time">): strin
 
 /** Mette il segno se manca, lo toglie se c'è. `id` è quello della riga nuova, se serve. */
 export function toggleMarkOp(marks: DayMark[], id: string, date: LocalDate, kind: DayMarkKind): Op {
-  const existing = marks.find((m) => m.date === date && m.kind === kind);
+  const existing = marks.find((m) => m.date === date && m.kind === kind && isSavedMark(m));
   if (existing) return { kind: "delete", table: "day_marks", where: byId(existing.id) };
   return { kind: "insert", table: "day_marks", row: { id, date, kind } };
+}
+
+/**
+ * Cosa fa un tocco su un segno, tenendo conto del viaggio ricavato dal calendario (D72):
+ * - il segno manca: si mette a mano;
+ * - c'è ed è solo a mano: si toglie;
+ * - c'è perché lo dice il calendario: si toglie la riga a mano, se c'è, e si ricorda "non in viaggio" per quel giorno
+ *   (`dismiss`), così il segno automatico non torna.
+ * `restore` sono le operazioni che rimettono le cose com'erano, per Annulla.
+ */
+export function toggleMarkPlan(
+  marks: DayMark[],
+  id: string,
+  date: LocalDate,
+  kind: DayMarkKind,
+): { ops: Op[]; dismiss: boolean; restore: Op[] } {
+  const shown = marks.find((m) => m.date === date && m.kind === kind);
+  if (!shown?.auto) return { ops: [toggleMarkOp(marks, id, date, kind)], dismiss: false, restore: [] };
+  const saved = isSavedMark(shown);
+  return {
+    ops: saved ? [{ kind: "delete", table: "day_marks", where: byId(shown.id) }] : [],
+    dismiss: true,
+    restore: saved ? [{ kind: "insert", table: "day_marks", row: { id: shown.id, date, kind } }] : [],
+  };
 }

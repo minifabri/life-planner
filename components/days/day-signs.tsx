@@ -52,9 +52,19 @@ export function DayMarksSheet({
   const toast = useToast();
   const training = dayWorkouts(workouts, day, today);
 
+  // Il viaggio che dice il calendario, con gli eventi da cui si ricava (D72).
+  const fromCalendar = marks.find((m) => m.date === day && m.kind === "travel")?.auto ?? [];
+
   async function toggle(kind: DayMark["kind"]) {
     try {
-      await toggleDayMark(marks, day, kind);
+      const undo = await toggleDayMark(marks, day, kind);
+      if (undo) {
+        toast({
+          message: `Viaggio tolto: ${dayLabel(day, today)}`,
+          actionLabel: "Annulla",
+          onAction: () => void undo().catch(() => toast({ message: "Non è stato possibile annullare. Riprova.", tone: "warn" })),
+        });
+      }
     } catch {
       toast({ message: "Modifica non salvata. Riprova.", tone: "warn" });
     }
@@ -81,6 +91,15 @@ export function DayMarksSheet({
           );
         })}
       </div>
+      {fromCalendar.length > 0 ? (
+        <p className="flex items-center gap-2 text-[13px] text-text-3">
+          <SignIcon sign="travel" size={14} />
+          <span>
+            Dal calendario: {fromCalendar.slice(0, 3).join(" · ")}
+            {fromCalendar.length > 3 ? ` e altri ${fromCalendar.length - 3}` : ""}. Se non sei in viaggio, tocca Viaggio.
+          </span>
+        </p>
+      ) : null}
       {training.length > 0 ? (
         <p className="flex items-center gap-2 text-[13px] text-text-3">
           <SignIcon sign="workout" size={14} />

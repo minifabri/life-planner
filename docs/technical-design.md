@@ -230,7 +230,7 @@ unique (owner_id, health_id)
 ```
 "Saltato" per un allenamento in programma in un giorno passato si calcola in lettura (`shownStatus`), senza scritture.
 
-**day_marks** — Segni dei giorni (D50): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`.
+**day_marks** — Segni dei giorni (D50): `date`, `kind` (`office` | `travel`), unico per utente, giorno e segno. Nessun `deleted_at`: togliere il segno elimina la riga. L'allenamento non è un segno salvato: si ricava da `workouts`. Nemmeno il viaggio dal calendario (D72, 9.1d): si ricava dagli eventi.
 
 **lists** — contenitore predisposto per la condivisione futura
 ```
@@ -539,6 +539,15 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **Spedizione**: un evento letto da un file o da un calendario esterno (Google, iCloud, import) il cui titolo inizia con 📦 (`kindFromTitle`, in `toEventInput`). Il pacchetto si toglie dal titolo mostrato e lo sostituisce un'icona.
 - **Compleanno**: si crea nell'app (Aggiungi → Evento → "Compleanno"): tutto il giorno, `rrule = FREQ=YEARLY` (per il 29 febbraio `FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1`, così cade l'ultimo giorno di febbraio). Eliminando: "Solo quest'anno" o "Tutti gli anni".
 - **Discreti**: `splitQuiet` li separa dall'agenda. Non contano nel carico, nella panoramica del mattino né tra le occasioni degli outfit (le spedizioni). In Oggi una riga grigia sotto il titolo del giorno (`QuietEvents`); in Settimana in cima alla colonna (desktop) e sotto la barra del giorno (mobile); nel Mese nell'anteprima del giorno e nella descrizione per lo screen reader, nessun segno nelle celle. Le notifiche seguono l'attenzione, come per gli altri eventi (bassa di default: nessuna notifica).
+
+### 9.1d Categorie degli eventi e giorni in viaggio [RICHIESTO il 20 ottobre 2026, D72; realizzato nell'incremento 36]
+- `events.kind` accetta anche `appointment`, `travel`, `stay`, `ticket`, `reservation`, `deadline` (migrazione `20261020100000_event_categories.sql`).
+- **Riconoscimento** (`kindFromTitle` in `lib/events/kind.ts`, puro, con test): prima l'emoji a inizio titolo (✈ 🚆 🚌 ⛴ viaggio, 🏨 🛏 soggiorno, 🎟 🎭 🎬 biglietto, 🍽 🥂 prenotazione, 🩺 💇 💅 🦷 appuntamento, ⏰ 💳 🧾 scadenza, 📦 spedizione), poi le parole, in minuscolo e senza accenti, in quest'ordine: parole forti di scadenza («scadenza», «rinnovo»), verbi da attività («preparare», «controllare», «prenotare»…: il titolo è un'attività intorno all'evento, resta `event`), viaggio, soggiorno, biglietto, appuntamento, prenotazione, parole deboli di scadenza («pagamento», «abbonamento»), «prenotazione». Una freccia tra due luoghi senza altre parole è un viaggio («CA939 · Pechino → Roma»). Formato reale della schedulazione: `✈ CA940 · Roma Fiumicino (FCO) → Pechino (PEK)`, `🏨 Nome — camera` di più giorni; i treni a volte senza emoji (`Treno Italo 9927 · Roma Termini → Napoli Afragola`).
+- **Dove si applica**: file `.ics`, Google (l'impronta comprende il tipo, quindi alla prima sync dopo l'aggiornamento gli eventi si riscrivono una volta con il tipo nuovo), iCloud (prima non salvava il tipo: ora lo salva e, a ogni sync, corregge quello degli eventi non cambiati) ed eventi dell'app (Quick Capture e modifica: il tipo segue il titolo; il compleanno resta una scelta).
+- **Aspetto**: le nuove categorie restano nell'agenda (non sono discrete come spedizioni e compleanni). `KindIcon` mostra l'icona grigia della categoria (viaggio: aereo, treno, autobus, nave o auto da `travelMode`), `displayTitle` toglie l'emoji che ha dato la categoria. In Oggi, Settimana (desktop e mobile) e nel dettaglio dell'evento.
+- **Giorni in viaggio** (`lib/days/travel.ts`, puro, con test): `travelDays` legge gli eventi da 30 giorni prima a 30 dopo il periodo mostrato e segna: il giorno di ogni viaggio con orario o tratta (un promemoria di tutto il giorno non basta); ogni giorno di un soggiorno; dal check-in al check-out scritti come due eventi; dalla partenza al ritorno seguendo le tratte (`travelRoute` legge «A → B», «A - B», «da A a B», «from A to B»; due luoghi sono uguali se hanno una parola in comune), al massimo 30 giorni tra una tratta e l'altra e 60 in tutto. Le tratte dentro un viaggio già trovato non ne aprono un altro.
+- **Niente righe nuove**: `useDayMarks` unisce i segni di `day_marks` e quelli ricavati (`withTravelDays`, id `auto:travel:<giorno>`, campo `auto` con i titoli). Togliere un viaggio ricavato salva in `question_answers` la chiave `travel:<giorno>` con `no` (D70: la risposta No non torna) ed elimina l'eventuale riga a mano; il toast «Viaggio tolto» ha Annulla (`toggleMarkPlan` in `lib/days/marks.ts`). Rimetterlo a mano crea una riga normale.
+- **[DA VERIFICARE]** con i dati reali: parole che sbagliano categoria, eventi doppi (lo stesso volo su Google e su iCloud compare due volte, come prima).
 
 ### 9.2 imayoga [APPROVATO il 10 ottobre 2026: sola lettura, solo lezioni pubblicate, accesso con token]
 - **Cosa espone** il progetto Supabase `ima-yoga` (id `fmlndlnpooyrvnzhmota`): `classes` (data, ora di inizio, tipo, livello, `published`, `is_individual`, `personal_client_id`), `bookings` (stato `booked` o `waitlist`), `events` (nome, data, ora, luogo, `published`, `archived`). Le lezioni non hanno né durata né luogo.
@@ -1059,6 +1068,12 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Interfaccia: `ShipmentFollowUp` in Oggi, sotto i pasti di ieri; pagina `/lists/wishlist` rinominata Acquisti (stessa rotta), con la sezione «Arrivati, da decidere» e la scheda Resi.
 - Non incluso: domanda nel giorno stesso della consegna; articolo nato dal pacco con prezzo o immagine; «Alla fine lo tengo» su un reso (si cambia lo stato dalla scheda).
 - Criteri: lint, typecheck, test e build; dal telefono: con un evento 📦 di ieri, rispondi alle tre scelte e usa Annulla; completa l'attività di restituzione e ritrova l'articolo tra i restituiti.
+
+**Incremento 36 — Categorie degli eventi e giorni in viaggio** *(20 ottobre 2026, su richiesta di Bibi, D72)*
+- Migrazione `20261020100000_event_categories.sql` (solo il vincolo su `events.kind`), applicata prima del codice.
+- `lib/events/kind.ts` (riconoscimento, mezzo, tratta), `lib/days/travel.ts` (giorni in viaggio), `toggleMarkPlan` in `lib/days/marks.ts`, `useDayMarks` con i segni ricavati, `kind` nella sync iCloud, nel Quick Capture e nella modifica degli eventi.
+- Interfaccia: icona della categoria in Oggi, Settimana e nel dettaglio; nel foglio del giorno «Dal calendario: …» e il toast «Viaggio tolto» con Annulla.
+- Criteri: lint, typecheck, test e build; dal telefono: dopo «Aggiorna ora» in Google Calendar i voli hanno l'icona dell'aereo e l'hotel quella del letto; in Settimana dal 12 dicembre al 3 gennaio c'è l'aereo accanto alla data; togli il viaggio da un giorno e usa Annulla.
 
 ## 14. Decisioni approvate
 

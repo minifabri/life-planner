@@ -38,7 +38,7 @@ import {
 } from "@/lib/dates/local";
 import { localDateString } from "@/lib/dates/today";
 import type { Occurrence } from "@/lib/events/day";
-import { birthdayRule, displayTitle } from "@/lib/events/kind";
+import { birthdayRule, displayTitle, kindFromTitle, KIND_LABEL } from "@/lib/events/kind";
 import {
   DAY_FULL,
   DAY_SHORT,
@@ -343,7 +343,8 @@ function ItemForm({ target, today, tz, onClose, onDeleteTask }: EditorProps) {
       end_at: endAt?.toISOString() ?? null,
       tz: etz,
       rrule: lockedRule ?? (f.repeat === "none" || f.repeat === "after" ? null : fixedRule(f.until || undefined)),
-      kind: "event",
+      // Il tipo segue il titolo, anche quando lo si cambia (D72).
+      kind: kindFromTitle(title),
     };
     run(() => (event ? updateEvent(event, input) : createEvent(input)));
   }
@@ -384,8 +385,8 @@ function ItemForm({ target, today, tz, onClose, onDeleteTask }: EditorProps) {
   }
 
   const heading = readOnly
-    ? event?.kind === "shipment"
-      ? "Spedizione"
+    ? event && event.kind !== "event"
+      ? KIND_LABEL[event.kind]
       : "Evento"
     : target.kind === "new"
       ? "Aggiungi"
@@ -403,7 +404,7 @@ function ItemForm({ target, today, tz, onClose, onDeleteTask }: EditorProps) {
     return (
       <Sheet title={heading} isOpen onClose={onClose}>
         <p className="flex items-center gap-2 text-[17px] leading-snug">
-          <KindIcon kind={event.kind} size={16} />
+          <KindIcon kind={event.kind} title={event.title} size={16} />
           {displayTitle(event)}
         </p>
         {event.location ? <p className="text-sm text-text-2">{event.location}</p> : null}

@@ -155,7 +155,7 @@ export function WeekGrid({
                       onClick={() => onEdit({ kind: "event", occurrence: o })}
                       className="flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-[10px] px-2 text-left text-xs leading-snug text-text-3 hover:bg-surface-2 hover:text-text-2"
                     >
-                      <KindIcon kind={o.event.kind} size={12} />
+                      <KindIcon kind={o.event.kind} title={o.event.title} size={12} />
                       <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span>
                       <span className="min-w-0 break-words">{displayTitle(o.event)}</span>
                     </button>
@@ -172,7 +172,11 @@ export function WeekGrid({
                       style={areaTintStyle(areaById.get(o.event.area_id ?? ""))}
                       className={`${chipClass} border-line bg-surface ${o.event.area_id && areaById.has(o.event.area_id) ? "area-tint rounded-l-none" : ""}`}
                     >
-                      <span className="min-w-0 break-words font-medium">{o.event.title}</span>
+                      <span className="text-text-3">
+                        <KindIcon kind={o.event.kind} title={o.event.title} size={12} />
+                      </span>
+                      {o.event.kind !== "event" ? <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span> : null}
+                      <span className="min-w-0 break-words font-medium">{displayTitle(o.event)}</span>
                       <AttentionMark level={o.event.attention} />
                     </button>
                   </li>
@@ -261,7 +265,11 @@ export function WeekGrid({
                             className={`flex size-full flex-col overflow-hidden rounded-[10px] border border-line bg-surface px-2 py-1 text-left text-[13px] leading-snug hover:bg-surface-2 ${area ? "area-tint rounded-l-none" : ""}`}
                           >
                             <span className="flex items-center gap-1.5">
-                              <span className="min-w-0 flex-1 truncate font-medium">{o.event.title}</span>
+                              <span className="text-text-3">
+                                <KindIcon kind={o.event.kind} title={o.event.title} size={12} />
+                              </span>
+                              {o.event.kind !== "event" ? <span className="sr-only">{KIND_LABEL[o.event.kind]}: </span> : null}
+                              <span className="min-w-0 flex-1 truncate font-medium">{displayTitle(o.event)}</span>
                               <AttentionMark level={o.event.attention} />
                             </span>
                             <span className="truncate text-xs text-text-2">
