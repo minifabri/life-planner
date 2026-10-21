@@ -547,7 +547,8 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **Aspetto**: le nuove categorie restano nell'agenda (non sono discrete come spedizioni e compleanni). `KindIcon` mostra l'icona grigia della categoria (viaggio: aereo, treno, autobus, nave o auto da `travelMode`), `displayTitle` toglie l'emoji che ha dato la categoria. In Oggi, Settimana (desktop e mobile) e nel dettaglio dell'evento.
 - **Giorni in viaggio** (`lib/days/travel.ts`, puro, con test): `travelDays` legge gli eventi da 30 giorni prima a 30 dopo il periodo mostrato e segna: il giorno di ogni viaggio con orario o tratta (un promemoria di tutto il giorno non basta); ogni giorno di un soggiorno; dal check-in al check-out scritti come due eventi; dalla partenza al ritorno seguendo le tratte (`travelRoute` legge «A → B», «A - B», «da A a B», «from A to B»; due luoghi sono uguali se hanno una parola in comune), al massimo 30 giorni tra una tratta e l'altra e 60 in tutto. Le tratte dentro un viaggio già trovato non ne aprono un altro.
 - **Niente righe nuove**: `useDayMarks` unisce i segni di `day_marks` e quelli ricavati (`withTravelDays`, id `auto:travel:<giorno>`, campo `auto` con i titoli). Togliere un viaggio ricavato salva in `question_answers` la chiave `travel:<giorno>` con `no` (D70: la risposta No non torna) ed elimina l'eventuale riga a mano; il toast «Viaggio tolto» ha Annulla (`toggleMarkPlan` in `lib/days/marks.ts`). Rimetterlo a mano crea una riga normale.
-- **[DA VERIFICARE]** con i dati reali: parole che sbagliano categoria, eventi doppi (lo stesso volo su Google e su iCloud compare due volte, come prima).
+- **[DA VERIFICARE]** con i dati reali: parole che sbagliano categoria.
+- **Eventi doppi** (D73): `withoutIcloudDuplicates` in `lib/events/duplicates.ts` (puro, con test), applicato in `fetchEvents`, quindi in tutte le viste e nei giorni in viaggio. Un evento iCloud non ripetuto è la copia di uno di Google se hanno inizio e fine entro 30 minuti (o gli stessi giorni, se di tutto il giorno) e almeno una parola del titolo di tre caratteri in comune. Nessuna riga cambia. Restano doppi nella ricerca (`search_all`, lato database).
 
 ### 9.2 imayoga [APPROVATO il 10 ottobre 2026: sola lettura, solo lezioni pubblicate, accesso con token]
 - **Cosa espone** il progetto Supabase `ima-yoga` (id `fmlndlnpooyrvnzhmota`): `classes` (data, ora di inizio, tipo, livello, `published`, `is_individual`, `personal_client_id`), `bookings` (stato `booked` o `waitlist`), `events` (nome, data, ora, luogo, `published`, `archived`). Le lezioni non hanno né durata né luogo.
@@ -1074,6 +1075,10 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - `lib/events/kind.ts` (riconoscimento, mezzo, tratta), `lib/days/travel.ts` (giorni in viaggio), `toggleMarkPlan` in `lib/days/marks.ts`, `useDayMarks` con i segni ricavati, `kind` nella sync iCloud, nel Quick Capture e nella modifica degli eventi.
 - Interfaccia: icona della categoria in Oggi, Settimana e nel dettaglio; nel foglio del giorno «Dal calendario: …» e il toast «Viaggio tolto» con Annulla.
 - Criteri: lint, typecheck, test e build; dal telefono: dopo «Aggiorna ora» in Google Calendar i voli hanno l'icona dell'aereo e l'hotel quella del letto; in Settimana dal 12 dicembre al 3 gennaio c'è l'aereo accanto alla data; togli il viaggio da un giorno e usa Annulla.
+
+**Incremento 37 — Eventi doppi Google–iCloud** *(21 ottobre 2026, su richiesta di Bibi, D73)*
+- `lib/events/duplicates.ts` e il filtro in `fetchEvents`; nessuna migrazione.
+- Criteri: lint, typecheck, test e build; dal telefono: in Settimana i voli di dicembre compaiono una volta sola, con l'icona dell'aereo.
 
 ## 14. Decisioni approvate
 
