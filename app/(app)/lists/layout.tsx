@@ -11,6 +11,7 @@ export default function ListsLayout({ children }: { children: ReactNode }) {
           { href: "/lists/meals", label: "Pasti" },
           { href: "/lists/wishlist", label: "Acquisti" },
           { href: "/lists/wardrobe", label: "Guardaroba" },
+          { href: "/lists/medicines", label: "Medicine" },
         ]}
       />
       {children}

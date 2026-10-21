@@ -12,4 +12,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   notify_meal_prep: true,
   notify_morning: false,
   notify_evening: false,
+  medicine_morning_time: "08:00",
+  medicine_evening_time: "21:00",
+  notify_medicines: true,
 };

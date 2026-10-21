@@ -323,7 +323,7 @@ function WeatherSection() {
 
 /* ---------------- Notifiche ---------------- */
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof NotificationPrefs)[];
-type TimeKey = "morning_overview_time" | "quiet_start" | "quiet_end" | "meal_prep_reminder_time";
+type TimeKey = "morning_overview_time" | "quiet_start" | "quiet_end" | "meal_prep_reminder_time" | "medicine_morning_time" | "medicine_evening_time";
 type ToggleKey = Exclude<keyof NotificationPrefs, TimeKey>;
 
 function Toggle({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
@@ -378,12 +378,17 @@ function NotificationPrefsForm() {
         {toggle("notify_medium", "Attenzione media", "Un avviso all'orario; al mattino se non c'è un orario.")}
         {toggle("notify_high", "Attenzione alta", "Come sopra, più un richiamo il giorno prima.")}
         {toggle("notify_meal_prep", "Pasti da preparare", "La sera prima, se l'attività è ancora aperta.")}
+        {toggle("notify_medicines", "Medicine", "All'orario della mattina e della sera, se c'è qualcosa da segnare. Senza nomi.")}
         {toggle("notify_morning", "Panoramica del mattino")}
         {toggle("notify_evening", "Revisione della sera", "Solo se resta qualcosa di aperto.")}
       </fieldset>
       <div className="flex flex-wrap gap-3">
         {timeField("morning_overview_time", "Avvisi del mattino alle")}
         {timeField("meal_prep_reminder_time", "Avviso dei pasti alle")}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {timeField("medicine_morning_time", "Medicine del mattino alle")}
+        {timeField("medicine_evening_time", "Medicine della sera alle")}
       </div>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-xs text-text-2">Silenzio</legend>

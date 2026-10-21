@@ -27,6 +27,9 @@ function addDays(d, n) {
 function diffDays(a, b) {
   return Math.round((toUtc(a) - toUtc(b)) / DAY_MS);
 }
+function isoWeekday(d) {
+  return new Date(toUtc(d)).getUTCDay() || 7;
+}
 function fmt(d, options) {
   return new Intl.DateTimeFormat("it-IT", { ...options, timeZone: "UTC" }).format(toUtc(d));
 }
@@ -203,6 +206,63 @@ function groupTasks(tasks, day, today, tz = DEFAULT_TZ) {
     (a, b) => Number(a.status === "done") - Number(b.status === "done") || ATTENTION_ORDER[a.attention] - ATTENTION_ORDER[b.attention] || a.created_at.localeCompare(b.created_at)
   );
   out.window.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+  return out;
+}
+
+// lib/medicines/schedule.ts
+var SLOTS = ["morning", "evening"];
+function slotTimes(p) {
+  return { morning: trimTime(p?.medicine_morning_time ?? "08:00"), evening: trimTime(p?.medicine_evening_time ?? "21:00") };
+}
+function isDueOn(m, day) {
+  if (day < m.start_date || m.end_date && day > m.end_date) return false;
+  if (m.schedule === "weekdays") return m.weekdays.includes(isoWeekday(day));
+  if (m.schedule === "cycle") {
+    const on = m.cycle_on ?? 1;
+    const off = m.cycle_off ?? 0;
+    const week = Math.floor(diffDays(day, m.start_date) / 7);
+    return week % (on + off) < on;
+  }
+  return true;
+}
+function dueIn(medicines, day, slot) {
+  return medicines.filter((m) => m[slot] && isDueOn(m, day)).map((medicine) => ({ medicine, day, slot }));
+}
+var doseKey = (medicineId, day, slot) => `${medicineId}:${day}:${slot}`;
+function doseIndex(doses) {
+  return new Map(doses.map((d) => [doseKey(d.medicine_id, d.day, d.slot), d]));
+}
+
+// lib/medicines/reminders.ts
+var MEDICINE_BODY = "Tocca per segnare cosa hai preso.";
+var SLOT_TITLE = { morning: "Promemoria del mattino", evening: "Promemoria della sera" };
+function planMedicineReminders(input) {
+  const { times, tz, from, to, shift } = input;
+  const medicines = input.medicines;
+  const index = doseIndex(input.doses);
+  const out = [];
+  const inWindow = (at) => at > from && at <= to;
+  for (let day = input.firstDay; day <= input.lastDay; day = addDays(day, 1)) {
+    for (const slot of SLOTS) {
+      const planned = atLocalTime(day, times[slot], tz);
+      const fireAt = shift(planned);
+      if (!inWindow(fireAt)) continue;
+      const open = dueIn(medicines, day, slot).filter(
+        (d) => new Date(d.medicine.created_at) <= planned && !index.has(doseKey(d.medicine.id, d.day, d.slot))
+      );
+      if (open.length) out.push({ key: `med:${slot}:${day}`, fireAt, title: SLOT_TITLE[slot], body: MEDICINE_BODY });
+    }
+  }
+  const taken = new Set(out.map((r) => r.fireAt.getTime()));
+  for (const d of input.doses) {
+    if (d.status !== "snoozed" || !d.remind_at) continue;
+    const planned = new Date(d.remind_at);
+    if (new Date(d.updated_at) > planned) continue;
+    const fireAt = shift(planned);
+    if (!inWindow(fireAt) || taken.has(fireAt.getTime())) continue;
+    taken.add(fireAt.getTime());
+    out.push({ key: `med:snooze:${planned.toISOString()}`, fireAt, title: "Promemoria", body: MEDICINE_BODY });
+  }
   return out;
 }
 
@@ -390,6 +450,20 @@ function planReminders(input, from, to) {
         }
       }
     }
+  }
+  if (s.notify_medicines !== false && input.medicines?.length) {
+    const reminders = planMedicineReminders({
+      medicines: input.medicines,
+      doses: input.doses ?? [],
+      times: slotTimes(s),
+      tz,
+      firstDay,
+      lastDay,
+      from,
+      to,
+      shift: (at) => afterQuietHours(at, s)
+    });
+    for (const r of reminders) out.push({ ...r, targetType: "digest", targetId: null, url: "/today" });
   }
   return out.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());
 }

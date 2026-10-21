@@ -6,6 +6,7 @@ import { DayMarksLine } from "@/components/days/day-signs";
 import { DayOutfits } from "@/components/wardrobe/today-outfit";
 import { LaundryPanel } from "@/components/wardrobe/laundry-panel";
 import { MealFollowUp } from "@/components/meals/meal-followup";
+import { MedicineFollowUp } from "@/components/medicines/medicine-followup";
 import { ShipmentFollowUp } from "@/components/wishlist/shipment-followup";
 import { EventBlock } from "@/components/today/event-block";
 import { EveningReview, MorningOverview, useDismissedToday } from "@/components/today/overview-card";
@@ -407,6 +408,8 @@ export default function TodayPage() {
               ) : null}
             </section>
           ) : null}
+
+          {isToday ? <MedicineFollowUp today={today} /> : null}
 
           <DayOutfits day={day} today={today} />
 

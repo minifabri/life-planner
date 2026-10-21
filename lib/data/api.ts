@@ -30,7 +30,8 @@ function check<T>(result: { data: T | null; error: { message: string } | null })
 
 const PROFILE_COLUMNS =
   "owner_id, display_name, timezone, theme, evening_review_time, morning_overview_time, quiet_start, quiet_end, meal_prep_reminder_time, " +
-  "notify_medium, notify_high, quiet_allow_high, notify_meal_prep, notify_morning, notify_evening, weather_city, weather_lat, weather_lon, tours_seen";
+  "notify_medium, notify_high, quiet_allow_high, notify_meal_prep, notify_morning, notify_evening, weather_city, weather_lat, weather_lon, tours_seen, " +
+  "medicine_morning_time, medicine_evening_time, notify_medicines";
 
 export async function fetchProfile(): Promise<Profile | null> {
   return check(await getSupabase().from("profiles").select(PROFILE_COLUMNS).maybeSingle());

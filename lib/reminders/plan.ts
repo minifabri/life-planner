@@ -1,9 +1,11 @@
 import { addDays, atLocalTime, localTimeString, relativeDay, trimTime, type LocalDate } from "../dates/local";
 import { localDateString } from "../dates/today";
 import { eventsForDay } from "../events/day";
-import type { Attention, EventException, EventRow, NotificationPrefs, Profile, Task } from "../supabase/types";
+import type { Attention, EventException, EventRow, Medicine, MedicineDose, NotificationPrefs, Profile, Task } from "../supabase/types";
 import { PRIVATE_EVENT_TITLE, PRIVATE_TASK_TITLE, neutralized } from "../private/items";
 import { groupTasks } from "../tasks/classify";
+import { planMedicineReminders } from "../medicines/reminders";
+import { slotTimes } from "../medicines/schedule";
 import { eveningHeading, morningOverview } from "../today/overview";
 
 /**
@@ -44,6 +46,9 @@ export type PlanInput = {
   tasks: PlanTask[];
   events: EventRow[];
   exceptions: EventException[];
+  /** Medicine (D74) e risposte recenti; senza, nessuna notifica delle medicine. */
+  medicines?: Medicine[];
+  doses?: MedicineDose[];
 };
 
 export type PlannedReminder = {
@@ -230,6 +235,22 @@ export function planReminders(input: PlanInput, from: Date, to: Date): PlannedRe
         }
       }
     }
+  }
+
+  // Medicine (D74): orari fissi, titolo neutro. Seguono la fascia di silenzio come gli altri avvisi.
+  if (s.notify_medicines !== false && input.medicines?.length) {
+    const reminders = planMedicineReminders({
+      medicines: input.medicines,
+      doses: input.doses ?? [],
+      times: slotTimes(s),
+      tz,
+      firstDay,
+      lastDay,
+      from,
+      to,
+      shift: (at) => afterQuietHours(at, s),
+    });
+    for (const r of reminders) out.push({ ...r, targetType: "digest", targetId: null, url: "/today" });
   }
 
   return out.sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());

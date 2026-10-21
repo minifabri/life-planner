@@ -4,7 +4,7 @@
  */
 
 /** Tour disponibili: "intro" è quello iniziale, gli altri sono i brevi tour di sezione. */
-export type TourId = "intro" | "calendar" | "shopping" | "meals" | "wishlist" | "wardrobe" | "log";
+export type TourId = "intro" | "calendar" | "shopping" | "meals" | "wishlist" | "wardrobe" | "medicines" | "log";
 
 export type TourStep = {
   /** Valore di `data-tour` degli elementi da evidenziare; senza, il fumetto sta al centro. */
@@ -197,6 +197,24 @@ export const WARDROBE_TOUR: TourStep[] = [
   },
 ];
 
+export const MEDICINES_TOUR: TourStep[] = [
+  {
+    target: "medicines-add",
+    title: "Ritmi diversi",
+    body: "Oltre a tutti i giorni, una medicina può andare solo in certi giorni della settimana o a cicli: una settimana sì e una no, due sì e due no.",
+  },
+  {
+    target: "medicines-today",
+    title: "Te lo chiede Oggi",
+    body: "All'orario della mattina e della sera, Oggi chiede cosa hai preso. «Ricordamelo» la ripropone fra un'ora, tre ore o al prossimo momento; senza risposta, il giorno dopo chiede di ieri.",
+  },
+  {
+    target: "medicines-list",
+    title: "Quando sta finendo",
+    body: "Nella scheda, «Sta finendo» la mette nella lista della Spesa. Sotto c'è lo storico giorno per giorno.",
+  },
+];
+
 export const LOG_TOUR: TourStep[] = [
   {
     target: "log-views",
@@ -222,6 +240,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
   meals: MEALS_TOUR,
   wishlist: WISHLIST_TOUR,
   wardrobe: WARDROBE_TOUR,
+  medicines: MEDICINES_TOUR,
   log: LOG_TOUR,
 };
 
@@ -233,6 +252,7 @@ export const TOUR_LABEL: Record<TourId, string> = {
   meals: "Pasti",
   wishlist: "Acquisti",
   wardrobe: "Guardaroba",
+  medicines: "Medicine",
   log: "Log",
 };
 
