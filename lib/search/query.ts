@@ -68,6 +68,7 @@ export const COMMANDS: Command[] = [
   { id: "today", label: "Vai a Oggi", keywords: ["giorno", "agenda"], href: "/today" },
   { id: "week", label: "Vai alla Settimana", keywords: ["calendario"], href: "/calendar/week" },
   { id: "month", label: "Vai al Mese", keywords: ["calendario"], href: "/calendar/month" },
+  { id: "list", label: "Vai alla Lista del calendario", keywords: ["calendario", "elenco", "prossimi", "filtri"], href: "/calendar/list" },
   { id: "shopping", label: "Vai alla Spesa", keywords: ["liste", "lista"], href: "/lists/shopping" },
   { id: "meals", label: "Vai ai Pasti", keywords: ["liste", "menu", "pranzo", "cena"], href: "/lists/meals" },
   { id: "wishlist", label: "Vai alla Wishlist", keywords: ["liste", "desideri"], href: "/lists/wishlist" },

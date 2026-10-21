@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { CalendarError, CalendarHeader } from "@/components/calendar/calendar-header";
 import { LockSheet } from "@/components/log/lock-sheet";
+import { DayAgenda } from "@/components/calendar/day-agenda";
 import { useCalendar } from "@/components/calendar/use-calendar";
-import { EventBlock } from "@/components/today/event-block";
 import { ItemEditor } from "@/components/today/item-editor";
-import { QuietEvents } from "@/components/today/quiet-events";
-import { TaskRow } from "@/components/today/task-row";
 import { Icon } from "@/components/ui/icon";
 import { Diamond } from "@/components/ui/marks";
-import { WorkoutMark, WorkoutRow } from "@/components/workouts/workout-row";
+import { WorkoutMark } from "@/components/workouts/workout-row";
 import { WorkoutSheet } from "@/components/workouts/workout-sheet";
+import { isEmptyDay } from "@/lib/calendar/filter";
 import { dayMarks, monthGrid, monthStart, type DayMarks } from "@/lib/calendar/view";
 import { useTimezone, useToday } from "@/lib/data/hooks";
 import { useCyclePrediction } from "@/lib/data/cycle-hooks";
@@ -19,7 +18,7 @@ import { useLogUnlocked, useOpenEntries, usePrivateStubs } from "@/lib/data/log-
 import { lockLog } from "@/lib/lock/session";
 import { logDays } from "@/lib/log/timeline";
 import type { CyclePrediction } from "@/lib/cycle/predict";
-import { addMonths, dueLabel, relativeDay, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
+import { addMonths, relativeDay, shortDate, weekdayName, type LocalDate } from "@/lib/dates/local";
 
 const WEEKDAYS = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
 
@@ -76,6 +75,8 @@ export default function MonthPage() {
   const fallback = days.includes(today) && monthStart(today) === month ? today : month;
   const selected = picked && days.includes(picked) ? picked : fallback;
   const preview = views.find((v) => v.day === selected);
+  // Spedizioni e compleanni non hanno un segno nel mese (D57), tranne quando si filtrano (D75).
+  const quietMarks = cal.filters.has("shipment") || cal.filters.has("birthday");
 
   function go(delta: number) {
     setAnchor(addMonths(month, delta));
@@ -149,6 +150,7 @@ export default function MonthPage() {
                       {marks.lessons ? <span className="size-[5px] rounded-full bg-[var(--area-teach)]" /> : null}
                       {marks.tasks ? <span className="size-1.5 rounded-full border-[1.2px] border-text-3" /> : null}
                       {marks.workouts ? <WorkoutMark /> : null}
+                      {quietMarks && marks.shipments + marks.birthdays ? <span className="size-[5px] rounded-[1px] border-[1.2px] border-text-2" /> : null}
                       {hasLog ? <span className="h-px w-1.5 bg-text-2" /> : null}
                     </span>
                   </button>
@@ -171,6 +173,11 @@ export default function MonthPage() {
               <span className="flex items-center gap-1.5">
                 <WorkoutMark /> Allenamenti
               </span>
+              {quietMarks ? (
+                <span className="flex items-center gap-1.5">
+                  <span aria-hidden className="size-[5px] rounded-[1px] border-[1.2px] border-text-2" /> Spedizioni e compleanni
+                </span>
+              ) : null}
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="h-px w-1.5 bg-text-2" /> Log
               </span>
@@ -216,36 +223,16 @@ export default function MonthPage() {
                   <Icon name="chevronRight" size={14} />
                 </button>
               </div>
-              <QuietEvents occurrences={preview.quiet} onOpen={(occurrence) => cal.setEditor({ kind: "event", occurrence })} className="-mt-1.5" />
-              {preview.occurrences.length + preview.timed.length + preview.untimed.length + preview.workouts.length === 0 ? (
-                <p className="text-sm text-text-3">Niente in programma.</p>
-              ) : (
-                <>
-                  {preview.occurrences.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {preview.occurrences.map((o) => (
-                        <EventBlock key={o.key} occurrence={o} area={areaById.get(o.event.area_id ?? "")} onOpen={() => cal.setEditor({ kind: "event", occurrence: o })} />
-                      ))}
-                    </ul>
-                  ) : null}
-                  <ul className="flex flex-col">
-                    {[...preview.timed, ...preview.untimed].map((t) => (
-                      <TaskRow
-                        key={t.id}
-                        task={t}
-                        area={areaById.get(t.area_id ?? "")}
-                        showTime
-                        meta={t.due_date && t.status === "open" ? dueLabel(t.due_date, today) : undefined}
-                        onToggle={() => actions.toggle(t)}
-                        onOpen={() => cal.setEditor({ kind: "task", task: t })}
-                      />
-                    ))}
-                    {preview.workouts.map((w) => (
-                      <WorkoutRow key={w.id} workout={w} today={today} onToggle={() => cal.workoutActions.toggle(w)} onOpen={() => cal.setWorkout(w)} />
-                    ))}
-                  </ul>
-                </>
-              )}
+              <DayAgenda
+                view={preview}
+                today={today}
+                areaById={areaById}
+                onEdit={cal.setEditor}
+                onToggleTask={actions.toggle}
+                onToggleWorkout={cal.workoutActions.toggle}
+                onOpenWorkout={cal.setWorkout}
+              />
+              {isEmptyDay(preview) ? <p className="text-sm text-text-3">{cal.filters.size ? "Niente per i filtri scelti." : "Niente in programma."}</p> : null}
               <button
                 type="button"
                 onClick={() => cal.setEditor({ kind: "new", day: preview.day })}

@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EditorTarget } from "@/components/today/item-editor";
+import { filterDay } from "@/lib/calendar/filter";
 import { buildDay, type DayView } from "@/lib/calendar/view";
+import { useCalendarFilters } from "./calendar-filters";
 import { updateEvent } from "@/lib/data/api";
 import { useDayMarks } from "@/lib/data/day-marks-hooks";
 import { useAreas, useOffline, useRangeEvents, useRangeTasks, useTaskActions, useTimezone, useToday } from "@/lib/data/hooks";
@@ -13,7 +15,7 @@ import type { LocalDate } from "@/lib/dates/local";
 import { openDayNext } from "@/lib/nav/day-handoff";
 import type { Area, Workout } from "@/lib/supabase/types";
 
-/** Dati e azioni comuni a Settimana e Mese per i giorni indicati (consecutivi). */
+/** Dati e azioni comuni a Settimana, Mese e Lista per i giorni indicati (consecutivi), già filtrati (D75). */
 export function useCalendar(days: LocalDate[]) {
   const tz = useTimezone();
   const { today, now } = useToday(tz);
@@ -34,14 +36,15 @@ export function useCalendar(days: LocalDate[]) {
   const workoutActions = useWorkoutActions();
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [workout, setWorkout] = useState<Workout | null>(null);
+  const { active: filters } = useCalendarFilters();
 
   const tasks = tasksQuery.data;
   const events = eventsQuery.data;
   const views = useMemo<DayView[]>(
-    () => (tasks && events ? days.map((day) => buildDay(tasks, events.events, events.exceptions, day, today, tz, workouts)) : []),
+    () => (tasks && events ? days.map((day) => filterDay(buildDay(tasks, events.events, events.exceptions, day, today, tz, workouts), filters)) : []),
     // `days` è ricalcolato a ogni render: l'intervallo è identificato dai suoi estremi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tasks, events, workouts, from, to, today, tz],
+    [tasks, events, workouts, from, to, today, tz, filters],
   );
   const areaById = useMemo(() => new Map<string, Area>((areas ?? []).map((a) => [a.id, a])), [areas]);
 
@@ -53,7 +56,10 @@ export function useCalendar(days: LocalDate[]) {
     today,
     now,
     offline,
-    tasks: tasks ?? [],
+    /** Attività del periodo; vuoto se i filtri le nascondono. */
+    tasks: filters.size && !filters.has("task") ? [] : (tasks ?? []),
+    /** Filtri accesi; vuoto vuol dire tutto. */
+    filters,
     views,
     /** Segni dei giorni (ufficio, viaggio). */
     marks: marks ?? [],

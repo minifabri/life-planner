@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CalendarFilters } from "@/components/calendar/calendar-filters";
 import { SegmentedNav } from "@/components/ui/segmented-nav";
 
 export default function CalendarLayout({ children }: { children: ReactNode }) {
@@ -10,8 +11,10 @@ export default function CalendarLayout({ children }: { children: ReactNode }) {
           { href: "/today", label: "Giorno" },
           { href: "/calendar/week", label: "Settimana" },
           { href: "/calendar/month", label: "Mese" },
+          { href: "/calendar/list", label: "Lista" },
         ]}
       />
+      <CalendarFilters />
       {children}
     </div>
   );

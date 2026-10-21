@@ -55,7 +55,7 @@ describe("matchCommands", () => {
 
   it("trova per etichetta e per parole chiave, senza badare ad accenti e maiuscole", () => {
     expect(matchCommands("spesa").map((c) => c.id)).toEqual(["shopping"]);
-    expect(matchCommands("CALEND").map((c) => c.id)).toEqual(["week", "month"]);
+    expect(matchCommands("CALEND").map((c) => c.id)).toEqual(["week", "month", "list"]);
     expect(matchCommands("tema").map((c) => c.id)).toEqual(["settings", "theme"]);
     expect(matchCommands("vai log").map((c) => c.id)).toEqual(["log"]);
   });

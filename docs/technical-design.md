@@ -562,6 +562,8 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 - **[DA VERIFICARE]** con i dati reali: parole che sbagliano categoria.
 - **Eventi doppi** (D73): `withoutIcloudDuplicates` in `lib/events/duplicates.ts` (puro, con test), applicato in `fetchEvents`, quindi in tutte le viste e nei giorni in viaggio. Un evento iCloud non ripetuto è la copia di uno di Google se hanno inizio e fine entro 30 minuti (o gli stessi giorni, se di tutto il giorno) e almeno una parola del titolo di tre caratteri in comune. Nessuna riga cambia. Restano doppi nella ricerca (`search_all`, lato database).
 
+- **Lista e filtri del calendario** (D75): `lib/calendar/filter.ts` (puro, con test): `occurrenceFilter` (lezioni da `source = imayoga`, poi dal `kind`: viaggio e soggiorno insieme, biglietti, prenotazioni e scadenze in Eventi), `filterDay` (applicato in `useCalendar` a ogni `DayView`, il carico resta quello intero), `parseFilters`/`toggleFilter`. I filtri accesi stanno in `localStorage` (`calendar-filters`) dietro un piccolo store con `useSyncExternalStore` (`components/calendar/calendar-filters.tsx`), condiviso da Settimana, Mese e Lista. Pagina `/calendar/list` (30 giorni, `DayAgenda` in comune con l'anteprima del Mese), in precache e tra i comandi della ricerca.
+
 ### 9.2 imayoga [APPROVATO il 10 ottobre 2026: sola lettura, solo lezioni pubblicate, accesso con token]
 - **Cosa espone** il progetto Supabase `ima-yoga` (id `fmlndlnpooyrvnzhmota`): `classes` (data, ora di inizio, tipo, livello, `published`, `is_individual`, `personal_client_id`), `bookings` (stato `booked` o `waitlist`), `events` (nome, data, ora, luogo, `published`, `archived`). Le lezioni non hanno né durata né luogo.
 - **Regole (D11)**:
@@ -1098,6 +1100,10 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Dati: `lib/data/medicines.ts` passa dalla outbox (`applyToMedicines`, `applyToDoses`); una risposta è un upsert su `(owner_id, medicine_id, day, slot)` con annulla che torna allo stato di prima.
 - Interfaccia: `MedicineFollowUp` in Oggi, pagina `/lists/medicines` con `MedicineSheet`, orari e interruttore in Impostazioni › Notifiche, tour di sezione «medicines», tabelle nell'export. Il selettore di Liste scorre se le cinque voci non stanno nella larghezza.
 - Criteri: lint, typecheck, test e build; su iPhone: aggiungi una medicina per la mattina, all'orario arriva la notifica e la card in Oggi; «Ricordamelo › Tra 1 ora» la ripropone (con notifica) dopo un'ora; lasciata senza risposta, il giorno dopo compare «Ieri …» con Sì / No.
+
+**Incremento 39 — Calendario: Lista e filtri** *(21 ottobre 2026, su richiesta di Bibi, D75)*
+- `lib/calendar/filter.ts` con test, `CalendarFilters` nel layout del calendario, `DayAgenda`, pagina `/calendar/list`; nessuna migrazione.
+- Criteri: lint, typecheck, test e build; dal telefono: in Lista accendi solo «Spedizioni» e vedi solo i pacchi; in Mese con lo stesso filtro i giorni dei pacchi hanno il quadratino; «Tutto» riporta ogni cosa; i filtri restano dopo aver chiuso e riaperto l'app.
 
 ## 14. Decisioni approvate
 

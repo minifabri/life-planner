@@ -9,6 +9,7 @@ const PAGES = [
   "/today",
   "/calendar/week",
   "/calendar/month",
+  "/calendar/list",
   "/lists/shopping",
   "/lists/meals",
   "/lists/wishlist",
