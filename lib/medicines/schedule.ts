@@ -3,7 +3,7 @@ import { localDateString } from "../dates/today";
 import type { Medicine, MedicineDose, MedicineKind, MedicineSlot } from "../supabase/types";
 
 /**
- * Medicine e integratori (D73). Logica pura: quando una medicina va presa, cosa chiedere in Oggi
+ * Medicine e integratori (D74). Logica pura: quando una medicina va presa, cosa chiedere in Oggi
  * e quali scelte offre "Ricordamelo". Regola D70: senza risposta l'app non segna nulla da sola;
  * la mattina dopo chiede una volta sola di ieri.
  */

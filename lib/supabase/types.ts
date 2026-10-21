@@ -32,7 +32,7 @@ export type NotificationPrefs = {
   notify_meal_prep: boolean;
   notify_morning: boolean;
   notify_evening: boolean;
-  /** Medicine (D73): orari fissi della mattina e della sera, e le notifiche. */
+  /** Medicine (D74): orari fissi della mattina e della sera, e le notifiche. */
   medicine_morning_time: string;
   medicine_evening_time: string;
   notify_medicines: boolean;
@@ -375,7 +375,7 @@ export type MedicineKind = "medicine" | "supplement";
 export type MedicineSlot = "morning" | "evening";
 export type MedicineSchedule = "daily" | "weekdays" | "cycle";
 
-/** Una medicina o un integratore (D73). */
+/** Una medicina o un integratore (D74). */
 export type Medicine = {
   id: string;
   name: string;

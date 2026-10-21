@@ -325,7 +325,7 @@ describe("panoramica e revisione", () => {
   });
 });
 
-describe("medicine (D73)", () => {
+describe("medicine (D74)", () => {
   const medicine = {
     id: "m1",
     name: "Vitamina D",

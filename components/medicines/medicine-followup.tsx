@@ -16,7 +16,7 @@ export function KindMark({ kind, size = 14 }: { kind: MedicineKind; size?: numbe
 }
 
 /**
- * Medicine in Oggi (D73, con D70). Dall'orario della mattina e della sera chiede cosa è stato preso:
+ * Medicine in Oggi (D74, con D70). Dall'orario della mattina e della sera chiede cosa è stato preso:
  * "Prese tutte" con un tocco, oppure una per una; per ciò che resta "Ricordamelo" (tra 1 ora, 3 ore,
  * stasera o domattina) e, in "Altro", "Segna come saltata". Di ieri, una sola domanda: Sì o No.
  * Ogni risposta si annulla dal toast. Senza nulla da chiedere non mostra nulla.

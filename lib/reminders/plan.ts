@@ -46,7 +46,7 @@ export type PlanInput = {
   tasks: PlanTask[];
   events: EventRow[];
   exceptions: EventException[];
-  /** Medicine (D73) e risposte recenti; senza, nessuna notifica delle medicine. */
+  /** Medicine (D74) e risposte recenti; senza, nessuna notifica delle medicine. */
   medicines?: Medicine[];
   doses?: MedicineDose[];
 };
@@ -237,7 +237,7 @@ export function planReminders(input: PlanInput, from: Date, to: Date): PlannedRe
     }
   }
 
-  // Medicine (D73): orari fissi, titolo neutro. Seguono la fascia di silenzio come gli altri avvisi.
+  // Medicine (D74): orari fissi, titolo neutro. Seguono la fascia di silenzio come gli altri avvisi.
   if (s.notify_medicines !== false && input.medicines?.length) {
     const reminders = planMedicineReminders({
       medicines: input.medicines,

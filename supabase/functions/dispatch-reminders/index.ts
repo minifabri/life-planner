@@ -198,7 +198,7 @@ async function planFor(db: Db, owner: string, from: Date, to: Date): Promise<Pla
     exceptions = data ?? [];
   }
 
-  // Medicine (D73) e risposte degli ultimi giorni: servono per sapere cosa è ancora aperto e i "ricordamelo".
+  // Medicine (D74) e risposte degli ultimi giorni: servono per sapere cosa è ancora aperto e i "ricordamelo".
   const { data: medicines, error: medicinesError } = await db
     .from("medicines")
     .select("id, morning, evening, schedule, weekdays, cycle_on, cycle_off, start_date, end_date, created_at")

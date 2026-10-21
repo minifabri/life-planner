@@ -26,7 +26,7 @@ function emptyDraft(today: LocalDate): MedicineDraft {
 }
 
 /**
- * Scheda di una medicina o di un integratore (D73): nome, tipo, mattina e/o sera, ritmo
+ * Scheda di una medicina o di un integratore (D74): nome, tipo, mattina e/o sera, ritmo
  * (tutti i giorni, certi giorni, a cicli di settimane), inizio e fine. Per una esistente anche
  * "Sta finendo" (la mette nella Spesa), lo storico giorno per giorno ed Elimina.
  */

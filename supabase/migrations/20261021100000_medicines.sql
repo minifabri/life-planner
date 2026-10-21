@@ -1,4 +1,4 @@
--- Medicine e integratori (D73).
+-- Medicine e integratori (D74).
 --
 -- 1. `medicines`: cosa si prende, quando (mattina, sera o entrambe) e con quale ritmo: tutti i giorni,
 --    solo certi giorni della settimana (1 = lunedì … 7 = domenica) o a cicli di settimane ("N sì, M no",

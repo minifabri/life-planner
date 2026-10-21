@@ -15,7 +15,7 @@ import { SLOTS, SLOT_LABEL, doseIndex, doseKey, dueIn, isDueOn, nextDueDay, phas
 import type { Medicine, MedicineDose } from "@/lib/supabase/types";
 
 /**
- * Medicine e integratori (D73), dentro Liste. In cima ciò che va preso oggi, da segnare in qualsiasi momento
+ * Medicine e integratori (D74), dentro Liste. In cima ciò che va preso oggi, da segnare in qualsiasi momento
  * (le domande in Oggi arrivano all'orario della mattina e della sera); sotto l'elenco, con il ritmo di ognuna.
  */
 export default function MedicinesPage() {

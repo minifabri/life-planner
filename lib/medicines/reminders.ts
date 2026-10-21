@@ -3,7 +3,7 @@ import type { Medicine, MedicineDose, MedicineSlot } from "../supabase/types";
 import { SLOTS, doseIndex, doseKey, dueIn, type SlotTimes } from "./schedule";
 
 /**
- * Notifiche delle medicine (D73). Titolo neutro, mai il nome di una medicina: sono dati di salute.
+ * Notifiche delle medicine (D74). Titolo neutro, mai il nome di una medicina: sono dati di salute.
  * - All'orario del momento (mattina, sera), se c'è qualcosa senza risposta.
  * - All'orario di un "ricordamelo", se è ancora aperto. Più "ricordamelo" alla stessa ora fanno una notifica sola,
  *   e nessuna se a quell'ora arriva già quella del momento.

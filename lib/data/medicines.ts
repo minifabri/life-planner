@@ -7,7 +7,7 @@ import { commit, withPendingDoses, withPendingMedicines } from "../sync/engine";
 import { byId, type Filter, type Op } from "../sync/ops";
 import type { MedicineDraft } from "../medicines/schedule";
 
-/** Medicine e integratori (D73). Le modifiche passano dalla outbox: si segnano anche senza rete. */
+/** Medicine e integratori (D74). Le modifiche passano dalla outbox: si segnano anche senza rete. */
 export const MEDICINES_KEY = ["medicines"];
 /** Risposte dei giorni recenti: bastano per Oggi (ieri e oggi) e per lo storico del mese. */
 export const DOSES_DAYS = 45;

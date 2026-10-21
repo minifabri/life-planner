@@ -1,5 +1,6 @@
 import { addDays, startOfLocalDay, type LocalDate } from "../dates/local";
 import { localDateString } from "../dates/today";
+import { withoutIcloudDuplicates } from "../events/duplicates";
 import { deterministicId, uuidv7 } from "../ids";
 import { toEventInput, toExceptionInputs, toTaskInput, type ImportItem } from "../import/ics";
 import { datesToMaterialize, nextAfterCompletion } from "../recurrence/expand";
@@ -59,7 +60,9 @@ export type { DayEvents };
 /** Eventi che possono toccare i giorni da `day` a `to`: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
 export async function fetchEvents(day: LocalDate, tz: string, to: LocalDate = day): Promise<DayEvents> {
   const events: EventRow[] = check(await eventsFilter(getSupabase().from("events").select("*"), day, tz, to).eq("is_private", false));
-  return withPendingEvents({ events, exceptions: await fetchExceptions(events) }, day, tz, to);
+  const data = await withPendingEvents({ events, exceptions: await fetchExceptions(events) }, day, tz, to);
+  // Lo stesso evento su Google e su iCloud si mostra una volta sola, quello di Google (D73).
+  return { ...data, events: withoutIcloudDuplicates(data.events) };
 }
 
 /** Filtro comune agli eventi pubblici e riservati di una vista: quelli vicini, quelli di tutto il giorno recenti e tutte le serie. */
