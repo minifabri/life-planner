@@ -652,6 +652,21 @@ Il Log sensibile **non** viene salvato in IndexedDB in chiaro: resta online-only
 
 ---
 
+### 9.9 GPT personalizzato "Life Planner" (Azioni di ChatGPT) [RICHIESTO il 19 novembre 2026, D75; realizzato nell'incremento 39]
+- **Forma**: un GPT personalizzato di chi usa l'app (non un plugin, che ChatGPT non ha più), con Azioni OpenAPI e autenticazione a chiave API (Bearer). Scelto rispetto a un'App/connettore MCP, che richiederebbe OAuth 2.1 e la modalità sviluppatore di ChatGPT.
+- **Accesso**: token personale `lp_…` come per Salute (9.8), generato in Impostazioni › ChatGPT e mostrato una volta sola; nel database solo l'impronta, in `chatgpt_links` (RLS e quattro policy, una riga per utente, migrazione `20261119100000_chatgpt_links.sql`). È separato da quello di Salute, così si revocano uno alla volta. Revoca = eliminazione della riga.
+- **Edge Function `chatgpt-actions`** (senza JWT: l'autenticazione è il token). Con la chiave di servizio ogni query filtra per `owner_id`. Azioni:
+  - `GET /openapi.json` (pubblico): lo schema, da importare nell'editor del GPT con "Importa da URL".
+  - `GET /agenda?from&to` (al massimo 31 giorni, di base 7 da oggi): eventi e attività giorno per giorno con `eventsForDay` e `classifyTask`, senza le copie iCloud (D73); se il periodo comprende oggi anche rimaste indietro e nel periodo. Restituisce `today` per calcolare "domani", "venerdì".
+  - `GET /lists`: Spesa da comprare e Wishlist dei desiderati.
+  - `POST /tasks`: attività `source = 'manual'`; con solo `due_date` è nel periodo (da oggi), senza date è per oggi.
+  - `POST /events`: evento `source = 'app'` con data e ore locali nel fuso del profilo, categoria da `kindFromTitle`; senza orario è di tutto il giorno.
+  - `POST /shopping` (al massimo 50): reparto lasciato al trigger `shopping_items_learn`; ciò che è già in lista non si duplica.
+  - `POST /wishlist` (al massimo 30): `source = 'chatgpt'`, prezzo letto con `parsePrice` (indicativo con "~" o intervalli, D21), nessun doppione con stesso nome e marca.
+- **Esclusi**: Log, medicine, attività ed eventi riservati (`is_private`); nessuna modifica né eliminazione, che restano nell'app con il loro Annulla.
+- Le scritture vanno dritte nel database: l'app le vede alla prossima lettura (non passano dalla outbox). Gli eventi non vengono scritti su Google Calendar (la sync è in sola lettura, 9.1b).
+- Logica pura in `lib/chatgpt/actions.ts` e schema in `lib/chatgpt/openapi.ts`, con test; impacchettati per la funzione in `chatgpt.gen.js` (`pnpm build:functions`). Istruzioni del GPT in `lib/chatgpt/instructions.ts` (italiano neutro, cibo vegano, conferma prima di scrivere), copiabili dalle Impostazioni.
+
 ## 10. Export, backup, eliminazione
 
 - **Export** [APPROVATO: dati esportabili] da Impostazioni → Dati: archivio ZIP con un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, `.ics` per gli eventi creati nell'app. Generato da `/api/export` con il token dell'utente.
@@ -1099,6 +1114,11 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Interfaccia: `MedicineFollowUp` in Oggi, pagina `/lists/medicines` con `MedicineSheet`, orari e interruttore in Impostazioni › Notifiche, tour di sezione «medicines», tabelle nell'export. Il selettore di Liste scorre se le cinque voci non stanno nella larghezza.
 - Criteri: lint, typecheck, test e build; su iPhone: aggiungi una medicina per la mattina, all'orario arriva la notifica e la card in Oggi; «Ricordamelo › Tra 1 ora» la ripropone (con notifica) dopo un'ora; lasciata senza risposta, il giorno dopo compare «Ieri …» con Sì / No.
 
+**Incremento 39 — GPT personalizzato per ChatGPT** *(19 novembre 2026, su richiesta di Bibi, D75)*
+- Migrazione `20261119100000_chatgpt_links.sql` applicata; advisor di sicurezza senza avvisi nuovi. Edge Function `chatgpt-actions` pubblicata senza verifica JWT. Sezione 9.9.
+- Impostazioni › ChatGPT: genera, rigenera e revoca il token; mostra schema, token, istruzioni da copiare e i passi per creare il GPT.
+- Criteri: lint, typecheck, test e build; da ChatGPT (web e app sull'iPhone): crea il GPT con lo schema e il token, chiedi "cosa ho domani?", aggiungi un'attività, un evento, due articoli alla Spesa e tre prodotti alla Wishlist e ritrovali nell'app; revoca il token e verifica che il GPT riceva l'errore.
+
 ## 14. Decisioni approvate
 
 Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e riassunte qui sono state approvate. Restano [DA VERIFICARE] solo i fatti da confermare con gli spike S1–S4.
@@ -1118,6 +1138,7 @@ Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e rias
 | T11 | Allenamenti (7b): tabella `workouts` separata; "saltato" calcolato in lettura; nessuna voce di navigazione | [APPROVATO il 10 ottobre 2026] |
 | T12 | Salute di Apple (7c): Comando rapido → Edge Function con token personale (sezione 9.8) | [Lato app realizzato; Comando rapido DA VERIFICARE con lo spike] |
 | T13 | Guardaroba: foto in Supabase Storage (bucket privato, URL firmati, compressione nel browser); capi dell'outfit come elenco di id; storico degli utilizzi in una tabella propria | [APPROVATO l'11 ottobre 2026] |
+| T14 | ChatGPT (D75): GPT personalizzato con Azioni → Edge Function `chatgpt-actions` con token personale (sezione 9.9) | [Lato app realizzato; GPT DA VERIFICARE con la prova da ChatGPT] |
 
 ## 15. Ambiente (risposte del 9 ottobre 2026)
 - **Supabase**: l'account ha due progetti attivi (`ima-yoga`, `game-night`) e uno in pausa (`playlist-builder`), quindi il limite Free è raggiunto. Decisione: **mettere in pausa `game-night`** all'inizio dell'incremento 0, subito prima di creare il progetto del planner (regione consigliata: `eu-central-1`, come gli altri).

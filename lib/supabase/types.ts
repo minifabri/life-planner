@@ -249,6 +249,13 @@ export type HealthLink = {
   last_received_at: string | null;
 };
 
+/** Collegamento del GPT personalizzato: del token resta solo l'impronta, sul server. */
+export type ChatgptLink = {
+  owner_id: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
 /** Un calendario Google letto dal suo indirizzo segreto iCal (l'indirizzo resta sul server). */
 export type GcalCalendar = {
   id: string;
