@@ -27,6 +27,9 @@ import { useImayogaAccount } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
 import { useHealthLink } from "@/lib/health/hooks";
 import { createHealthToken, healthEndpoint, revokeHealthLink } from "@/lib/health/link";
+import { useChatgptLink } from "@/lib/chatgpt/hooks";
+import { GPT_INSTRUCTIONS } from "@/lib/chatgpt/instructions";
+import { chatgptSchemaUrl, createChatgptToken, revokeChatgptLink } from "@/lib/chatgpt/link";
 import {
   checkPushSupport,
   currentSubscription,
@@ -58,6 +61,7 @@ export default function SettingsPage() {
       <ImayogaSection />
       <WorkoutsSection />
       <HealthSection />
+      <ChatgptSection />
       <TemplatesSection />
       <DataSection />
       <AccountSection />
@@ -817,6 +821,102 @@ function HealthSection() {
         ) : null}
       </div>
       {linked && !token ? <p className="text-xs leading-relaxed text-text-3">Un nuovo token toglie validità a quello in uso nel Comando rapido.</p> : null}
+      <Status text={status?.text ?? null} tone={status?.tone} />
+    </Section>
+  );
+}
+
+/* ---------------- ChatGPT ---------------- */
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch {
+      // Senza accesso agli appunti si copia dal testo qui sotto.
+    }
+  }
+  return <Button onClick={copy}>{copied ? "Copiate" : label}</Button>;
+}
+
+function ChatgptSection() {
+  const qc = useQueryClient();
+  const link = useChatgptLink();
+  const [busy, setBusy] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
+
+  async function act(action: () => Promise<string | null>) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const text = await action();
+      setStatus(text ? { text, tone: "ok" } : null);
+    } catch {
+      setStatus({ text: "Operazione non riuscita. Controlla la connessione e riprova.", tone: "warn" });
+    } finally {
+      await qc.invalidateQueries({ queryKey: ["chatgpt-link"] });
+      setBusy(false);
+    }
+  }
+
+  const create = () =>
+    act(async () => {
+      setToken(await createChatgptToken());
+      return null;
+    });
+
+  const revoke = () =>
+    act(async () => {
+      await revokeChatgptLink();
+      setToken(null);
+      return "Token revocato: il GPT non può più leggere né scrivere. Ciò che ha già aggiunto resta.";
+    });
+
+  const linked = !!link.data;
+  const lastUsed = link.data?.last_used_at
+    ? new Date(link.data.last_used_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "Mai";
+
+  return (
+    <Section
+      title="ChatGPT"
+      note="Un GPT personalizzato che legge agenda, Spesa e Wishlist e può aggiungere attività, eventi, articoli e prodotti. Non vede il Log, le medicine e ciò che è riservato, e non modifica né elimina nulla."
+    >
+      <Row
+        label="GPT Life Planner"
+        value={link.isPending ? "…" : linked ? <span className="text-accent">Token attivo</span> : <span className="text-text-3">Non collegato</span>}
+      />
+      {linked ? <Row label="Ultimo uso" value={lastUsed} /> : null}
+      {token ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-line-2 p-3">
+          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm text-text-2">
+            <li>Su chatgpt.com apri Esplora GPT › Crea, scheda Configura.</li>
+            <li>Incolla le istruzioni nel campo Istruzioni.</li>
+            <li>In Azioni scegli Crea nuova azione › Importa da URL e incolla lo schema.</li>
+            <li>In Autenticazione scegli Chiave API, tipo Bearer, e incolla il token.</li>
+            <li>Salva il GPT come «Solo io».</li>
+          </ol>
+          <p className="text-sm text-text-2">Il token si vede solo adesso: se lo perdi, generane uno nuovo.</p>
+          <CopyField id="chatgpt-schema" label="Schema (Importa da URL)" value={chatgptSchemaUrl()} />
+          <CopyField id="chatgpt-token" label="Token" value={token} />
+          <div>
+            <CopyButton value={GPT_INSTRUCTIONS} label="Copia le istruzioni" />
+          </div>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={create} disabled={busy || link.isPending}>
+          {linked ? "Genera un nuovo token" : "Genera il token"}
+        </Button>
+        {linked ? (
+          <Button onClick={revoke} disabled={busy}>
+            Revoca
+          </Button>
+        ) : null}
+      </div>
+      {linked && !token ? <p className="text-xs leading-relaxed text-text-3">Un nuovo token toglie validità a quello in uso nel GPT.</p> : null}
       <Status text={status?.text ?? null} tone={status?.tone} />
     </Section>
   );
