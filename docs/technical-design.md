@@ -1132,6 +1132,12 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - `lib/accounts/accounts.ts` (puro, con test): email, password, `needsName`, messaggi degli errori di Auth e di `admin-users`, ordine dell'elenco. Procedura in `README.md`.
 - Criteri: lint, typecheck, test e build verdi. Da fare su iPhone (PWA installata) e desktop: da Impostazioni › Persone aggiungi un account di prova; dall'altro dispositivo il codice arriva, si sceglie la password, compare «Come ti chiamiamo?», le aree sono quelle generiche, imayoga non c'è, nessun dato di Bibi è visibile; esci e rientra con la password; «password dimenticata» funziona; disattiva: non entra più e non riceve notifiche; riattiva; elimina. Con l'account di Bibi tutto resta com'era, e la prima volta si entra con il codice e si sceglie la password (o si continua con il codice).
 
+**Incremento 41 — Android** *(25 novembre 2026, su richiesta di Bibi)*
+- L'app non cambia: è la stessa PWA. Cambiano le istruzioni. `lib/pwa/platform.ts` (puro, con test) riconosce iPhone, Android e il resto; `lib/pwa/install.ts` tiene da parte l'evento `beforeinstallprompt` di Chrome (preso all'avvio in `ServiceWorkerRegister`).
+- Impostazioni › Notifiche: `components/pwa/install-hint.tsx` mostra su iPhone i passi di Safari, su Android il pulsante «Installa l'app» quando Chrome lo offre, altrimenti i passi dal menu ⋮ (e una riga per Samsung Internet). Installata o su desktop: niente.
+- Salute di Apple nascosta su Android, salvo un collegamento già fatto. Testi del login e delle notifiche validi per tutti e due i telefoni.
+- **[DA VERIFICARE]** su un telefono Android vero: installazione da Chrome, accesso con password e con codice, notifica di prova, blocco del Log con impronta (WebAuthn), Spesa offline.
+
 ## 14. Decisioni approvate
 
 Tutte le proposte delle sezioni precedenti contrassegnate come [PROPOSTA] e riassunte qui sono state approvate. Restano [DA VERIFICARE] solo i fatti da confermare con gli spike S1–S4.

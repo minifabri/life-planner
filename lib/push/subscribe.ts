@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase/client";
+import { detectPlatform, type Platform } from "@/lib/pwa/platform";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -22,9 +23,17 @@ export function isStandalone(): boolean {
   );
 }
 
+export function currentPlatform(): Platform {
+  if (typeof navigator === "undefined") return "other";
+  return detectPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
+}
+
 export function isIOS(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return currentPlatform() === "ios";
+}
+
+export function isAndroid(): boolean {
+  return currentPlatform() === "android";
 }
 
 export function checkPushSupport(): PushSupport {

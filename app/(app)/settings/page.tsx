@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useStartTour } from "@/components/tour/tour-provider";
 import { NewPasswordForm } from "@/components/auth/new-password-form";
 import { ManageAccountsSection } from "@/components/settings/manage-accounts";
+import { InstallHint } from "@/components/pwa/install-hint";
 import { TOUR_LABEL, type TourId } from "@/lib/tour/tour";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
@@ -34,7 +35,9 @@ import { GPT_INSTRUCTIONS } from "@/lib/chatgpt/instructions";
 import { chatgptSchemaUrl, createChatgptToken, revokeChatgptLink } from "@/lib/chatgpt/link";
 import {
   checkPushSupport,
+  currentPlatform,
   currentSubscription,
+  isAndroid,
   isIOS,
   isStandalone,
   scheduleTestNotification,
@@ -422,6 +425,7 @@ function NotificationPrefsForm() {
 
 function NotificationsSection() {
   const [support] = useState<PushSupport | null>(() => (typeof window === "undefined" ? null : checkPushSupport()));
+  const [env] = useState(() => (typeof window === "undefined" ? null : { platform: currentPlatform(), standalone: isStandalone() }));
   const [subscribed, setSubscribed] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "neutral" | "ok" | "warn" } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -462,18 +466,9 @@ function NotificationsSection() {
   return (
     <Section
       title="Notifiche"
-      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
+      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì; su Android arrivano anche dal browser, ma conviene installarla. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
     >
-      {support && !support.ok && support.reason === "ios-not-installed" ? (
-        <div className="flex flex-col gap-2 rounded-[14px] bg-accent-soft p-4 text-sm leading-relaxed">
-          <p>Per ricevere notifiche, installa l’app:</p>
-          <ol className="list-decimal pl-5 text-text-2">
-            <li>Tocca il pulsante Condividi di Safari.</li>
-            <li>Scegli “Aggiungi alla schermata Home”.</li>
-            <li>Apri Planner dall’icona e torna qui.</li>
-          </ol>
-        </div>
-      ) : null}
+      {env ? <InstallHint platform={env.platform} standalone={env.standalone} /> : null}
       {support && !support.ok && support.reason === "denied" ? (
         <Status text="Le notifiche sono bloccate nelle impostazioni del dispositivo per questa app." tone="warn" />
       ) : null}
@@ -763,6 +758,8 @@ function CopyField({ id, label, value }: { id: string; label: string; value: str
 function HealthSection() {
   const qc = useQueryClient();
   const link = useHealthLink();
+  // Il Comando rapido c'è solo su iPhone: su Android la sezione non serve, a meno di un collegamento già fatto.
+  const [android] = useState(() => typeof window !== "undefined" && isAndroid());
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
@@ -798,6 +795,8 @@ function HealthSection() {
   const lastReceived = link.data?.last_received_at
     ? new Date(link.data.last_received_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : "Mai";
+
+  if (android && !linked && !token) return null;
 
   return (
     <Section

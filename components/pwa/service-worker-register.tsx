@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { listenForInstallPrompt } from "@/lib/pwa/install";
 
 /** Si sta scrivendo qualcosa: ricaricare adesso farebbe perdere il testo. */
 function editing(): boolean {
@@ -10,6 +11,8 @@ function editing(): boolean {
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
+    // Su Android Chrome offre l'installazione appena la pagina è pronta: l'evento va preso subito.
+    listenForInstallPrompt();
     if (!("serviceWorker" in navigator)) return;
     const sw = navigator.serviceWorker;
     let registration: ServiceWorkerRegistration | null = null;

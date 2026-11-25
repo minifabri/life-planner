@@ -83,7 +83,7 @@ export default function LoginPage() {
     step === "password"
       ? "Entra con la tua email e la tua password. Al primo accesso ti mando un codice e scegli la password."
       : step === "code"
-        ? `Ho scritto a ${normalizeEmail(email)}. Scrivi qui il codice: sull’app installata su iPhone usa il codice, non il link.`
+        ? `Ho scritto a ${normalizeEmail(email)}. Scrivi qui il codice: se usi l’app installata sul telefono, il codice funziona sempre, il link non sempre.`
         : "Ti servirà per entrare da ogni dispositivo. Potrai cambiarla da Impostazioni › Account.";
 
   return (
