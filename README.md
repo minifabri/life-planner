@@ -43,6 +43,15 @@ docs/                   Product definition e technical design
 - **Cron**: job `dispatch-reminders` ogni minuto → Edge Function omonima → Web Push.
 - **Vercel**: progetto `life-planner`, produzione su `life-planner-theta-mocha.vercel.app`.
 
+## Account di altre persone (D76)
+La registrazione è chiusa: gli account li gestisce chi ha una riga in `app_admins`, da **Impostazioni › Persone**.
+- **Aggiungere**: scrivi l'email e premi Aggiungi. Di' alla persona di aprire l'app e scegliere «Primo accesso o password dimenticata?»: le arriva un codice via email e sceglie la sua password. Al primo accesso l'app le chiede come chiamarla, poi parte il tour.
+- **Disattivare**: non entra più (la sessione aperta scade entro circa un'ora) e non riceve notifiche; i dati restano. **Riattiva** lo rimette com'era; le notifiche vanno riattivate dalle sue Impostazioni.
+- **Eliminare**: toglie l'account con tutti i dati, foto del Guardaroba e segreti compresi. Non si può annullare.
+- Un nuovo amministratore si aggiunge solo via SQL: `insert into public.app_admins (owner_id) values ('<id>');`.
+- I codici via email richiedono un SMTP personalizzato in Supabase Auth: quello predefinito scrive solo ai membri dell'organizzazione.
+- Di' alle persone che i dati stanno nel tuo progetto Supabase: nell'app ognuno vede solo i propri, ma dalla dashboard tu potresti vederli.
+
 ## Stato
 Incremento 2 (Quick Capture) in verifica — vedi `docs/technical-design.md`, sezione 13.
 

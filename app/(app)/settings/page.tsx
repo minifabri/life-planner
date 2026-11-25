@@ -11,6 +11,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { useStartTour } from "@/components/tour/tour-provider";
+import { NewPasswordForm } from "@/components/auth/new-password-form";
+import { ManageAccountsSection } from "@/components/settings/manage-accounts";
 import { TOUR_LABEL, type TourId } from "@/lib/tour/tour";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
@@ -23,7 +25,7 @@ import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import type { PlaceResult } from "@/lib/weather/forecast";
 import { useGcalCalendars } from "@/lib/gcal/hooks";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
-import { useImayogaAccount } from "@/lib/imayoga/hooks";
+import { useImayogaAccount, useImayogaConfigured } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
 import { useHealthLink } from "@/lib/health/hooks";
 import { createHealthToken, healthEndpoint, revokeHealthLink } from "@/lib/health/link";
@@ -64,6 +66,7 @@ export default function SettingsPage() {
       <ChatgptSection />
       <TemplatesSection />
       <DataSection />
+      <ManageAccountsSection />
       <AccountSection />
       <DeleteAccountSection />
     </div>
@@ -628,6 +631,7 @@ function CalendarsSection() {
 function ImayogaSection() {
   const qc = useQueryClient();
   const account = useImayogaAccount();
+  const configured = useImayogaConfigured();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
 
@@ -652,6 +656,8 @@ function ImayogaSection() {
   }
 
   const connected = !!account.data;
+  // Chi non ha il segreto di imayoga non vede la sezione (D76); chi è già collegato la vede sempre.
+  if (!connected && configured.data !== true) return null;
   const lastSync = account.data?.last_synced_at
     ? new Date(account.data.last_synced_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : "Mai";
@@ -970,7 +976,7 @@ function DataSection() {
   return (
     <Section
       title="Dati"
-      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics."
+      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics. I dati stanno nel progetto Supabase di chi gestisce l'app: solo tu li vedi nell'app, ma chi la gestisce può accedervi dalla dashboard."
     >
       <div className="flex flex-wrap gap-2">
         <Button onClick={exportData} disabled={busy}>
@@ -1076,6 +1082,44 @@ function DeleteAccountSection() {
   );
 }
 
+/* ---------------- Password (D76) ---------------- */
+function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(false);
+  if (!open) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div>
+          <Button
+            onClick={() => {
+              setOpen(true);
+              setDone(false);
+            }}
+          >
+            Cambia password
+          </Button>
+        </div>
+        <Status text={done ? "Password cambiata." : null} tone="ok" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-[14px] border border-line-2 p-4">
+      <NewPasswordForm
+        idPrefix="change"
+        submitLabel="Salva la password"
+        onDone={() => {
+          setOpen(false);
+          setDone(true);
+        }}
+      />
+      <div>
+        <Button onClick={() => setOpen(false)}>Annulla</Button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Account e diagnostica (spike S4) ---------------- */
 function AccountSection() {
   const { session } = useAuth();
@@ -1087,11 +1131,12 @@ function AccountSection() {
   const expires = session?.expires_at ? new Date(session.expires_at * 1000) : null;
 
   return (
-    <Section title="Account" note="Per il test del login: chiudi completamente l'app dal multitasking e riaprila. Devi ritrovarti dentro senza un nuovo codice.">
+    <Section title="Account" note="Si entra con email e password; se la dimentichi, dalla schermata di accesso scegli «Primo accesso o password dimenticata?» e ne scegli una nuova con un codice via email.">
       <Row label="Email" value={session?.user.email ?? "—"} />
       <Row label="App installata" value={env ? (env.standalone ? "Sì" : "No, nel browser") : "…"} />
       <Row label="Accesso dal" value={session?.user.last_sign_in_at ? new Date(session.user.last_sign_in_at).toLocaleString("it-IT") : "—"} />
       <Row label="Token rinnovato fino alle" value={expires ? expires.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—"} />
+      <ChangePassword />
       <div>
         <Button
           onClick={async () => {

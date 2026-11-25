@@ -2,8 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/form";
+import { Button, Field, inputClass } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
+import { Sheet } from "@/components/ui/sheet";
+import { needsName } from "@/lib/accounts/accounts";
+import { saveFirstName } from "@/lib/data/accounts";
 import { useProfile } from "@/lib/data/hooks";
 import { flushPendingTours, markTourSeen, pendingTours } from "@/lib/data/tour";
 import { TOURS, autoTour, padRect, placeCard, unionRect, visibleSteps, type CardPlacement, type Rect, type TourId, type TourStep } from "@/lib/tour/tour";
@@ -76,8 +79,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
     if (profile) void flushPendingTours();
   }, [profile]);
 
+  // Al primo accesso, prima del tour, l'app chiede come chiamare la persona (D76); poi non lo chiede più.
+  const askName = !!profile && needsName(profile.display_name, [...(profile.tours_seen ?? []), ...pending]) && pathname === TOUR_PAGE.intro;
   // Tour iniziale arrivando su Oggi; dopo, il tour di ogni sezione la prima volta che la si apre.
-  const wanted = requested ?? (profile ? autoTour([...(profile.tours_seen ?? []), ...pending], pathname, TOUR_PAGE) : null);
+  const wanted = requested ?? (profile && !askName ? autoTour([...(profile.tours_seen ?? []), ...pending], pathname, TOUR_PAGE) : null);
 
   const start = useCallback(
     (id: TourId) => {
@@ -112,8 +117,47 @@ export function TourProvider({ children }: { children: ReactNode }) {
   return (
     <TourContext.Provider value={start}>
       {children}
+      {askName && profile ? <NameSheet onDone={(name) => void saveFirstName(profile, name).catch(() => {})} /> : null}
       {active ? <TourOverlay key={active.id} steps={active.steps} onFinish={finish} /> : null}
     </TourContext.Provider>
+  );
+}
+
+/** "Come ti chiamiamo?": il nome dei saluti di Oggi e delle notifiche. Salta o la X non chiedono più. */
+function NameSheet({ onDone }: { onDone: (name: string | null) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <Sheet title="Ti diamo il benvenuto" isOpen onClose={() => onDone(null)}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onDone(name.trim() || null);
+        }}
+        className="flex flex-col gap-4"
+      >
+        <p className="text-[15px] leading-relaxed">Come ti chiamiamo? Il nome compare nei saluti del mattino e della sera; puoi cambiarlo da Impostazioni.</p>
+        <Field label="Nome" htmlFor="first-name">
+          <input
+            id="first-name"
+            type="text"
+            autoComplete="given-name"
+            maxLength={40}
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="quiet" onClick={() => onDone(null)}>
+            Salta
+          </Button>
+          <Button type="submit" variant="primary" disabled={!name.trim()}>
+            Continua
+          </Button>
+        </div>
+      </form>
+    </Sheet>
   );
 }
 

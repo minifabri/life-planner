@@ -2,10 +2,15 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchImayogaAccount, SYNC_INTERVAL_MS, syncImayoga } from "./sync";
+import { fetchImayogaAccount, fetchImayogaConfigured, SYNC_INTERVAL_MS, syncImayoga } from "./sync";
 
 export function useImayogaAccount() {
   return useQuery({ queryKey: ["imayoga-account"], queryFn: fetchImayogaAccount, staleTime: 60_000 });
+}
+
+/** Se l'account ha il segreto di imayoga. Cambia solo a mano, via SQL: basta chiederlo una volta. */
+export function useImayogaConfigured() {
+  return useQuery({ queryKey: ["imayoga-configured"], queryFn: fetchImayogaConfigured, staleTime: Infinity, retry: 1 });
 }
 
 /** All'apertura dell'app e al ritorno in primo piano aggiorna le lezioni di imayoga, al massimo ogni 10 minuti. */

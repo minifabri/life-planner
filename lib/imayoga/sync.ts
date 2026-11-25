@@ -48,6 +48,13 @@ async function fetchFeed(from: string, to: string): Promise<FeedItem[]> {
   return data.items;
 }
 
+/** Se l'account ha il segreto di imayoga (D76): chi non ce l'ha non vede la sezione. */
+export async function fetchImayogaConfigured(): Promise<boolean> {
+  const { data, error } = await getSupabase().functions.invoke<{ configured?: boolean }>("imayoga-feed", { body: { action: "status" } });
+  if (error || !data) throw new ImayogaError("network");
+  return data.configured === true;
+}
+
 export async function fetchImayogaAccount(): Promise<ImayogaAccount | null> {
   return check(await getSupabase().from("imayoga_accounts").select("owner_id, last_synced_at, last_error").maybeSingle());
 }
