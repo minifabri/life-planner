@@ -97,7 +97,7 @@
   - Motivo: su iPhone la PWA installata ha uno storage separato da Safari. Un magic link aperto dalla mail si apre in Safari e non autentica l'app installata. Il codice si digita nell'app stessa.
 - Sessione lunga con refresh automatico: il login si fa raramente.
 - Registrazione chiusa: dopo la creazione dell'account di Bibi, le nuove registrazioni vengono disabilitate nelle impostazioni di Supabase Auth.
-- **Altri account (D76)**: la registrazione resta chiusa. Un nuovo account si crea dalla dashboard (Authentication › Add user, email già confermata); `signInWithOtp` con `shouldCreateUser: true` fa entrare gli utenti esistenti anche a registrazione chiusa. L'invio dei codici richiede un SMTP personalizzato: quello predefinito di Supabase scrive solo agli indirizzi dei membri dell'organizzazione e con limiti orari bassi. **[DA VERIFICARE]** quale SMTP usa oggi il progetto.
+- **Altri account (D76)**: la registrazione resta chiusa; gli account li crea l'amministratrice dall'app (incremento 40). Accesso con **email e password**; il codice OTP resta per il primo accesso, per la password dimenticata e come alternativa. L'invio dei codici richiede un SMTP personalizzato: quello predefinito di Supabase scrive solo agli indirizzi dei membri dell'organizzazione e con limiti orari bassi. **[DA VERIFICARE]** quale SMTP usa oggi il progetto.
 
 ### 4.2 Blocco del Personal Log [APPROVATO: Face ID/PIN; PROPOSTA: implementazione]
 - **WebAuthn** con autenticatore di piattaforma (Face ID su iPhone, Touch ID/Windows Hello su desktop), `userVerification: "required"`. Si registra una credenziale locale al primo utilizzo; lo sblocco è una verifica locale. **[DA VERIFICARE]** comportamento di WebAuthn nella PWA installata su iOS (spike S2).
@@ -1120,17 +1120,25 @@ L'ordine segue l'uso quotidiano: dopo l'incremento 5 l'app sostituisce già prom
 - Impostazioni › ChatGPT: genera, rigenera e revoca il token; mostra schema, token, istruzioni da copiare e i passi per creare il GPT.
 - Criteri: lint, typecheck, test e build; da ChatGPT (web e app sull'iPhone): crea il GPT con lo schema e il token, chiedi "cosa ho domani?", aggiungi un'attività, un evento, due articoli alla Spesa e tre prodotti alla Wishlist e ritrovali nell'app; revoca il token e verifica che il GPT riceva l'errore.
 
-**Incremento 40 — Altri account, su invito** *(proposto il 25 novembre 2026, su richiesta di Bibi, D76)* [PROPOSTA, da avviare]
-- **Verifiche prima del codice**: in Supabase Auth le registrazioni sono chiuse; SMTP personalizzato configurato (per esempio Resend, con un dominio mittente verificato) e prova di invio del codice a un indirizzo esterno all'organizzazione. Senza SMTP l'altra persona non riceve il codice.
-- **Migrazione** `handle_new_user` (un file nuovo): `display_name` vuoto invece della parte dell'email prima della @ (i saluti funzionano già senza nome: «Buongiorno.»); valori di partenza generici. Proposta da confermare con Bibi:
-  - aree: Lavoro, Casa, Salute e benessere, Tempo libero, Persone;
-  - categorie del Log: Ciclo (riservata), Salute (riservata), Cura personale, Personale.
-  Gli account esistenti non cambiano.
-- **Primo accesso**: se `display_name` è vuoto, prima del tour iniziale (D67) un foglio chiede «Come ti chiamiamo?» con un campo e **Salta**; il nome resta modificabile in Impostazioni. Testi neutri rispetto al genere.
-- **imayoga**: la sezione in Impostazioni e la sync automatica (`useImayogaAutoSync`) compaiono solo se l'account ha il segreto. Funzione `imayoga_is_configured()` (security definer, `auth.uid()`, restituisce solo un booleano, nessun dato del segreto).
-- **Testi**: la nota in Impostazioni › Dati spiega che i dati stanno sul progetto di chi gestisce l'app.
-- **Procedura** in `README.md`: come creare un account, cosa dire alla persona, come eliminarlo (`delete-account` già esistente).
-- Criteri: lint, typecheck, test (nuovi test per la scelta dei valori di partenza, se diventa codice in `lib/`) e build; advisor di sicurezza dopo la migrazione; con un account di prova creato dalla dashboard: il codice arriva, al primo accesso compare «Come ti chiamiamo?», le aree sono quelle generiche, imayoga non c'è, nessun dato di Bibi è visibile; con l'account di Bibi tutto resta com'era. Su iPhone (PWA installata) e desktop.
+**Incremento 40 — Altri account, gestiti da Bibi** *(proposto il 25 novembre 2026, su richiesta di Bibi, D76)* [PROPOSTA, da avviare]
+- **Verifiche prima del codice**: registrazioni chiuse in Supabase Auth; accesso con password attivo; SMTP personalizzato (per esempio Resend, con un dominio mittente verificato) e prova di invio del codice a un indirizzo esterno all'organizzazione. **[DA VERIFICARE]** che con "Secure password change" attivo il cambio password subito dopo l'accesso con codice non chieda un'altra verifica; lunghezza minima della password (proposta: 8 caratteri).
+- **Chi amministra**: tabella `app_admins (owner_id pk)` con RLS (ognuno legge solo la propria riga, nessuna scrittura dal client); la riga di Bibi si inserisce a mano via SQL nella migrazione o subito dopo. Nessun ruolo nel JWT.
+- **Edge Function `admin-users`** (JWT verificato nel codice): controlla che chi chiama sia in `app_admins`, poi con la service role:
+  - `list`: email, creato il, ultimo accesso, attivo o disattivato (mai altri dati);
+  - `add`: `auth.admin.createUser` con email già confermata e senza password;
+  - `deactivate` / `reactivate`: `ban_duration` lungo / `none`; alla disattivazione elimina le `push_subscriptions` dell'account. La sessione già aperta scade al più tardi al prossimo rinnovo del token (circa un'ora);
+  - `delete`: la stessa pulizia di `delete-account` (segreti in Vault, file in Storage, utente), riusata come modulo condiviso.
+  Un'amministratrice non può disattivare né eliminare sé stessa da qui.
+- **Impostazioni › Account** (solo se l'account è in `app_admins`): elenco degli account, «Aggiungi» (email), e per ciascuno Disattiva / Riattiva / Elimina. Eliminare chiede conferma scrivendo l'email; disattivare ha Annulla (riattiva).
+- **Accesso** (`app/(auth)/login`): email e password; «Primo accesso o password dimenticata?» manda il codice e, dopo il codice, chiede la nuova password (`auth.updateUser`). «Accedi con un codice» resta disponibile. Un account disattivato vede «Questo account è stato disattivato.» Impostazioni › Sicurezza: «Cambia password».
+- **Migrazione** `handle_new_user` (un file nuovo): `display_name` vuoto invece della parte dell'email prima della @ (i saluti funzionano già senza nome: «Buongiorno.»); valori di partenza generici, solo per gli account nuovi:
+  - aree (proposta): Lavoro, Casa, Salute e benessere, Tempo libero, Persone;
+  - categorie del Log: Salute (riservata), Cura personale, Personale. Niente Ciclo.
+- **Primo accesso**: dopo la scelta della password, se `display_name` è vuoto, prima del tour iniziale (D67) un foglio chiede «Come ti chiamiamo?» con un campo e **Salta**; il nome resta modificabile in Impostazioni. Testi neutri rispetto al genere.
+- **imayoga**: la sezione in Impostazioni e la sync automatica (`useImayogaAutoSync`) solo se l'account ha il segreto. Funzione `imayoga_is_configured()` (security definer, `auth.uid()`, restituisce solo un booleano).
+- **Testi**: in Impostazioni › Dati una nota dice che i dati stanno sul progetto di chi gestisce l'app.
+- Logica pura in `lib/` con test: controlli dell'email e della password, stato dell'account (attivo, disattivato) dalla risposta di `list`.
+- Criteri: lint, typecheck, test e build; advisor di sicurezza dopo la migrazione; da Impostazioni › Account aggiungi un account di prova; dall'altro dispositivo: il codice arriva, si sceglie la password, compare «Come ti chiamiamo?», le aree sono quelle generiche, imayoga non c'è, nessun dato di Bibi è visibile; esci e rientra con la password; «password dimenticata» funziona; disattiva l'account: non entra più e non riceve notifiche; riattiva; elimina: sparisce con i suoi dati. Con l'account di Bibi tutto resta com'era e Impostazioni › Account non compare all'account di prova. Su iPhone (PWA installata) e desktop.
 
 ## 14. Decisioni approvate
 
