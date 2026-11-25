@@ -11,6 +11,9 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Field, inputClass } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { useStartTour } from "@/components/tour/tour-provider";
+import { NewPasswordForm } from "@/components/auth/new-password-form";
+import { ManageAccountsSection } from "@/components/settings/manage-accounts";
+import { InstallHint } from "@/components/pwa/install-hint";
 import { TOUR_LABEL, type TourId } from "@/lib/tour/tour";
 import { createExport, deleteAccount, deliverExport } from "@/lib/data/export";
 import { useProfile } from "@/lib/data/hooks";
@@ -23,7 +26,7 @@ import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import type { PlaceResult } from "@/lib/weather/forecast";
 import { useGcalCalendars } from "@/lib/gcal/hooks";
 import { useIcloudAccount } from "@/lib/icloud/hooks";
-import { useImayogaAccount } from "@/lib/imayoga/hooks";
+import { useImayogaAccount, useImayogaConfigured } from "@/lib/imayoga/hooks";
 import { connectImayoga, disconnectImayoga, imayogaErrorMessage, syncImayoga } from "@/lib/imayoga/sync";
 import { useHealthLink } from "@/lib/health/hooks";
 import { createHealthToken, healthEndpoint, revokeHealthLink } from "@/lib/health/link";
@@ -32,7 +35,9 @@ import { GPT_INSTRUCTIONS } from "@/lib/chatgpt/instructions";
 import { chatgptSchemaUrl, createChatgptToken, revokeChatgptLink } from "@/lib/chatgpt/link";
 import {
   checkPushSupport,
+  currentPlatform,
   currentSubscription,
+  isAndroid,
   isIOS,
   isStandalone,
   scheduleTestNotification,
@@ -64,6 +69,7 @@ export default function SettingsPage() {
       <ChatgptSection />
       <TemplatesSection />
       <DataSection />
+      <ManageAccountsSection />
       <AccountSection />
       <DeleteAccountSection />
     </div>
@@ -419,6 +425,7 @@ function NotificationPrefsForm() {
 
 function NotificationsSection() {
   const [support] = useState<PushSupport | null>(() => (typeof window === "undefined" ? null : checkPushSupport()));
+  const [env] = useState(() => (typeof window === "undefined" ? null : { platform: currentPlatform(), standalone: isStandalone() }));
   const [subscribed, setSubscribed] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "neutral" | "ok" | "warn" } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -459,18 +466,9 @@ function NotificationsSection() {
   return (
     <Section
       title="Notifiche"
-      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
+      note="Su iPhone le notifiche funzionano solo con l'app aggiunta alla schermata Home e aperta da lì; su Android arrivano anche dal browser, ma conviene installarla. Si attivano su ogni dispositivo; le preferenze valgono per tutti. Le registrazioni del Log non mandano avvisi."
     >
-      {support && !support.ok && support.reason === "ios-not-installed" ? (
-        <div className="flex flex-col gap-2 rounded-[14px] bg-accent-soft p-4 text-sm leading-relaxed">
-          <p>Per ricevere notifiche, installa l’app:</p>
-          <ol className="list-decimal pl-5 text-text-2">
-            <li>Tocca il pulsante Condividi di Safari.</li>
-            <li>Scegli “Aggiungi alla schermata Home”.</li>
-            <li>Apri Planner dall’icona e torna qui.</li>
-          </ol>
-        </div>
-      ) : null}
+      {env ? <InstallHint platform={env.platform} standalone={env.standalone} /> : null}
       {support && !support.ok && support.reason === "denied" ? (
         <Status text="Le notifiche sono bloccate nelle impostazioni del dispositivo per questa app." tone="warn" />
       ) : null}
@@ -628,6 +626,7 @@ function CalendarsSection() {
 function ImayogaSection() {
   const qc = useQueryClient();
   const account = useImayogaAccount();
+  const configured = useImayogaConfigured();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
 
@@ -652,6 +651,8 @@ function ImayogaSection() {
   }
 
   const connected = !!account.data;
+  // Chi non ha il segreto di imayoga non vede la sezione (D76); chi è già collegato la vede sempre.
+  if (!connected && configured.data !== true) return null;
   const lastSync = account.data?.last_synced_at
     ? new Date(account.data.last_synced_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : "Mai";
@@ -757,6 +758,8 @@ function CopyField({ id, label, value }: { id: string; label: string; value: str
 function HealthSection() {
   const qc = useQueryClient();
   const link = useHealthLink();
+  // Il Comando rapido c'è solo su iPhone: su Android la sezione non serve, a meno di un collegamento già fatto.
+  const [android] = useState(() => typeof window !== "undefined" && isAndroid());
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
@@ -792,6 +795,8 @@ function HealthSection() {
   const lastReceived = link.data?.last_received_at
     ? new Date(link.data.last_received_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : "Mai";
+
+  if (android && !linked && !token) return null;
 
   return (
     <Section
@@ -970,7 +975,7 @@ function DataSection() {
   return (
     <Section
       title="Dati"
-      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics."
+      note="L'esportazione è un archivio ZIP con tutti i tuoi dati: un file JSON per tabella, CSV per Spesa, Wishlist, Log e Pasti, e gli eventi creati qui in formato calendario. L'importazione porta dentro eventi e promemoria da un file .ics. I dati stanno nel progetto Supabase di chi gestisce l'app: solo tu li vedi nell'app, ma chi la gestisce può accedervi dalla dashboard."
     >
       <div className="flex flex-wrap gap-2">
         <Button onClick={exportData} disabled={busy}>
@@ -1076,6 +1081,44 @@ function DeleteAccountSection() {
   );
 }
 
+/* ---------------- Password (D76) ---------------- */
+function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(false);
+  if (!open) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div>
+          <Button
+            onClick={() => {
+              setOpen(true);
+              setDone(false);
+            }}
+          >
+            Cambia password
+          </Button>
+        </div>
+        <Status text={done ? "Password cambiata." : null} tone="ok" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-[14px] border border-line-2 p-4">
+      <NewPasswordForm
+        idPrefix="change"
+        submitLabel="Salva la password"
+        onDone={() => {
+          setOpen(false);
+          setDone(true);
+        }}
+      />
+      <div>
+        <Button onClick={() => setOpen(false)}>Annulla</Button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Account e diagnostica (spike S4) ---------------- */
 function AccountSection() {
   const { session } = useAuth();
@@ -1087,11 +1130,12 @@ function AccountSection() {
   const expires = session?.expires_at ? new Date(session.expires_at * 1000) : null;
 
   return (
-    <Section title="Account" note="Per il test del login: chiudi completamente l'app dal multitasking e riaprila. Devi ritrovarti dentro senza un nuovo codice.">
+    <Section title="Account" note="Si entra con email e password; se la dimentichi, dalla schermata di accesso scegli «Primo accesso o password dimenticata?» e ne scegli una nuova con un codice via email.">
       <Row label="Email" value={session?.user.email ?? "—"} />
       <Row label="App installata" value={env ? (env.standalone ? "Sì" : "No, nel browser") : "…"} />
       <Row label="Accesso dal" value={session?.user.last_sign_in_at ? new Date(session.user.last_sign_in_at).toLocaleString("it-IT") : "—"} />
       <Row label="Token rinnovato fino alle" value={expires ? expires.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—"} />
+      <ChangePassword />
       <div>
         <Button
           onClick={async () => {

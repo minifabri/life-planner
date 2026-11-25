@@ -34,13 +34,16 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: "richiesta non valida" }, 400);
   }
-  const from = String(input.from ?? "");
-  const to = String(input.to ?? "");
-  if (!DATE.test(from) || !DATE.test(to)) return json({ error: "richiesta non valida" }, 400);
-
   const { data: rows, error } = await db.rpc("imayoga_get_feed_config", { p_owner: owner });
   if (error) return json({ error: error.message }, 500);
   const config = (Array.isArray(rows) ? rows[0] : rows) as FeedConfig | undefined;
+
+  // Solo se l'account ha il segreto: serve a mostrare la sezione in Impostazioni (D76). Nient'altro del segreto.
+  if (input.action === "status") return json({ configured: !!config?.token });
+
+  const from = String(input.from ?? "");
+  const to = String(input.to ?? "");
+  if (!DATE.test(from) || !DATE.test(to)) return json({ error: "richiesta non valida" }, 400);
   if (!config?.token) return json({ error: "not_configured" });
 
   let url: URL;
